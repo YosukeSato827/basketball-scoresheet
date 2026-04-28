@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <title>バスケットボール スコアシート生成</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -48,23 +51,25 @@ textarea#pbpInput {
   box-shadow: 0 2px 10px rgba(0,0,0,.15);
 }
 
-/* スコアシート本体 - A4縦に準拠 */
+/* スコアシート本体 - A4縦（595×842pt）に準拠 */
 .sheet {
-  width: 570px;          /* 595px ページ幅から余白引いた値 */
-  font-family: 'Meiryo', 'Yu Gothic', 'MS Gothic', sans-serif;
+  width: 575px;
+  font-family: 'Klee One', 'Meiryo', cursive;
   font-size: 6.5pt;
-  border: 1.5px solid #000;
+  border: 2px solid rgba(52,38,24,0.75);
   position: relative;
+  background: #fdf8f0;
+  filter: url(#pencil);
 }
 
 /* ===== ヘッダー行 ===== */
 .sheet-header {
   display: flex;
-  border-bottom: 1.5px solid #000;
+  border-bottom: 1.5px solid rgba(52,38,24,0.75);
 }
 .header-title-block {
   width: 295px; flex-shrink: 0;
-  border-right: 1px solid #000;
+  border-right: 1px solid rgba(52,38,24,0.75);
   padding: 2px 4px;
 }
 .sheet-title {
@@ -77,12 +82,12 @@ textarea#pbpInput {
   display: flex; flex-direction: column;
 }
 .info-row {
-  display: flex; border-bottom: 1px solid #000;
+  display: flex; border-bottom: 1px solid rgba(52,38,24,0.75);
 }
 .info-row:last-child { border-bottom: none; }
 .info-cell {
   flex: 1; padding: 1px 3px; font-size: 6pt;
-  border-right: 1px solid #bbb;
+  border-right: 1px solid rgba(120,95,70,0.45);
 }
 .info-cell:last-child { border-right: none; }
 .info-cell label { color: #555; }
@@ -90,30 +95,30 @@ textarea#pbpInput {
 /* ===== メインエリア ===== */
 .sheet-main {
   display: flex;
-  border-bottom: 1.5px solid #000;
+  border-bottom: 1.5px solid rgba(52,38,24,0.75);
 }
 
 /* ===== 左パネル（チームA + チームB） ===== */
 .left-panel {
   width: 295px; flex-shrink: 0;
-  border-right: 1.5px solid #000;
+  border-right: 1.5px solid rgba(52,38,24,0.75);
   display: flex; flex-direction: column;
 }
 .team-section {
   flex: 1;
-  border-bottom: 1.5px solid #000;
+  border-bottom: 1.5px solid rgba(52,38,24,0.75);
 }
 .team-section:last-child { border-bottom: none; }
 
 /* チーム名行 */
 .team-name-row {
   display: flex; align-items: stretch;
-  border-bottom: 1px solid #000;
-  background: #f5f5f5;
+  border-bottom: 1px solid rgba(52,38,24,0.75);
+  background: #f0e8d8;
 }
 .team-label-cell {
   font-size: 6pt; font-weight: bold;
-  padding: 1px 3px; border-right: 1px solid #000;
+  padding: 1px 3px; border-right: 1px solid rgba(52,38,24,0.75);
   white-space: nowrap; display: flex; align-items: center;
 }
 .team-name-val {
@@ -124,12 +129,12 @@ textarea#pbpInput {
 /* タイムアウト & チームファウル行 */
 .timeout-fouls-header {
   display: flex;
-  border-bottom: 1px solid #000;
+  border-bottom: 1px solid rgba(52,38,24,0.75);
 }
 .to-block, .tf-block {
   flex: 1; padding: 1px 2px;
 }
-.to-block { border-right: 1px solid #000; }
+.to-block { border-right: 1px solid rgba(52,38,24,0.75); }
 .block-title { font-size: 5.5pt; font-weight: bold; color: #333; }
 .quarter-rows { margin-top: 1px; }
 .qrow { display: flex; align-items: center; gap: 2px; font-size: 5.5pt; margin-bottom: 1px; }
@@ -137,9 +142,9 @@ textarea#pbpInput {
 .q-period { display: flex; align-items: center; gap: 1px; margin-right: 4px; }
 .q-period-label { font-weight: bold; font-size: 5pt; }
 .q-box {
-  width: 11px; height: 8px; border: 1px solid #888;
+  width: 11px; height: 8px; border: 1px solid rgba(120,95,70,0.5);
   font-size: 5pt; text-align: center; line-height: 8px;
-  background: white;
+  background: #fdf8f0;
 }
 .q-box.used { background: #ffcdd2; font-weight: bold; }
 .q-box.tf-used { background: #ffcdd2; text-decoration: line-through; }
@@ -147,9 +152,9 @@ textarea#pbpInput {
 /* 選手テーブル */
 .foul-header-row {
   display: flex;
-  border-top: 1px solid #000;
-  border-bottom: 1px solid #000;
-  background: #eeeeee;
+  border-top: 1px solid rgba(52,38,24,0.75);
+  border-bottom: 1px solid rgba(52,38,24,0.75);
+  background: #e8dcc8;
   font-size: 5pt; font-weight: bold;
 }
 .foul-header-row > div {
@@ -167,14 +172,14 @@ textarea#pbpInput {
 .player-rows { display: flex; flex-direction: column; }
 .player-row {
   display: flex; align-items: center;
-  border-bottom: 1px solid #ccc;
-  min-height: 11px;
+  border-bottom: 1px solid rgba(120,95,70,0.35);
+  min-height: 14px;
 }
 .player-row:last-child { border-bottom: none; }
 .player-row > div {
   font-size: 6pt; text-align: center;
-  border-right: 1px solid #ccc;
-  padding: 0; line-height: 11px; height: 11px;
+  border-right: 1px solid rgba(120,95,70,0.35);
+  padding: 0; line-height: 14px; height: 14px;
   overflow: hidden;
 }
 .player-row > div:last-child { border-right: none; }
@@ -189,12 +194,12 @@ textarea#pbpInput {
 
 /* コーチ行 */
 .coach-rows {
-  border-top: 1px solid #000;
+  border-top: 1px solid rgba(52,38,24,0.75);
   font-size: 5.5pt;
 }
 .coach-row {
   display: flex; align-items: center;
-  border-bottom: 1px solid #ccc; height: 11px; padding: 0 3px;
+  border-bottom: 1px solid rgba(120,95,70,0.35); height: 14px; padding: 0 3px;
 }
 .coach-row:last-child { border-bottom: none; }
 .coach-label { font-weight: bold; margin-right: 4px; white-space: nowrap; }
@@ -208,8 +213,8 @@ textarea#pbpInput {
 
 .running-label {
   text-align: center; font-size: 6pt; font-weight: bold;
-  border-bottom: 1px solid #000; padding: 1px;
-  background: #fafafa;
+  border-bottom: 1px solid rgba(52,38,24,0.75); padding: 1px;
+  background: #f7f0e4;
 }
 
 .running-score-table {
@@ -219,19 +224,19 @@ textarea#pbpInput {
 }
 .running-score-table th,
 .running-score-table td {
-  border: 1px solid #aaa;
+  border: 1px solid rgba(120,95,70,0.45);
   padding: 0;
   text-align: center;
-  height: 12px;
-  line-height: 12px;
+  height: 17px;
+  line-height: 17px;
   overflow: hidden;
 }
 .running-score-table th {
-  background: #eeeeee;
+  background: #e8dcc8;
   font-size: 5.5pt;
   font-weight: bold;
-  height: 10px;
-  line-height: 10px;
+  height: 11px;
+  line-height: 11px;
 }
 /* A header: 薄いオレンジ, B header: 薄い青 */
 .th-a { background: #fff3e0; }
@@ -240,12 +245,13 @@ textarea#pbpInput {
 /* ランニングスコアセル幅 */
 /* 1グループ = a-blank(wide) + a-num + b-num + b-blank(wide) */
 .col-a-blank { width: 21px; }  /* Aチームの書き込み欄 */
-.col-num     { width: 12px; font-size: 5.5pt; color: #666; background: #fafafa; }
+.col-num     { width: 12px; font-size: 5.5pt; color: #666; background: #f7f0e4; }
 .col-b-blank { width: 21px; }  /* Bチームの書き込み欄 */
 
 /* スコアセル（書き込み欄）のスタイル */
 td.a-blank, td.b-blank {
-  font-size: 6pt; font-weight: bold;
+  font-size: 7pt; font-weight: 700;
+  font-family: 'Caveat', 'Klee One', cursive;
 }
 td.fg-mark { background: #e8f5e9; }
 td.ft-mark { background: #fff9c4; }
@@ -257,17 +263,17 @@ td.qot span { color: #6a1b9a; }
 /* ===== 得点集計行 ===== */
 .sheet-footer {
   display: flex;
-  border-bottom: 1.5px solid #000;
+  border-bottom: 1.5px solid rgba(52,38,24,0.75);
 }
 .quarter-score-section { flex: 1; }
 .qs-table {
   width: 100%; border-collapse: collapse;
 }
 .qs-table th, .qs-table td {
-  border: 1px solid #aaa; font-size: 6pt;
+  border: 1px solid rgba(120,95,70,0.45); font-size: 6pt;
   text-align: center; padding: 1px 2px; height: 13px; line-height: 13px;
 }
-.qs-table th { background: #eeeeee; font-weight: bold; }
+.qs-table th { background: #e8dcc8; font-weight: bold; }
 .qs-name { text-align: left; padding-left: 3px; font-weight: bold; }
 .qs-total { font-weight: bold; background: #fff9c4; font-size: 7pt; }
 .qs-winner td { background: #e8f5e9; font-weight: bold; }
@@ -275,7 +281,7 @@ td.qot span { color: #6a1b9a; }
 /* ===== 署名欄 ===== */
 .sheet-signatures {
   display: flex;
-  border-bottom: 1.5px solid #000;
+  border-bottom: 1.5px solid rgba(52,38,24,0.75);
 }
 .sig-cell {
   flex: 1; font-size: 5.5pt; padding: 1px 3px;
@@ -331,6 +337,17 @@ td.qot span { color: #6a1b9a; }
     <span class="hint">※ 印刷設定でA4縦・余白8mmを推奨</span>
   </div>
 </div>
+
+<!-- SVGフィルター（色鉛筆の線のざらつき） -->
+<svg style="position:absolute;width:0;height:0;overflow:hidden">
+  <defs>
+    <filter id="pencil" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="4" seed="8" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="0.9"
+        xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+</svg>
 
 <!-- ===== 出力エリア ===== -->
 <div id="output"></div>
