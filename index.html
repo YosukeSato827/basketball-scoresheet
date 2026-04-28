@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>バスケットボール スコアシート生成</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body { font-family: 'Meiryo', 'Yu Gothic', sans-serif; font-size: 11px; background: #e8eaf6; }
+
+/* ===== 入力フォーム ===== */
+.input-section {
+  background: white; padding: 20px; margin: 16px;
+  border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,.15);
+}
+.input-section h1 { font-size: 20px; margin-bottom: 16px; color: #1a237e; }
+.input-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px; margin-bottom: 12px;
+}
+.input-grid label, .pbp-label {
+  display: block; font-size: 11px; font-weight: bold; margin-bottom: 3px; color: #333;
+}
+.input-grid input {
+  width: 100%; padding: 6px 8px; border: 1px solid #bbb;
+  border-radius: 4px; font-size: 13px; font-family: inherit;
+}
+textarea#pbpInput {
+  width: 100%; height: 160px; padding: 8px;
+  border: 1px solid #bbb; border-radius: 4px;
+  font-size: 12px; font-family: 'Consolas', monospace; resize: vertical;
+}
+.btn-row { margin-top: 12px; display: flex; gap: 8px; align-items: center; }
+.btn {
+  padding: 8px 20px; font-size: 13px; border: none;
+  border-radius: 4px; cursor: pointer; font-weight: bold;
+}
+.btn-gen  { background: #1565c0; color: white; }
+.btn-gen:hover  { background: #0d47a1; }
+.btn-print{ background: #2e7d32; color: white; }
+.btn-print:hover{ background: #1b5e20; }
+.hint { font-size: 10px; color: #777; }
+
+/* ===== スコアシート全体 ===== */
+.scoresheet-wrap {
+  background: white; margin: 0 16px 16px;
+  padding: 6px; box-shadow: 0 2px 10px rgba(0,0,0,.15);
+}
+.sheet-header {
+  border: 2px solid #000; padding: 2px 4px;
+  display: grid; grid-template-columns: auto 1fr 1fr 1fr 1fr 1fr;
+  gap: 4px; align-items: center; margin-bottom: 2px;
+}
+.sheet-title {
+  font-size: 13px; font-weight: bold;
+  grid-column: 1 / -1; text-align: center; letter-spacing: 2px;
+}
+.info-cell { font-size: 9px; border: 1px solid #999; padding: 2px 4px; }
+.info-label { color: #666; }
+
+/* メインエリア: チームA | ランニングスコア | チームB */
+.main-area {
+  display: flex; gap: 2px; align-items: flex-start;
+}
+
+/* ===== チームセクション ===== */
+.team-section {
+  width: 160px; flex-shrink: 0;
+  border: 2px solid #000; padding: 2px;
+}
+.team-name {
+  font-size: 11px; font-weight: bold; text-align: center;
+  border-bottom: 1px solid #000; padding-bottom: 2px; margin-bottom: 2px;
+  background: #f5f5f5;
+}
+
+.player-table {
+  width: 100%; border-collapse: collapse; margin-bottom: 4px;
+}
+.player-table th, .player-table td {
+  border: 1px solid #999; font-size: 8px;
+  text-align: center; padding: 1px; line-height: 1.3;
+}
+.player-table th { background: #e8eaf6; }
+.pnum { width: 22px; }
+.pname { text-align: left; padding-left: 2px; max-width: 60px; }
+.foul-cell { width: 14px; font-size: 7px; }
+.foul-cell.foul-used {
+  background: #ffcdd2; font-weight: bold; text-decoration: line-through;
+}
+
+.sub-title {
+  font-size: 8px; font-weight: bold; background: #e8eaf6;
+  padding: 1px 2px; margin-top: 3px; margin-bottom: 1px;
+  border: 1px solid #ccc;
+}
+.to-table, .tf-table {
+  width: 100%; border-collapse: collapse; margin-bottom: 2px;
+}
+.to-table td, .tf-table td {
+  border: 1px solid #bbb; font-size: 7px;
+  text-align: center; padding: 1px; line-height: 1.4;
+}
+.to-label, .tf-label { background: #f5f5f5; font-weight: bold; width: 18px; }
+.to-cell { width: 34px; }
+.tf-cell { width: 18px; }
+.to-cell.to-used { background: #c8e6c9; font-weight: bold; }
+.tf-cell.tf-used { background: #ffcdd2; font-weight: bold; }
+
+/* ===== ランニングスコア ===== */
+.running-score-section {
+  flex: 1; border: 2px solid #000; overflow: hidden;
+}
+.running-score-table {
+  width: 100%; border-collapse: collapse;
+  table-layout: fixed;
+}
+.running-score-table th {
+  border: 1px solid #888; font-size: 8px; text-align: center;
+  padding: 1px; background: #e8eaf6; line-height: 1.2;
+}
+.running-score-table td {
+  border: 1px solid #bbb; font-size: 7px;
+  text-align: center; padding: 0; height: 13px; line-height: 13px;
+}
+.num-col { width: 18px; font-size: 7px; color: #555; background: #fafafa; }
+.a-col, .b-col { width: 22px; }
+
+/* スコアセル */
+.score-cell { position: relative; }
+.score-cell .mark { font-size: 7px; font-weight: bold; display: block; line-height: 13px; }
+/* クォーター色分け */
+.score-cell.q1 .mark, .score-cell.q3 .mark { color: #c62828; }
+.score-cell.q2 .mark, .score-cell.q4 .mark { color: #1565c0; }
+.score-cell.qot .mark { color: #6a1b9a; }
+/* FT: 背景を薄い円っぽく */
+.score-cell.ft-cell { background: #fffde7; }
+/* FG: 薄いライン */
+.score-cell.fg-cell { background: #e8f5e9; }
+
+/* ===== クォータースコア ===== */
+.quarter-score-table {
+  width: 100%; border-collapse: collapse;
+  margin-top: 3px; border: 2px solid #000;
+}
+.quarter-score-table th, .quarter-score-table td {
+  border: 1px solid #888; font-size: 9px;
+  text-align: center; padding: 2px;
+}
+.quarter-score-table th { background: #e8eaf6; }
+.qs-name { text-align: left; padding-left: 4px; font-weight: bold; }
+.qs-total { font-weight: bold; font-size: 11px; background: #fff8e1; }
+.winner-row td { font-size: 10px; font-weight: bold; background: #e8f5e9; }
+
+/* 署名欄 */
+.signature-row {
+  display: flex; gap: 4px; margin-top: 3px;
+  border: 1px solid #999; padding: 2px;
+}
+.sig-cell {
+  flex: 1; border: 1px solid #aaa; padding: 2px 4px; font-size: 8px;
+  min-height: 24px;
+}
+.sig-label { color: #666; font-size: 7px; }
+
+/* ===== 印刷 ===== */
+@media print {
+  body { background: white; font-size: 9px; }
+  .input-section { display: none; }
+  .scoresheet-wrap { margin: 0; padding: 2px; box-shadow: none; }
+  @page { size: A4 landscape; margin: 5mm; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===== 入力フォーム ===== -->
+<div class="input-section no-print">
+  <h1>🏀 バスケットボール スコアシート生成</h1>
+
+  <div class="input-grid">
+    <div>
+      <label>チームA 名前</label>
+      <input type="text" id="teamAName" placeholder="例: ホームチーム">
+    </div>
+    <div>
+      <label>チームB 名前</label>
+      <input type="text" id="teamBName" placeholder="例: ビジターチーム">
+    </div>
+    <div>
+      <label>大会名</label>
+      <input type="text" id="tournament" placeholder="例: ○○大会">
+    </div>
+    <div>
+      <label>Game No.</label>
+      <input type="text" id="gameNo" placeholder="例: Game 1">
+    </div>
+    <div>
+      <label>日付</label>
+      <input type="text" id="gameDate" placeholder="例: 2025/4/28">
+    </div>
+    <div>
+      <label>会場</label>
+      <input type="text" id="venue" placeholder="例: ○○体育館">
+    </div>
+  </div>
+
+  <div>
+    <label class="pbp-label">
+      プレイバイプレイ（タブ区切り: Q・タイマー・Aチームイベント・スコア・Bチームイベント）
+    </label>
+    <textarea id="pbpInput" placeholder="1&#9;5:10&#9;#10岡田2P成功&#9;2 - 0&#9;
+1&#9;4:54&#9;&#9;2 - 2&#9;#5高尾2P成功
+1&#9;3:39&#9;#10岡田2P成功&#9;4 - 2&#9;
+1&#9;3:00&#9;#7田中3P成功&#9;7 - 2&#9;
+1&#9;2:30&#9;&#9;7 - 4&#9;#12鈴木2P成功
+1&#9;2:10&#9;#10岡田Pファイル&#9;7 - 4&#9;
+1&#9;1:50&#9;&#9;7 - 5&#9;#12鈴木フリースロー成功"></textarea>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-gen" onclick="generate()">スコアシート生成</button>
+    <button class="btn btn-print" onclick="window.print()">印刷</button>
+    <span class="hint">※ 印刷はA4横向きを推奨</span>
+  </div>
+</div>
+
+<!-- ===== 出力エリア ===== -->
+<div id="output"></div>
+
+<script>
+// ========================================================
+// パーサー
+// ========================================================
+
+function extractPlayer(eventStr) {
+  // #番号名前 のパターン。名前はイベントキーワードの直前まで
+  const m = eventStr.match(/#(\d+)([^#]*?)(?=2P|3P|フリースロー|Pファイル|Pファウル|Tファイル|Tファウル|タイムアウト|$)/);
+  if (!m) return { num: null, name: '' };
+  return { num: m[1], name: m[2].trim() };
+}
+
+function parseEvent(ev) {
+  if (!ev || !ev.trim()) return null;
+  const { num: playerNum, name: playerName } = extractPlayer(ev);
+  let type = null, points = 0;
+
+  if (ev.includes('3P成功'))                                    { type = '3P'; points = 3; }
+  else if (ev.includes('2P成功'))                               { type = '2P'; points = 2; }
+  else if (ev.includes('フリースロー成功'))                     { type = 'FT'; points = 1; }
+  else if (ev.includes('Pファイル') || ev.includes('Pファウル')){ type = 'PF'; }
+  else if (ev.includes('Tファイル') || ev.includes('Tファウル')){ type = 'TF'; }
+  else if (ev.includes('タイムアウト'))                         { type = 'TO'; }
+
+  return { playerNum, playerName, type, points };
+}
+
+function parsePBP(text) {
+  return text.trim().split('\n')
+    .filter(l => l.trim())
+    .map(l => {
+      const p = l.split('\t');
+      const q = parseInt(p[0]);
+      if (isNaN(q)) return null;
+      return {
+        quarter: q,
+        timer:   (p[1] || '').trim(),
+        evA:     (p[2] || '').trim(),
+        score:   (p[3] || '').trim(),
+        evB:     (p[4] || '').trim()
+      };
+    })
+    .filter(Boolean);
+}
+
+// ========================================================
+// 状態構築
+// ========================================================
+
+function buildState(plays) {
+  const st = {
+    scoreA: 0, scoreB: 0,
+    cells: [],                // { team, cumScore, playerNum, scoreType, quarter, pointIdx }
+    players: { A: {}, B: {} },
+    fouls:   { A: {}, B: {} },
+    teamFouls: { A: {1:0,2:0,3:0,4:0,5:0}, B: {1:0,2:0,3:0,4:0,5:0} },
+    timeouts:  { A: {1:[],2:[],3:[],4:[],5:[]}, B: {1:[],2:[],3:[],4:[],5:[]} },
+    qScore:    { A: {1:0,2:0,3:0,4:0,5:0}, B: {1:0,2:0,3:0,4:0,5:0} }
+  };
+
+  function process(team, evStr, quarter, timer) {
+    const ev = parseEvent(evStr);
+    if (!ev) return;
+
+    if (ev.playerNum && !st.players[team][ev.playerNum]) {
+      st.players[team][ev.playerNum] = { num: ev.playerNum, name: ev.playerName || '' };
+    }
+
+    if (ev.points > 0) {
+      const q = Math.min(quarter, 5);
+      for (let i = 0; i < ev.points; i++) {
+        if (team === 'A') st.scoreA++; else st.scoreB++;
+        st.cells.push({
+          team, cumScore: team === 'A' ? st.scoreA : st.scoreB,
+          playerNum: ev.playerNum, scoreType: ev.type,
+          quarter, pointIdx: i
+        });
+      }
+      st.qScore[team][Math.min(quarter,5)] += ev.points;
+    }
+
+    if (ev.type === 'PF' || ev.type === 'TF') {
+      if (ev.playerNum) {
+        st.fouls[team][ev.playerNum] = (st.fouls[team][ev.playerNum] || 0) + 1;
+      }
+      st.teamFouls[team][Math.min(quarter,5)]++;
+    }
+
+    if (ev.type === 'TO') {
+      const q = Math.min(quarter, 5);
+      st.timeouts[team][q].push(timer || '');
+    }
+  }
+
+  for (const p of plays) {
+    if (p.evA) process('A', p.evA, p.quarter, p.timer);
+    if (p.evB) process('B', p.evB, p.quarter, p.timer);
+  }
+
+  return st;
+}
+
+function buildLookup(cells) {
+  const lk = { A: {}, B: {} };
+  for (const c of cells) lk[c.team][c.cumScore] = c;
+  return lk;
+}
+
+// ========================================================
+// HTML生成ヘルパー
+// ========================================================
+
+const esc = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+function qClass(q) {
+  if (q === 1 || q === 3) return 'q1';
+  if (q === 2 || q === 4) return 'q2';
+  return 'qot';
+}
+
+function renderScoreCell(cell) {
+  if (!cell) return '<td class="score-cell"></td>';
+  const isFT = cell.scoreType === 'FT';
+  const typeClass = isFT ? 'ft-cell' : 'fg-cell';
+  const qc = qClass(cell.quarter);
+  let mark;
+  if (isFT) {
+    mark = cell.pointIdx === 0 ? `${esc(cell.playerNum)}●` : '●';
+  } else {
+    mark = cell.pointIdx === 0 ? `${esc(cell.playerNum)}/` : '/';
+  }
+  return `<td class="score-cell ${typeClass} ${qc}"><span class="mark">${mark}</span></td>`;
+}
+
+function renderRunningScore(lk) {
+  let rows = '';
+  for (let r = 1; r <= 40; r++) {
+    rows += '<tr>';
+    for (let g = 0; g < 4; g++) {
+      const n = r + g * 40;
+      rows += `<td class="num-col">${n}</td>`;
+      rows += renderScoreCell(lk.A[n]);
+      rows += renderScoreCell(lk.B[n]);
+    }
+    rows += '</tr>';
+  }
+  return rows;
+}
+
+function renderPlayers(team, st) {
+  const list = Object.values(st.players[team]).sort((a,b) => parseInt(a.num)-parseInt(b.num));
+  let html = '';
+  for (let i = 0; i < 15; i++) {
+    const p = list[i];
+    if (p) {
+      const fc = st.fouls[team][p.num] || 0;
+      const fCells = [1,2,3,4,5].map(n =>
+        `<td class="foul-cell${n<=fc?' foul-used':''}">${n}</td>`
+      ).join('');
+      html += `<tr><td class="pnum">${esc(p.num)}</td><td class="pname">${esc(p.name)}</td>${fCells}</tr>`;
+    } else {
+      html += `<tr><td class="pnum"></td><td class="pname"></td>${'<td class="foul-cell"></td>'.repeat(5)}</tr>`;
+    }
+  }
+  return html;
+}
+
+function renderTimeouts(team, st) {
+  return [1,2,3,4].map(q => {
+    const used = st.timeouts[team][q] || [];
+    const label = q <= 4 ? `${q}Q` : 'OT';
+    const cells = [0,1,2].map(i =>
+      `<td class="to-cell${used[i]!==undefined?' to-used':''}">${esc(used[i] || '')}</td>`
+    ).join('');
+    return `<tr><td class="to-label">${label}</td>${cells}</tr>`;
+  }).join('');
+}
+
+function renderTeamFouls(team, st) {
+  return [1,2,3,4].map(q => {
+    const used = st.teamFouls[team][q] || 0;
+    const label = q <= 4 ? `${q}Q` : 'OT';
+    const cells = [1,2,3,4].map(n =>
+      `<td class="tf-cell${n<=used?' tf-used':''}">${n}</td>`
+    ).join('');
+    return `<tr><td class="tf-label">${label}</td>${cells}</tr>`;
+  }).join('');
+}
+
+function teamSection(team, teamName, st) {
+  return `
+<div class="team-section">
+  <div class="team-name">${esc(teamName)}</div>
+  <table class="player-table">
+    <thead><tr><th>No</th><th>選手名</th><th colspan="5">ファウル</th></tr></thead>
+    <tbody>${renderPlayers(team, st)}</tbody>
+  </table>
+  <div class="sub-title">タイムアウト</div>
+  <table class="to-table"><tbody>${renderTimeouts(team, st)}</tbody></table>
+  <div class="sub-title">チームファウル</div>
+  <table class="tf-table"><tbody>${renderTeamFouls(team, st)}</tbody></table>
+</div>`;
+}
+
+// ========================================================
+// メイン生成関数
+// ========================================================
+
+function generate() {
+  const teamAName  = document.getElementById('teamAName').value  || 'チームA';
+  const teamBName  = document.getElementById('teamBName').value  || 'チームB';
+  const tournament = document.getElementById('tournament').value;
+  const gameNo     = document.getElementById('gameNo').value;
+  const gameDate   = document.getElementById('gameDate').value;
+  const venue      = document.getElementById('venue').value;
+  const pbpText    = document.getElementById('pbpInput').value;
+
+  const plays = parsePBP(pbpText);
+  const st    = buildState(plays);
+  const lk    = buildLookup(st.cells);
+
+  const totalA = Object.values(st.qScore.A).reduce((a,b)=>a+b,0);
+  const totalB = Object.values(st.qScore.B).reduce((a,b)=>a+b,0);
+  const winner = totalA > totalB ? esc(teamAName) : totalB > totalA ? esc(teamBName) : '引き分け';
+
+  const html = `
+<div class="scoresheet-wrap">
+  <!-- ヘッダー -->
+  <table style="width:100%;border-collapse:collapse;border:2px solid #000;margin-bottom:2px;">
+    <tr>
+      <td colspan="6" style="text-align:center;font-size:13px;font-weight:bold;letter-spacing:3px;padding:2px;border-bottom:1px solid #000;">
+        BASKETBALL SCORESHEET
+      </td>
+    </tr>
+    <tr>
+      <td class="info-cell" style="flex:2"><span class="info-label">大会名: </span>${esc(tournament)}</td>
+      <td class="info-cell"><span class="info-label">Game No.: </span>${esc(gameNo)}</td>
+      <td class="info-cell"><span class="info-label">日付: </span>${esc(gameDate)}</td>
+      <td class="info-cell"><span class="info-label">会場: </span>${esc(venue)}</td>
+      <td class="info-cell"><span class="info-label">第1審: </span></td>
+      <td class="info-cell"><span class="info-label">第2審: </span></td>
+    </tr>
+  </table>
+
+  <!-- メインエリア -->
+  <div class="main-area">
+    ${teamSection('A', teamAName, st)}
+
+    <!-- ランニングスコア -->
+    <div class="running-score-section">
+      <table class="running-score-table">
+        <thead>
+          <tr>
+            <th class="num-col" rowspan="2">#</th>
+            <th class="a-col" style="background:#fff3e0">A</th>
+            <th class="b-col" style="background:#e3f2fd">B</th>
+            <th class="num-col" rowspan="2">#</th>
+            <th class="a-col" style="background:#fff3e0">A</th>
+            <th class="b-col" style="background:#e3f2fd">B</th>
+            <th class="num-col" rowspan="2">#</th>
+            <th class="a-col" style="background:#fff3e0">A</th>
+            <th class="b-col" style="background:#e3f2fd">B</th>
+            <th class="num-col" rowspan="2">#</th>
+            <th class="a-col" style="background:#fff3e0">A</th>
+            <th class="b-col" style="background:#e3f2fd">B</th>
+          </tr>
+          <tr>
+            <th colspan="2" style="font-size:7px;">1–40</th>
+            <th colspan="2" style="font-size:7px;">41–80</th>
+            <th colspan="2" style="font-size:7px;">81–120</th>
+            <th colspan="2" style="font-size:7px;">121–160</th>
+          </tr>
+        </thead>
+        <tbody>${renderRunningScore(lk)}</tbody>
+      </table>
+    </div>
+
+    ${teamSection('B', teamBName, st)}
+  </div>
+
+  <!-- クォータースコア -->
+  <table class="quarter-score-table">
+    <thead>
+      <tr>
+        <th style="text-align:left;padding-left:4px;width:100px;">チーム</th>
+        <th>1Q</th><th>2Q</th><th>3Q</th><th>4Q</th><th>OT</th>
+        <th>合計</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="qs-name">${esc(teamAName)}</td>
+        <td>${st.qScore.A[1]||0}</td><td>${st.qScore.A[2]||0}</td>
+        <td>${st.qScore.A[3]||0}</td><td>${st.qScore.A[4]||0}</td>
+        <td>${st.qScore.A[5]||0}</td>
+        <td class="qs-total">${totalA}</td>
+      </tr>
+      <tr>
+        <td class="qs-name">${esc(teamBName)}</td>
+        <td>${st.qScore.B[1]||0}</td><td>${st.qScore.B[2]||0}</td>
+        <td>${st.qScore.B[3]||0}</td><td>${st.qScore.B[4]||0}</td>
+        <td>${st.qScore.B[5]||0}</td>
+        <td class="qs-total">${totalB}</td>
+      </tr>
+      <tr class="winner-row">
+        <td colspan="6" style="text-align:right;padding-right:8px;">
+          勝利チーム:&nbsp;<strong>${winner}</strong>
+        </td>
+        <td style="font-size:11px;font-weight:bold;">${totalA} - ${totalB}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 署名欄 -->
+  <div class="signature-row">
+    <div class="sig-cell"><div class="sig-label">テーブルオフィシャルズ 署名</div></div>
+    <div class="sig-cell"><div class="sig-label">第1審 署名</div></div>
+    <div class="sig-cell"><div class="sig-label">第2審 署名</div></div>
+    <div class="sig-cell"><div class="sig-label">終了時間</div></div>
+  </div>
+
+  <!-- 凡例 -->
+  <div style="font-size:8px;color:#666;margin-top:2px;display:flex;gap:12px;">
+    <span><span style="color:#c62828;font-weight:bold;">赤</span> = Q1・Q3</span>
+    <span><span style="color:#1565c0;font-weight:bold;">青</span> = Q2・Q4・OT</span>
+    <span style="background:#e8f5e9;padding:0 3px;">緑背景 = フィールドゴール (2P/3P)</span>
+    <span style="background:#fffde7;padding:0 3px;">黄背景 = フリースロー (●)</span>
+  </div>
+</div>`;
+
+  document.getElementById('output').innerHTML = html;
+}
+</script>
+</body>
+</html>
