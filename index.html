@@ -54,12 +54,35 @@ textarea#pbpInput {
 /* スコアシート本体 - A4縦（595×842pt）に準拠 */
 .sheet {
   width: 575px;
-  font-family: 'Klee One', 'Meiryo', cursive;
+  font-family: 'Meiryo', 'Yu Gothic', 'MS Gothic', sans-serif;
   font-size: 6.5pt;
   border: 2px solid rgba(52,38,24,0.75);
   position: relative;
   background: #fdf8f0;
   filter: url(#pencil);
+}
+
+/* ===== 手書き入力部分のみKlee One/Caveatを適用 ===== */
+/* チーム名・試合情報（手書き記入欄） */
+.team-name-val,
+.info-cell,
+/* 選手名 */
+.pr-name,
+/* コーチ署名欄 */
+.coach-label {
+  font-family: 'Klee One', 'Meiryo', cursive;
+}
+/* スコアマーク（ランニングスコアの手書き部分：選手番号・/・●） */
+td.a-blank, td.b-blank {
+  font-family: 'Caveat', 'Klee One', cursive;
+}
+/* ファウルマーク（記入済みのもの） */
+.pr-foul.foul-used {
+  font-family: 'Caveat', cursive;
+}
+/* タイムアウト記入済み */
+.q-box.used {
+  font-family: 'Caveat', cursive;
 }
 
 /* ===== ヘッダー行 ===== */
