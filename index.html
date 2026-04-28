@@ -58,7 +58,7 @@ textarea#pbpInput {
   font-size: 6.5pt;
   border: 2px solid rgba(52,38,24,0.75);
   position: relative;
-  background: #fdf8f0;
+  background: white;
   filter: url(#pencil);
 }
 
@@ -137,7 +137,7 @@ td.a-blank, td.b-blank {
 .team-name-row {
   display: flex; align-items: stretch;
   border-bottom: 1px solid rgba(52,38,24,0.75);
-  background: #f0e8d8;
+  background: white;
 }
 .team-label-cell {
   font-size: 6pt; font-weight: bold;
@@ -167,17 +167,17 @@ td.a-blank, td.b-blank {
 .q-box {
   width: 11px; height: 8px; border: 1px solid rgba(120,95,70,0.5);
   font-size: 5pt; text-align: center; line-height: 8px;
-  background: #fdf8f0;
+  background: white;
 }
-.q-box.used { background: #ffcdd2; font-weight: bold; }
-.q-box.tf-used { background: #ffcdd2; text-decoration: line-through; }
+.q-box.used { font-weight: bold; }
+.q-box.tf-used { text-decoration: line-through; }
 
 /* 選手テーブル */
 .foul-header-row {
   display: flex;
   border-top: 1px solid rgba(52,38,24,0.75);
   border-bottom: 1px solid rgba(52,38,24,0.75);
-  background: #e8dcc8;
+  background: white;
   font-size: 5pt; font-weight: bold;
 }
 .foul-header-row > div {
@@ -209,7 +209,6 @@ td.a-blank, td.b-blank {
 .pr-name { text-align: left; padding-left: 2px; font-size: 6pt; }
 .pr-foul { }
 .pr-foul.foul-used {
-  background: #ffcdd2;
   font-weight: bold;
   text-decoration: line-through;
   font-size: 5.5pt;
@@ -237,7 +236,7 @@ td.a-blank, td.b-blank {
 .running-label {
   text-align: center; font-size: 6pt; font-weight: bold;
   border-bottom: 1px solid rgba(52,38,24,0.75); padding: 1px;
-  background: #f7f0e4;
+  background: white;
 }
 
 .running-score-table {
@@ -255,20 +254,20 @@ td.a-blank, td.b-blank {
   overflow: hidden;
 }
 .running-score-table th {
-  background: #e8dcc8;
+  background: white;
   font-size: 5.5pt;
   font-weight: bold;
   height: 11px;
   line-height: 11px;
 }
 /* A header: 薄いオレンジ, B header: 薄い青 */
-.th-a { background: #fff3e0; }
-.th-b { background: #e3f2fd; }
+.th-a { }
+.th-b { }
 
 /* ランニングスコアセル幅 */
 /* 1グループ = a-blank(wide) + a-num + b-num + b-blank(wide) */
 .col-a-blank { width: 21px; }  /* Aチームの書き込み欄 */
-.col-num     { width: 12px; font-size: 5.5pt; color: #666; background: #f7f0e4; }
+.col-num     { width: 12px; font-size: 5.5pt; color: #666; background: white; }
 .col-b-blank { width: 21px; }  /* Bチームの書き込み欄 */
 
 /* スコアセル（書き込み欄）のスタイル */
@@ -276,8 +275,8 @@ td.a-blank, td.b-blank {
   font-size: 7pt; font-weight: 700;
   font-family: 'Caveat', 'Klee One', cursive;
 }
-td.fg-mark { background: #e8f5e9; }
-td.ft-mark { background: #fff9c4; }
+td.fg-mark { }
+td.ft-mark { }
 /* クォーター色 */
 td.q1 span, td.q3 span { color: #c62828; }
 td.q2 span, td.q4 span { color: #1565c0; }
@@ -296,10 +295,10 @@ td.qot span { color: #6a1b9a; }
   border: 1px solid rgba(120,95,70,0.45); font-size: 6pt;
   text-align: center; padding: 1px 2px; height: 13px; line-height: 13px;
 }
-.qs-table th { background: #e8dcc8; font-weight: bold; }
+.qs-table th { background: white; font-weight: bold; }
 .qs-name { text-align: left; padding-left: 3px; font-weight: bold; }
-.qs-total { font-weight: bold; background: #fff9c4; font-size: 7pt; }
-.qs-winner td { background: #e8f5e9; font-weight: bold; }
+.qs-total { font-weight: bold; font-size: 7pt; }
+.qs-winner td { font-weight: bold; }
 
 /* ===== 署名欄 ===== */
 .sheet-signatures {
@@ -708,13 +707,6 @@ function generate() {
     <div class="sig-cell"><div class="sig-label">終了時間</div><div class="sig-line"></div></div>
   </div>
 
-  <!-- 凡例 -->
-  <div class="sheet-legend">
-    <span><span style="color:#c62828;font-weight:bold;">赤</span>=Q1・Q3</span>
-    <span><span style="color:#1565c0;font-weight:bold;">青</span>=Q2・Q4</span>
-    <span style="background:#e8f5e9;padding:0 3px;">緑=FG(2P/3P)</span>
-    <span style="background:#fff9c4;padding:0 3px;">黄=FT(●)</span>
-  </div>
 
 </div><!-- /sheet -->
 </div><!-- /sheet-outer -->`;
