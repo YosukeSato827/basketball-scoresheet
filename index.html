@@ -617,17 +617,24 @@ async function loadGames() {
   const cont = document.getElementById('game-list-container');
   cont.innerHTML = '<div class="loading-msg">読み込み中...</div>';
   try {
+    // orderBy + where の複合インデックスを避けるため JS でソート
     const snap = await withTimeout(
       db.collection('games')
         .where('tournamentId', '==', currentTournamentId)
-        .orderBy('gameDate', 'asc')
         .get()
     );
     if (snap.empty) {
       cont.innerHTML = `<div class="empty-state"><span>📋</span>この大会の試合がありません<br>「試合を追加」から入力してください</div>`;
       return;
     }
-    cont.innerHTML = snap.docs.map(doc => {
+    // gameDate → gameNo の順でソート
+    const sortedDocs = snap.docs.slice().sort((a, b) => {
+      const da = a.data(), db2 = b.data();
+      const dateA = da.gameDate || '', dateB = db2.gameDate || '';
+      if (dateA !== dateB) return dateA < dateB ? -1 : 1;
+      return (parseInt(da.gameNo) || 0) - (parseInt(db2.gameNo) || 0);
+    });
+    cont.innerHTML = sortedDocs.map(doc => {
       const d = doc.data();
       const teamA = d.teamAName || 'チームA';
       const teamB = d.teamBName || 'チームB';
@@ -687,7 +694,7 @@ async function loadStats() {
 
       // チーム成績
       for (const [tName, pf, pa] of [[teamA, totalA, totalB],[teamB, totalB, totalA]]) {
-        if (!teamMap[tName]) teamMap[tName] = {wins:0,losses:0,draws:0,pf:0,pa:0,games:0};
+        if (!teamMap[tName]) teamMap[tName] = {name:tName,wins:0,losses:0,draws:0,pf:0,pa:0,games:0};
         teamMap[tName].games++;
         teamMap[tName].pf += pf; teamMap[tName].pa += pa;
         if (pf > pa) teamMap[tName].wins++;
