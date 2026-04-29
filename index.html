@@ -7,87 +7,216 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
-<!-- Firebase compat SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  font-family: 'Meiryo', 'Yu Gothic', 'MS Gothic', sans-serif;
-  background: #e8eaf6;
-  font-size: 12px;
-}
+body { font-family: 'Meiryo','Yu Gothic','MS Gothic',sans-serif; background: #e8eaf6; font-size: 12px; }
 
 /* =====================================================
-   一覧画面
+   共通ヘッダー
    ===================================================== */
-#view-list { display: block; }
-#view-editor { display: none; }
-
-.list-header {
+.app-header {
   background: #1a237e; color: white;
-  padding: 14px 20px;
-  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 20px; display: flex; align-items: center; gap: 10px;
 }
-.list-header h1 { font-size: 18px; }
-
-.btn-new {
+.app-header h1 { font-size: 17px; flex: 1; }
+.btn-hdr {
+  background: rgba(255,255,255,.15); color: white;
+  border: 1px solid rgba(255,255,255,.4); border-radius: 6px;
+  padding: 6px 14px; font-size: 12px; font-weight: bold; cursor: pointer;
+  white-space: nowrap;
+}
+.btn-hdr:hover { background: rgba(255,255,255,.28); }
+.btn-hdr-primary {
   background: white; color: #1a237e;
   border: none; border-radius: 6px;
-  padding: 8px 16px; font-size: 13px;
-  font-weight: bold; cursor: pointer;
+  padding: 6px 14px; font-size: 12px; font-weight: bold; cursor: pointer;
+  white-space: nowrap;
 }
-.btn-new:hover { background: #e8eaf6; }
+.btn-hdr-primary:hover { background: #c5cae9; }
 
-.list-body { padding: 16px; max-width: 800px; margin: 0 auto; }
+/* =====================================================
+   画面切り替え
+   ===================================================== */
+#view-tournaments     { display: block; }
+#view-detail          { display: none; }
+#view-editor          { display: none; }
 
-.list-empty {
-  text-align: center; padding: 60px 20px;
-  color: #888; font-size: 14px;
+/* =====================================================
+   大会一覧
+   ===================================================== */
+.page-body { padding: 16px; max-width: 860px; margin: 0 auto; }
+
+.tournament-card {
+  background: white; border-radius: 10px;
+  box-shadow: 0 1px 6px rgba(0,0,0,.1);
+  padding: 16px 20px; margin-bottom: 12px;
+  cursor: pointer; transition: box-shadow .15s;
+  display: flex; align-items: center; gap: 16px;
 }
-.list-empty span { font-size: 48px; display: block; margin-bottom: 12px; }
+.tournament-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,.16); }
+.tc-icon { font-size: 32px; flex-shrink: 0; }
+.tc-info { flex: 1; min-width: 0; }
+.tc-name { font-size: 16px; font-weight: bold; color: #1a237e; }
+.tc-meta { font-size: 11px; color: #777; margin-top: 3px; }
+.tc-badges { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.tc-badge {
+  display: inline-block; padding: 2px 8px;
+  border-radius: 10px; font-size: 11px; font-weight: bold;
+  background: #e8eaf6; color: #1a237e;
+}
+.tc-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.btn-card { padding: 5px 12px; border: none; border-radius: 4px;
+  font-size: 12px; cursor: pointer; font-weight: bold; }
+.btn-open   { background: #1565c0; color: white; }
+.btn-edit   { background: #f5f5f5; color: #333; border: 1px solid #ddd; }
+.btn-delete { background: white; color: #c62828; border: 1px solid #c62828; }
 
+.empty-state { text-align: center; padding: 60px 20px; color: #888; font-size: 14px; }
+.empty-state span { font-size: 48px; display: block; margin-bottom: 12px; }
+.loading-msg { text-align: center; padding: 30px; color: #888; }
+
+/* =====================================================
+   大会詳細 ヘッダー
+   ===================================================== */
+.detail-header {
+  background: #283593; color: white; padding: 14px 20px;
+}
+.detail-header-top { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.detail-title { font-size: 18px; font-weight: bold; flex: 1; }
+.detail-meta { font-size: 12px; color: rgba(255,255,255,.8); }
+
+/* タブ */
+.tab-bar {
+  display: flex; background: #1a237e; padding: 0 20px;
+  border-bottom: 2px solid #283593;
+}
+.tab-btn {
+  padding: 10px 20px; color: rgba(255,255,255,.7);
+  border: none; background: none; cursor: pointer;
+  font-size: 13px; font-weight: bold; border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+}
+.tab-btn.active { color: white; border-bottom-color: white; }
+.tab-btn:hover:not(.active) { color: rgba(255,255,255,.9); }
+
+/* =====================================================
+   試合カード（大会詳細内）
+   ===================================================== */
 .game-card {
   background: white; border-radius: 8px;
-  box-shadow: 0 1px 6px rgba(0,0,0,.1);
-  padding: 14px 16px; margin-bottom: 10px;
+  box-shadow: 0 1px 5px rgba(0,0,0,.08);
+  padding: 12px 16px; margin-bottom: 8px;
   display: flex; align-items: center; gap: 12px;
   cursor: pointer; transition: box-shadow .15s;
 }
-.game-card:hover { box-shadow: 0 3px 12px rgba(0,0,0,.18); }
-
-.game-card-info { flex: 1; min-width: 0; }
-.game-card-title {
-  font-size: 13px; font-weight: bold; color: #1a237e;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.game-card-teams { font-size: 15px; font-weight: bold; margin: 3px 0; }
-.game-card-meta { font-size: 11px; color: #888; }
-
-.game-card-score {
-  font-size: 22px; font-weight: bold;
-  color: #1a237e; white-space: nowrap; text-align: center; min-width: 80px;
-}
-
-.game-card-actions { display: flex; gap: 6px; }
-.btn-card {
-  padding: 5px 10px; border: none; border-radius: 4px;
-  font-size: 12px; cursor: pointer; font-weight: bold;
-}
-.btn-open   { background: #1565c0; color: white; }
-.btn-delete { background: #fff; color: #c62828; border: 1px solid #c62828; }
-
-.loading-msg {
-  text-align: center; padding: 30px; color: #888;
-}
+.game-card:hover { box-shadow: 0 3px 12px rgba(0,0,0,.15); }
+.gc-info { flex: 1; min-width: 0; }
+.gc-title { font-size: 12px; color: #777; }
+.gc-teams { font-size: 15px; font-weight: bold; }
+.gc-score { font-size: 22px; font-weight: bold; color: #1a237e; min-width: 80px; text-align: center; }
+.gc-actions { display: flex; gap: 6px; }
 
 /* =====================================================
-   エディター画面 ツールバー
+   ダッシュボード（大会詳細 成績タブ）
+   ===================================================== */
+.dash-summary {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 12px; margin-bottom: 20px;
+}
+.dash-kpi {
+  background: white; border-radius: 10px;
+  box-shadow: 0 1px 6px rgba(0,0,0,.1);
+  padding: 16px; text-align: center;
+}
+.dash-kpi-val { font-size: 32px; font-weight: bold; color: #1a237e; line-height: 1; }
+.dash-kpi-label { font-size: 11px; color: #777; margin-top: 4px; }
+
+.dash-section { margin-bottom: 22px; }
+.dash-section-title {
+  font-size: 14px; font-weight: bold; color: #1a237e;
+  border-left: 4px solid #1a237e; padding-left: 8px; margin-bottom: 10px;
+}
+.dash-table-wrap {
+  background: white; border-radius: 8px;
+  box-shadow: 0 1px 6px rgba(0,0,0,.1); overflow: hidden;
+}
+.dash-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.dash-table th {
+  background: #e8eaf6; color: #1a237e; font-size: 11px; font-weight: bold;
+  padding: 7px 10px; text-align: left; border-bottom: 2px solid #c5cae9;
+}
+.dash-table th.num { text-align: center; }
+.dash-table td { padding: 8px 10px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+.dash-table td.num { text-align: center; }
+.dash-table tr:last-child td { border-bottom: none; }
+.dash-table tr:hover td { background: #f5f5ff; }
+.rank-badge {
+  display: inline-block; width: 22px; height: 22px;
+  border-radius: 50%; font-size: 11px; font-weight: bold;
+  text-align: center; line-height: 22px; background: #e0e0e0; color: #555;
+}
+.rank-1 { background: #FFD700; color: #7a5800; }
+.rank-2 { background: #C0C0C0; color: #444; }
+.rank-3 { background: #cd7f32; color: #fff; }
+.team-badge {
+  display: inline-block; padding: 2px 7px;
+  border-radius: 10px; font-size: 10px; font-weight: bold;
+  background: #e8eaf6; color: #1a237e;
+}
+.win-rate-bar { display: flex; align-items: center; gap: 6px; }
+.win-rate-track { flex: 1; height: 8px; background: #eee; border-radius: 4px; overflow: hidden; }
+.win-rate-fill  { height: 100%; background: #1565c0; border-radius: 4px; }
+.result-win  { color: #2e7d32; font-weight: bold; }
+.result-lose { color: #c62828; }
+.result-draw { color: #777; }
+.dash-no-data { text-align: center; padding: 30px; color: #aaa; font-size: 13px; }
+
+/* =====================================================
+   モーダル（大会登録/編集）
+   ===================================================== */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.5);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; display: none;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: white; border-radius: 12px;
+  padding: 24px; width: 440px; max-width: 95vw;
+  box-shadow: 0 8px 32px rgba(0,0,0,.2);
+}
+.modal h2 { font-size: 16px; color: #1a237e; margin-bottom: 18px; }
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: 11px; font-weight: bold; margin-bottom: 4px; color: #555; }
+.form-group input, .form-group textarea {
+  width: 100%; padding: 8px 10px;
+  border: 1px solid #bbb; border-radius: 6px;
+  font-size: 13px; font-family: inherit;
+}
+.form-group textarea { height: 70px; resize: vertical; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.modal-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+.btn-modal-cancel { padding: 8px 18px; border: 1px solid #bbb; border-radius: 6px; background: white; cursor: pointer; font-size: 13px; }
+.btn-modal-save   { padding: 8px 18px; border: none; border-radius: 6px; background: #1565c0; color: white; cursor: pointer; font-size: 13px; font-weight: bold; }
+.btn-modal-save:hover { background: #0d47a1; }
+
+/* =====================================================
+   トースト
+   ===================================================== */
+#toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: #323232; color: white; padding: 10px 24px; border-radius: 4px;
+  font-size: 13px; z-index: 9999; opacity: 0; transition: opacity .3s; pointer-events: none;
+}
+#toast.show { opacity: 1; }
+
+/* =====================================================
+   エディター
    ===================================================== */
 .editor-toolbar {
-  background: #1a237e; color: white;
-  padding: 8px 16px;
+  background: #1a237e; color: white; padding: 8px 16px;
   display: flex; align-items: center; gap: 10px;
 }
 .btn-back {
@@ -96,15 +225,10 @@ body {
   padding: 5px 12px; font-size: 13px; cursor: pointer;
 }
 .btn-back:hover { background: rgba(255,255,255,.25); }
-.toolbar-title {
-  flex: 1; font-size: 13px; font-weight: bold;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
+.toolbar-title { flex: 1; font-size: 13px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .btn-save {
-  background: #43a047; color: white;
-  border: none; border-radius: 4px;
-  padding: 5px 14px; font-size: 13px;
-  font-weight: bold; cursor: pointer;
+  background: #43a047; color: white; border: none; border-radius: 4px;
+  padding: 5px 14px; font-size: 13px; font-weight: bold; cursor: pointer;
 }
 .btn-save:hover { background: #388e3c; }
 .btn-save:disabled { background: #888; cursor: default; }
@@ -113,82 +237,41 @@ body {
   border: 1px solid rgba(255,255,255,.4); border-radius: 4px;
   padding: 5px 12px; font-size: 13px; cursor: pointer;
 }
-.btn-print-small:hover { background: rgba(255,255,255,.25); }
-
-/* トースト通知 */
-#toast {
-  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-  background: #323232; color: white;
-  padding: 10px 24px; border-radius: 4px;
-  font-size: 13px; z-index: 9999;
-  opacity: 0; transition: opacity .3s;
-  pointer-events: none;
-}
-#toast.show { opacity: 1; }
-
-/* =====================================================
-   入力フォーム（エディター内）
-   ===================================================== */
 .input-section {
   background: white; padding: 16px 20px; margin: 12px 16px;
   border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,.15);
 }
-.input-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: 10px; margin-bottom: 10px;
-}
+.input-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px; }
 .input-grid label { display: block; font-size: 11px; font-weight: bold; margin-bottom: 3px; }
 .input-grid input {
-  width: 100%; padding: 6px 8px;
-  border: 1px solid #bbb; border-radius: 4px;
+  width: 100%; padding: 6px 8px; border: 1px solid #bbb; border-radius: 4px;
   font-size: 13px; font-family: inherit;
 }
 .pbp-label { display: block; font-size: 11px; font-weight: bold; margin-bottom: 4px; }
 textarea#pbpInput {
-  width: 100%; height: 130px; padding: 8px;
-  border: 1px solid #bbb; border-radius: 4px;
+  width: 100%; height: 130px; padding: 8px; border: 1px solid #bbb; border-radius: 4px;
   font-size: 12px; font-family: 'Consolas', monospace; resize: vertical;
 }
 .btn-row { margin-top: 10px; display: flex; gap: 8px; align-items: center; }
 .btn { padding: 8px 20px; font-size: 13px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-.btn-gen   { background: #1565c0; color: white; }
+.btn-gen { background: #1565c0; color: white; }
 .hint { font-size: 10px; color: #777; }
 
 /* =====================================================
    スコアシート本体
    ===================================================== */
-.sheet-outer {
-  background: white; margin: 0 16px 16px;
-  padding: 4px; box-shadow: 0 2px 10px rgba(0,0,0,.15);
-}
-
+.sheet-outer { background: white; margin: 0 16px 16px; padding: 4px; box-shadow: 0 2px 10px rgba(0,0,0,.15); }
 .sheet {
-  width: 575px;
-  font-family: 'Meiryo', 'Yu Gothic', 'MS Gothic', sans-serif;
-  font-size: 6.5pt;
-  border: 2px solid rgba(52,38,24,0.75);
-  position: relative;
-  background: white;
-  filter: url(#pencil);
+  width: 575px; font-family: 'Meiryo','Yu Gothic','MS Gothic',sans-serif;
+  font-size: 6.5pt; border: 2px solid rgba(52,38,24,0.75);
+  position: relative; background: white; filter: url(#pencil);
 }
-
-/* 手書き入力部分のみ Klee One / Caveat */
-.team-name-val, .info-cell, .pr-name, .coach-label {
-  font-family: 'Klee One', 'Meiryo', cursive;
-}
-td.a-blank, td.b-blank {
-  font-family: 'Caveat', 'Klee One', cursive;
-}
-.pr-foul.foul-used { font-family: 'Caveat', cursive; }
-.q-box.used { font-family: 'Caveat', cursive; }
-
-/* ヘッダー */
+.team-name-val, .info-cell, .pr-name, .coach-label { font-family: 'Klee One','Meiryo',cursive; }
+td.a-blank, td.b-blank { font-family: 'Caveat','Klee One',cursive; }
+.pr-foul.foul-used { font-family: 'Caveat',cursive; }
+.q-box.used { font-family: 'Caveat',cursive; }
 .sheet-header { display: flex; border-bottom: 1.5px solid rgba(52,38,24,0.75); }
-.header-title-block {
-  width: 295px; flex-shrink: 0;
-  border-right: 1px solid rgba(52,38,24,0.75);
-  padding: 2px 4px;
-}
+.header-title-block { width: 295px; flex-shrink: 0; border-right: 1px solid rgba(52,38,24,0.75); padding: 2px 4px; }
 .sheet-title { font-size: 14pt; font-weight: bold; letter-spacing: 1px; line-height: 1.2; white-space: nowrap; }
 .sheet-subtitle { font-size: 5.5pt; color: #444; margin-top: 1px; }
 .header-info-block { flex: 1; display: flex; flex-direction: column; }
@@ -197,31 +280,13 @@ td.a-blank, td.b-blank {
 .info-cell { flex: 1; padding: 1px 3px; font-size: 6pt; border-right: 1px solid rgba(120,95,70,0.45); }
 .info-cell:last-child { border-right: none; }
 .info-cell label { color: #555; }
-
-/* メインエリア */
 .sheet-main { display: flex; border-bottom: 1.5px solid rgba(52,38,24,0.75); }
-
-/* 左パネル */
-.left-panel {
-  width: 295px; flex-shrink: 0;
-  border-right: 1.5px solid rgba(52,38,24,0.75);
-  display: flex; flex-direction: column;
-}
+.left-panel { width: 295px; flex-shrink: 0; border-right: 1.5px solid rgba(52,38,24,0.75); display: flex; flex-direction: column; }
 .team-section { flex: 1; border-bottom: 1.5px solid rgba(52,38,24,0.75); }
 .team-section:last-child { border-bottom: none; }
-
-.team-name-row {
-  display: flex; align-items: stretch;
-  border-bottom: 1px solid rgba(52,38,24,0.75);
-  background: white;
-}
-.team-label-cell {
-  font-size: 6pt; font-weight: bold;
-  padding: 1px 3px; border-right: 1px solid rgba(52,38,24,0.75);
-  white-space: nowrap; display: flex; align-items: center;
-}
+.team-name-row { display: flex; align-items: stretch; border-bottom: 1px solid rgba(52,38,24,0.75); background: white; }
+.team-label-cell { font-size: 6pt; font-weight: bold; padding: 1px 3px; border-right: 1px solid rgba(52,38,24,0.75); white-space: nowrap; display: flex; align-items: center; }
 .team-name-val { flex: 1; font-size: 7pt; font-weight: bold; padding: 1px 4px; display: flex; align-items: center; }
-
 .timeout-fouls-header { display: flex; border-bottom: 1px solid rgba(52,38,24,0.75); }
 .to-block, .tf-block { flex: 1; padding: 1px 2px; }
 .to-block { border-right: 1px solid rgba(52,38,24,0.75); }
@@ -230,107 +295,52 @@ td.a-blank, td.b-blank {
 .qrow { display: flex; align-items: center; gap: 2px; font-size: 5.5pt; margin-bottom: 1px; }
 .q-period { display: flex; align-items: center; gap: 1px; margin-right: 4px; }
 .q-period-label { font-weight: bold; font-size: 5pt; }
-.q-box {
-  width: 11px; height: 8px; border: 1px solid rgba(120,95,70,0.5);
-  font-size: 5pt; text-align: center; line-height: 8px; background: white;
-}
+.q-box { width: 11px; height: 8px; border: 1px solid rgba(120,95,70,0.5); font-size: 5pt; text-align: center; line-height: 8px; background: white; }
 .q-box.used { font-weight: bold; }
 .q-box.tf-used { text-decoration: line-through; }
-
-.foul-header-row {
-  display: flex;
-  border-top: 1px solid rgba(52,38,24,0.75);
-  border-bottom: 1px solid rgba(52,38,24,0.75);
-  background: white; font-size: 5pt; font-weight: bold;
-}
-.foul-header-row > div {
-  text-align: center; padding: 1px 0;
-  border-right: 1px solid rgba(120,95,70,0.45);
-}
+.foul-header-row { display: flex; border-top: 1px solid rgba(52,38,24,0.75); border-bottom: 1px solid rgba(52,38,24,0.75); background: white; font-size: 5pt; font-weight: bold; }
+.foul-header-row > div { text-align: center; padding: 1px 0; border-right: 1px solid rgba(120,95,70,0.45); }
 .foul-header-row > div:last-child { border-right: none; }
-.col-no    { width: 16px; }
-.col-lic   { width: 28px; }
-.col-name  { flex: 1; text-align: left; padding-left: 2px; }
-.col-hash  { width: 16px; }
-.col-in    { width: 16px; }
-.col-f     { width: 13px; }
-
+.col-no { width: 16px; } .col-lic { width: 28px; } .col-name { flex: 1; text-align: left; padding-left: 2px; }
+.col-hash { width: 16px; } .col-in { width: 16px; } .col-f { width: 13px; }
 .player-rows { display: flex; flex-direction: column; }
-.player-row {
-  display: flex; align-items: center;
-  border-bottom: 1px solid rgba(120,95,70,0.35);
-  min-height: 14px;
-}
+.player-row { display: flex; align-items: center; border-bottom: 1px solid rgba(120,95,70,0.35); min-height: 14px; }
 .player-row:last-child { border-bottom: none; }
-.player-row > div {
-  font-size: 6pt; text-align: center;
-  border-right: 1px solid rgba(120,95,70,0.35);
-  padding: 0; line-height: 14px; height: 14px; overflow: hidden;
-}
+.player-row > div { font-size: 6pt; text-align: center; border-right: 1px solid rgba(120,95,70,0.35); padding: 0; line-height: 14px; height: 14px; overflow: hidden; }
 .player-row > div:last-child { border-right: none; }
 .player-row > div.pr-name { text-align: left; padding-left: 2px; font-size: 6pt; }
 .pr-foul.foul-used { font-weight: bold; text-decoration: line-through; }
-
 .coach-rows { border-top: 1px solid rgba(52,38,24,0.75); font-size: 5.5pt; }
-.coach-row {
-  display: flex; align-items: center;
-  border-bottom: 1px solid rgba(120,95,70,0.35); height: 14px; padding: 0 3px;
-}
+.coach-row { display: flex; align-items: center; border-bottom: 1px solid rgba(120,95,70,0.35); height: 14px; padding: 0 3px; }
 .coach-row:last-child { border-bottom: none; }
 .coach-label { font-weight: bold; margin-right: 4px; white-space: nowrap; }
 .coach-sig { flex: 1; border-bottom: 1px solid rgba(120,95,70,0.45); height: 8px; margin: 1px 0; }
-
-/* 右パネル（ランニングスコア） */
 .right-panel { flex: 1; overflow: hidden; }
-.running-label {
-  text-align: center; font-size: 6pt; font-weight: bold;
-  border-bottom: 1px solid rgba(52,38,24,0.75); padding: 1px; background: white;
-}
+.running-label { text-align: center; font-size: 6pt; font-weight: bold; border-bottom: 1px solid rgba(52,38,24,0.75); padding: 1px; background: white; }
 .running-score-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-.running-score-table th, .running-score-table td {
-  border: 1px solid rgba(120,95,70,0.45);
-  padding: 0; text-align: center; height: 17px; line-height: 17px; overflow: hidden;
-}
-.running-score-table th {
-  background: white; font-size: 5.5pt; font-weight: bold; height: 11px; line-height: 11px;
-}
-.th-a { } .th-b { }
-.col-a-blank { width: 21px; }
-.col-num     { width: 12px; font-size: 5.5pt; color: #666; background: white; }
-.col-b-blank { width: 21px; }
+.running-score-table th, .running-score-table td { border: 1px solid rgba(120,95,70,0.45); padding: 0; text-align: center; height: 17px; line-height: 17px; overflow: hidden; }
+.running-score-table th { background: white; font-size: 5.5pt; font-weight: bold; height: 11px; line-height: 11px; }
+.col-a-blank { width: 21px; } .col-num { width: 12px; font-size: 5.5pt; color: #666; background: white; } .col-b-blank { width: 21px; }
 td.a-blank, td.b-blank { font-size: 7pt; font-weight: 700; }
-td.fg-mark { } td.ft-mark { }
 td.q1 span, td.q3 span { color: #c62828; }
 td.q2 span, td.q4 span { color: #1565c0; }
 td.qot span { color: #6a1b9a; }
-
-/* フッター */
 .sheet-footer { display: flex; border-bottom: 1.5px solid rgba(52,38,24,0.75); }
 .qs-table { width: 100%; border-collapse: collapse; }
-.qs-table th, .qs-table td {
-  border: 1px solid rgba(120,95,70,0.45); font-size: 6pt;
-  text-align: center; padding: 1px 2px; height: 13px; line-height: 13px;
-}
+.qs-table th, .qs-table td { border: 1px solid rgba(120,95,70,0.45); font-size: 6pt; text-align: center; padding: 1px 2px; height: 13px; line-height: 13px; }
 .qs-table th { background: white; font-weight: bold; }
 .qs-name { text-align: left; padding-left: 3px; font-weight: bold; }
 .qs-total { font-weight: bold; font-size: 7pt; }
 .qs-winner td { font-weight: bold; }
-
 .sheet-signatures { display: flex; border-bottom: 1.5px solid rgba(52,38,24,0.75); }
-.sig-cell {
-  flex: 1; font-size: 5.5pt; padding: 1px 3px;
-  border-right: 1px solid rgba(120,95,70,0.45); min-height: 18px;
-}
+.sig-cell { flex: 1; font-size: 5.5pt; padding: 1px 3px; border-right: 1px solid rgba(120,95,70,0.45); min-height: 18px; }
 .sig-cell:last-child { border-right: none; }
 .sig-label { color: #555; }
 .sig-line { border-bottom: 1px solid rgba(120,95,70,0.45); margin-top: 8px; }
 
-/* =====================================================
-   印刷
-   ===================================================== */
 @media print {
   body { background: white; }
-  .editor-toolbar, .input-section, #view-list { display: none !important; }
+  .editor-toolbar, .input-section, #view-tournaments, #view-detail { display: none !important; }
   .sheet-outer { margin: 0; padding: 0; box-shadow: none; }
   .sheet { width: 100%; }
   @page { size: A4 portrait; margin: 8mm; }
@@ -339,7 +349,6 @@ td.qot span { color: #6a1b9a; }
 </head>
 <body>
 
-<!-- SVGフィルター（色鉛筆のざらつき） -->
 <svg style="position:absolute;width:0;height:0;overflow:hidden">
   <defs>
     <filter id="pencil" x="-5%" y="-5%" width="110%" height="110%">
@@ -349,42 +358,99 @@ td.qot span { color: #6a1b9a; }
   </defs>
 </svg>
 
-<!-- トースト通知 -->
 <div id="toast"></div>
 
 <!-- =====================================================
-     画面①: 試合一覧
+     モーダル：大会登録 / 編集
      ===================================================== -->
-<div id="view-list">
-  <div class="list-header">
-    <h1>🏀 バスケ スコアシート</h1>
-    <button class="btn-new" onclick="newGame()">＋ 新規試合</button>
+<div class="modal-overlay" id="modal-tournament" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h2 id="modal-title">🏆 大会を登録</h2>
+    <div class="form-group">
+      <label>大会名 *</label>
+      <input type="text" id="m-name" placeholder="例: 第○○回 ○○大会">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>開始日</label>
+        <input type="date" id="m-startDate">
+      </div>
+      <div class="form-group">
+        <label>終了日</label>
+        <input type="date" id="m-endDate">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>会場</label>
+      <input type="text" id="m-venue" placeholder="例: ○○体育館">
+    </div>
+    <div class="form-group">
+      <label>備考</label>
+      <textarea id="m-note" placeholder="カテゴリや補足情報など"></textarea>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-modal-cancel" onclick="closeTournamentModal()">キャンセル</button>
+      <button class="btn-modal-save" onclick="saveTournament()">保存</button>
+    </div>
   </div>
-  <div class="list-body">
-    <div id="game-list-container">
+</div>
+
+<!-- =====================================================
+     画面①: 大会一覧
+     ===================================================== -->
+<div id="view-tournaments">
+  <div class="app-header">
+    <h1>🏀 バスケ スコアシート</h1>
+    <button class="btn-hdr-primary" onclick="openTournamentModal()">＋ 大会を登録</button>
+  </div>
+  <div class="page-body">
+    <div id="tournament-list-container">
       <div class="loading-msg">読み込み中...</div>
     </div>
   </div>
 </div>
 
 <!-- =====================================================
-     画面②: スコアシートエディター
+     画面②: 大会詳細
+     ===================================================== -->
+<div id="view-detail">
+  <div class="detail-header">
+    <div class="detail-header-top">
+      <button class="btn-hdr" onclick="backToTournaments()">← 大会一覧</button>
+      <span class="detail-title" id="detail-title">大会名</span>
+      <button class="btn-hdr" onclick="openTournamentModal(currentTournamentId)">✏️ 編集</button>
+      <button class="btn-hdr-primary" onclick="newGame()">＋ 試合を追加</button>
+    </div>
+    <div class="detail-meta" id="detail-meta"></div>
+  </div>
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tab-games-btn" onclick="switchTab('games')">📋 試合一覧</button>
+    <button class="tab-btn" id="tab-stats-btn" onclick="switchTab('stats')">📊 成績・ランキング</button>
+  </div>
+  <div class="page-body">
+    <div id="tab-games" style="display:block">
+      <div id="game-list-container"><div class="loading-msg">読み込み中...</div></div>
+    </div>
+    <div id="tab-stats" style="display:none">
+      <div id="stats-container"><div class="loading-msg">集計中...</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- =====================================================
+     画面③: スコアシートエディター
      ===================================================== -->
 <div id="view-editor">
-  <!-- ツールバー -->
   <div class="editor-toolbar">
-    <button class="btn-back" onclick="backToList()">← 一覧</button>
+    <button class="btn-back" onclick="backToDetail()">← 試合一覧</button>
     <span class="toolbar-title" id="toolbar-title">新規試合</span>
     <button class="btn-save" id="btn-save" onclick="saveGame()">💾 保存</button>
     <button class="btn-print-small" onclick="window.print()">🖨 印刷</button>
   </div>
-
-  <!-- 入力フォーム -->
   <div class="input-section">
     <div class="input-grid">
       <div><label>チームA 名前</label><input type="text" id="teamAName" placeholder="例: ホームチーム"></div>
       <div><label>チームB 名前</label><input type="text" id="teamBName" placeholder="例: ビジターチーム"></div>
-      <div><label>大会名</label><input type="text" id="tournament" placeholder="例: ○○大会" oninput="updateToolbarTitle()"></div>
       <div><label>Game No.</label><input type="text" id="gameNo" placeholder="例: 1" oninput="updateToolbarTitle()"></div>
       <div><label>日付</label><input type="text" id="gameDate" placeholder="例: 2025/4/28"></div>
       <div><label>会場</label><input type="text" id="venue" placeholder="例: ○○体育館"></div>
@@ -398,7 +464,6 @@ td.qot span { color: #6a1b9a; }
       <span class="hint">※ 印刷はA4縦・余白8mmを推奨</span>
     </div>
   </div>
-
   <div id="output"></div>
 </div>
 
@@ -420,42 +485,23 @@ const db = firebase.firestore();
 // =====================================================
 // アプリ状態
 // =====================================================
-let currentGameId = null;   // 編集中のFirestore doc ID
+let currentTournamentId = null;   // 表示中の大会ID
+let currentGameId       = null;   // 編集中の試合ID
+let currentTab          = 'games';
 let lastTotalA = 0, lastTotalB = 0;
+let editingTournamentId = null;   // モーダルの編集対象
 
 // =====================================================
 // 画面切り替え
 // =====================================================
 function showView(name) {
-  document.getElementById('view-list').style.display   = name === 'list'   ? 'block' : 'none';
-  document.getElementById('view-editor').style.display = name === 'editor' ? 'block' : 'none';
-}
-
-function newGame() {
-  currentGameId = null;
-  ['teamAName','teamBName','tournament','gameNo','gameDate','venue'].forEach(id => {
-    document.getElementById(id).value = '';
-  });
-  document.getElementById('pbpInput').value = '';
-  document.getElementById('output').innerHTML = '';
-  document.getElementById('toolbar-title').textContent = '新規試合';
-  showView('editor');
-}
-
-function backToList() {
-  showView('list');
-  loadGames();
-}
-
-function updateToolbarTitle() {
-  const t = document.getElementById('tournament').value;
-  const n = document.getElementById('gameNo').value;
-  const title = [t, n ? `Game ${n}` : ''].filter(Boolean).join(' ');
-  document.getElementById('toolbar-title').textContent = title || '新規試合';
+  document.getElementById('view-tournaments').style.display = name === 'tournaments' ? 'block' : 'none';
+  document.getElementById('view-detail').style.display      = name === 'detail'      ? 'block' : 'none';
+  document.getElementById('view-editor').style.display      = name === 'editor'      ? 'block' : 'none';
 }
 
 // =====================================================
-// トースト通知
+// トースト
 // =====================================================
 function showToast(msg, duration = 2500) {
   const el = document.getElementById('toast');
@@ -465,93 +511,430 @@ function showToast(msg, duration = 2500) {
 }
 
 // =====================================================
-// Firestore: 試合一覧を読み込む
+// ユーティリティ
 // =====================================================
-async function loadGames() {
-  const container = document.getElementById('game-list-container');
-  container.innerHTML = '<div class="loading-msg">読み込み中...</div>';
+const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const qClass = q => q===1||q===3 ? 'q1' : q===2||q===4 ? 'q2' : 'qot';
+
+function withTimeout(promise, ms = 10000) {
+  return Promise.race([
+    promise,
+    new Promise((_, r) => setTimeout(() => r(new Error(`タイムアウト（${ms/1000}秒）`)), ms))
+  ]);
+}
+
+// =====================================================
+// 大会一覧
+// =====================================================
+async function loadTournaments() {
+  const cont = document.getElementById('tournament-list-container');
+  cont.innerHTML = '<div class="loading-msg">読み込み中...</div>';
   try {
-    const timeout = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('タイムアウト（10秒）')), 10000)
+    const snap = await withTimeout(
+      db.collection('tournaments').orderBy('startDate', 'desc').get()
     );
-    const snap = await Promise.race([
-      db.collection('games').orderBy('updatedAt', 'desc').get(),
-      timeout
-    ]);
     if (snap.empty) {
-      container.innerHTML = `
-        <div class="list-empty">
-          <span>📋</span>
-          保存済みの試合がありません<br>「新規試合」から作成してください
-        </div>`;
+      cont.innerHTML = `<div class="empty-state"><span>🏆</span>大会が登録されていません<br>「大会を登録」から追加してください</div>`;
       return;
     }
-    container.innerHTML = snap.docs.map(doc => {
+    // 各大会の試合数を取得
+    const cards = await Promise.all(snap.docs.map(async doc => {
       const d = doc.data();
-      const date = d.gameDate || '';
-      const tournament = d.tournament || '';
-      const gameNo = d.gameNo ? `Game ${d.gameNo}` : '';
-      const titleText = [tournament, gameNo].filter(Boolean).join(' ') || '（タイトルなし）';
-      const teamsText = `${d.teamAName || 'チームA'} vs ${d.teamBName || 'チームB'}`;
+      const gSnap = await db.collection('games')
+        .where('tournamentId', '==', doc.id).get();
+      const gameCount = gSnap.size;
+      const teams = new Set();
+      gSnap.docs.forEach(g => {
+        if (g.data().teamAName) teams.add(g.data().teamAName);
+        if (g.data().teamBName) teams.add(g.data().teamBName);
+      });
+      const period = [d.startDate, d.endDate].filter(Boolean).join(' 〜 ') || '日程未定';
+      return `
+        <div class="tournament-card" onclick="openTournament('${doc.id}')">
+          <div class="tc-icon">🏆</div>
+          <div class="tc-info">
+            <div class="tc-name">${esc(d.name)}</div>
+            <div class="tc-meta">📅 ${esc(period)}${d.venue ? '　📍 ' + esc(d.venue) : ''}</div>
+            <div class="tc-badges">
+              <span class="tc-badge">試合数: ${gameCount}</span>
+              <span class="tc-badge">チーム数: ${teams.size}</span>
+              ${d.note ? `<span class="tc-badge">${esc(d.note.slice(0,20))}</span>` : ''}
+            </div>
+          </div>
+          <div class="tc-actions" onclick="event.stopPropagation()">
+            <button class="btn-card btn-open" onclick="openTournament('${doc.id}')">開く</button>
+            <button class="btn-card btn-edit" onclick="openTournamentModal('${doc.id}')">編集</button>
+            <button class="btn-card btn-delete" onclick="deleteTournament('${doc.id}')">削除</button>
+          </div>
+        </div>`;
+    }));
+    cont.innerHTML = cards.join('');
+  } catch(e) {
+    console.error(e);
+    cont.innerHTML = `<div class="loading-msg" style="color:red">読み込みエラー: ${e.message}</div>`;
+  }
+}
+
+// =====================================================
+// 大会を開く
+// =====================================================
+async function openTournament(id) {
+  currentTournamentId = id;
+  showView('detail');
+  try {
+    const doc = await withTimeout(db.collection('tournaments').doc(id).get());
+    const d = doc.data();
+    document.getElementById('detail-title').textContent = d.name || '大会';
+    const period = [d.startDate, d.endDate].filter(Boolean).join(' 〜 ');
+    document.getElementById('detail-meta').textContent =
+      [period, d.venue ? '📍 ' + d.venue : ''].filter(Boolean).join('　');
+  } catch(e) { /* ignore */ }
+  switchTab('games');
+}
+
+function backToTournaments() {
+  showView('tournaments');
+  loadTournaments();
+}
+
+// =====================================================
+// タブ切り替え
+// =====================================================
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tab-games').style.display = tab === 'games' ? 'block' : 'none';
+  document.getElementById('tab-stats').style.display = tab === 'stats' ? 'block' : 'none';
+  document.getElementById('tab-games-btn').className = 'tab-btn' + (tab === 'games' ? ' active' : '');
+  document.getElementById('tab-stats-btn').className = 'tab-btn' + (tab === 'stats' ? ' active' : '');
+  if (tab === 'games') loadGames();
+  else                 loadStats();
+}
+
+// =====================================================
+// 試合一覧（大会内）
+// =====================================================
+async function loadGames() {
+  const cont = document.getElementById('game-list-container');
+  cont.innerHTML = '<div class="loading-msg">読み込み中...</div>';
+  try {
+    const snap = await withTimeout(
+      db.collection('games')
+        .where('tournamentId', '==', currentTournamentId)
+        .orderBy('gameDate', 'asc')
+        .get()
+    );
+    if (snap.empty) {
+      cont.innerHTML = `<div class="empty-state"><span>📋</span>この大会の試合がありません<br>「試合を追加」から入力してください</div>`;
+      return;
+    }
+    cont.innerHTML = snap.docs.map(doc => {
+      const d = doc.data();
+      const teamA = d.teamAName || 'チームA';
+      const teamB = d.teamBName || 'チームB';
       const score = (d.totalA != null) ? `${d.totalA} - ${d.totalB}` : '- - -';
+      const label = [d.gameDate, d.gameNo ? `Game ${d.gameNo}` : ''].filter(Boolean).join('　');
       return `
         <div class="game-card" onclick="openGame('${doc.id}')">
-          <div class="game-card-info">
-            <div class="game-card-title">${esc(titleText)}</div>
-            <div class="game-card-teams">${esc(teamsText)}</div>
-            <div class="game-card-meta">${esc(date)}</div>
+          <div class="gc-info">
+            <div class="gc-title">${esc(label) || '試合'}</div>
+            <div class="gc-teams">${esc(teamA)} <span style="color:#999;font-weight:normal">vs</span> ${esc(teamB)}</div>
           </div>
-          <div class="game-card-score">${esc(score)}</div>
-          <div class="game-card-actions" onclick="event.stopPropagation()">
+          <div class="gc-score">${esc(score)}</div>
+          <div class="gc-actions" onclick="event.stopPropagation()">
             <button class="btn-card btn-open" onclick="openGame('${doc.id}')">開く</button>
             <button class="btn-card btn-delete" onclick="deleteGame('${doc.id}')">削除</button>
           </div>
         </div>`;
     }).join('');
   } catch(e) {
-    console.error('loadGames error:', e);
-    container.innerHTML = `<div class="loading-msg" style="color:red">読み込みエラー: ${e.message}</div>`;
+    console.error(e);
+    cont.innerHTML = `<div class="loading-msg" style="color:red">読み込みエラー: ${e.message}</div>`;
   }
 }
 
 // =====================================================
-// Firestore: 試合を開く
+// 成績・ランキング（大会内）
 // =====================================================
+async function loadStats() {
+  const cont = document.getElementById('stats-container');
+  cont.innerHTML = '<div class="loading-msg">集計中...</div>';
+  try {
+    const snap = await withTimeout(
+      db.collection('games')
+        .where('tournamentId', '==', currentTournamentId)
+        .get()
+    );
+    if (snap.empty) {
+      cont.innerHTML = '<div class="dash-no-data">試合データがありません。</div>';
+      return;
+    }
+
+    const playerMap = {};
+    const teamMap   = {};
+    const gameList  = [];
+
+    for (const doc of snap.docs) {
+      const d = doc.data();
+      if (!d.pbpData) continue;
+      const plays = parsePBP(d.pbpData);
+      const st    = buildState(plays);
+      const totalA = st.qScore.A.reduce((a,b)=>a+b,0);
+      const totalB = st.qScore.B.reduce((a,b)=>a+b,0);
+      const teamA  = d.teamAName || 'チームA';
+      const teamB  = d.teamBName || 'チームB';
+
+      gameList.push({ id: doc.id, teamA, teamB, totalA, totalB, gameDate: d.gameDate || '', gameNo: d.gameNo || '' });
+
+      // チーム成績
+      for (const [tName, pf, pa] of [[teamA, totalA, totalB],[teamB, totalB, totalA]]) {
+        if (!teamMap[tName]) teamMap[tName] = {wins:0,losses:0,draws:0,pf:0,pa:0,games:0};
+        teamMap[tName].games++;
+        teamMap[tName].pf += pf; teamMap[tName].pa += pa;
+        if (pf > pa) teamMap[tName].wins++;
+        else if (pf < pa) teamMap[tName].losses++;
+        else teamMap[tName].draws++;
+      }
+
+      // 選手得点
+      for (const team of ['A','B']) {
+        const tName = team === 'A' ? teamA : teamB;
+        const cells = team === 'A' ? st.cellsA : st.cellsB;
+        const playerPts = {};
+        for (const cell of Object.values(cells)) {
+          if (cell.idx !== 0) continue;
+          const pts = cell.scoreType === '3P' ? 3 : cell.scoreType === '2P' ? 2 : 1;
+          playerPts[cell.playerNum] = (playerPts[cell.playerNum] || 0) + pts;
+        }
+        for (const p of Object.values(st.players[team])) {
+          const key = `${tName}|${p.num}`;
+          if (!playerMap[key]) playerMap[key] = { name: p.name || `#${p.num}`, num: p.num, team: tName, pts: 0, games: 0, fouls: 0 };
+          playerMap[key].pts   += (playerPts[p.num] || 0);
+          playerMap[key].fouls += (st.fouls[team][p.num] || 0);
+          playerMap[key].games++;
+          if (!playerMap[key].name && p.name) playerMap[key].name = p.name;
+        }
+      }
+    }
+
+    const scorers = Object.values(playerMap).sort((a,b) => b.pts - a.pts).slice(0, 15);
+    const teams   = Object.values(teamMap).sort((a,b) => b.wins - a.wins || (b.pf-b.pa) - (a.pf-a.pa));
+    const recent  = [...gameList].sort((a,b) => (a.gameDate > b.gameDate ? 1 : -1));
+
+    cont.innerHTML = `
+      <div class="dash-summary">
+        <div class="dash-kpi"><div class="dash-kpi-val">${snap.size}</div><div class="dash-kpi-label">試合数</div></div>
+        <div class="dash-kpi"><div class="dash-kpi-val">${Object.keys(teamMap).length}</div><div class="dash-kpi-label">チーム数</div></div>
+        <div class="dash-kpi"><div class="dash-kpi-val">${Object.keys(playerMap).length}</div><div class="dash-kpi-label">選手数</div></div>
+      </div>
+
+      <div class="dash-section">
+        <div class="dash-section-title">🏆 得点ランキング</div>
+        <div class="dash-table-wrap">
+          ${scorers.length === 0 ? '<div class="dash-no-data">データなし</div>' : `
+          <table class="dash-table"><thead><tr>
+            <th class="num" style="width:42px">順位</th>
+            <th>選手名</th><th>チーム</th>
+            <th class="num">試合</th><th class="num">総得点</th>
+            <th class="num">平均</th><th class="num">反則</th>
+          </tr></thead><tbody>
+            ${scorers.map((p,i) => {
+              const avg = p.games > 0 ? (p.pts/p.games).toFixed(1) : '0.0';
+              return `<tr>
+                <td class="num"><span class="rank-badge rank-${i+1}">${i+1}</span></td>
+                <td><strong>#${esc(p.num)}</strong> ${esc(p.name)}</td>
+                <td><span class="team-badge">${esc(p.team)}</span></td>
+                <td class="num">${p.games}</td>
+                <td class="num"><strong>${p.pts}</strong></td>
+                <td class="num">${avg}</td>
+                <td class="num">${p.fouls}</td>
+              </tr>`;
+            }).join('')}
+          </tbody></table>`}
+        </div>
+      </div>
+
+      <div class="dash-section">
+        <div class="dash-section-title">📋 チーム成績</div>
+        <div class="dash-table-wrap">
+          ${teams.length === 0 ? '<div class="dash-no-data">データなし</div>' : `
+          <table class="dash-table"><thead><tr>
+            <th>チーム名</th>
+            <th class="num">試合</th><th class="num">勝</th><th class="num">負</th><th class="num">分</th>
+            <th class="num">得点</th><th class="num">失点</th><th class="num">±</th>
+            <th style="min-width:100px">勝率</th>
+          </tr></thead><tbody>
+            ${teams.map(t => {
+              const rate = t.games > 0 ? Math.round(t.wins/t.games*100) : 0;
+              const diff = t.pf - t.pa;
+              return `<tr>
+                <td><strong>${esc(t.name)}</strong></td>
+                <td class="num">${t.games}</td>
+                <td class="num result-win">${t.wins}</td>
+                <td class="num result-lose">${t.losses}</td>
+                <td class="num result-draw">${t.draws}</td>
+                <td class="num">${t.pf}</td><td class="num">${t.pa}</td>
+                <td class="num ${diff>=0?'result-win':'result-lose'}">${diff>=0?'+':''}${diff}</td>
+                <td><div class="win-rate-bar">
+                  <div class="win-rate-track"><div class="win-rate-fill" style="width:${rate}%"></div></div>
+                  <span style="font-size:11px">${rate}%</span>
+                </div></td>
+              </tr>`;
+            }).join('')}
+          </tbody></table>`}
+        </div>
+      </div>
+
+      <div class="dash-section">
+        <div class="dash-section-title">📅 試合結果一覧</div>
+        <div class="dash-table-wrap">
+          <table class="dash-table"><thead><tr>
+            <th>日付</th><th class="num">Game</th>
+            <th>チームA</th><th class="num">スコア</th><th>チームB</th><th class="num">結果</th>
+          </tr></thead><tbody>
+            ${recent.map(g => {
+              const winA = g.totalA > g.totalB, winB = g.totalB > g.totalA;
+              return `<tr>
+                <td>${esc(g.gameDate)||'—'}</td>
+                <td class="num">${esc(g.gameNo)||'—'}</td>
+                <td class="${winA?'result-win':''}">${esc(g.teamA)}</td>
+                <td class="num"><strong>${g.totalA} - ${g.totalB}</strong></td>
+                <td class="${winB?'result-win':''}">${esc(g.teamB)}</td>
+                <td class="num">${winA?'<span class="result-win">A勝</span>':winB?'<span class="result-win">B勝</span>':'<span class="result-draw">分</span>'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody></table>
+        </div>
+      </div>`;
+  } catch(e) {
+    console.error(e);
+    cont.innerHTML = `<div class="dash-no-data" style="color:red">集計エラー: ${e.message}</div>`;
+  }
+}
+
+// =====================================================
+// 大会モーダル
+// =====================================================
+async function openTournamentModal(id = null) {
+  editingTournamentId = id;
+  document.getElementById('modal-title').textContent = id ? '✏️ 大会を編集' : '🏆 大会を登録';
+  document.getElementById('m-name').value = '';
+  document.getElementById('m-startDate').value = '';
+  document.getElementById('m-endDate').value = '';
+  document.getElementById('m-venue').value = '';
+  document.getElementById('m-note').value = '';
+  if (id) {
+    try {
+      const doc = await withTimeout(db.collection('tournaments').doc(id).get());
+      const d = doc.data();
+      document.getElementById('m-name').value      = d.name      || '';
+      document.getElementById('m-startDate').value = d.startDate || '';
+      document.getElementById('m-endDate').value   = d.endDate   || '';
+      document.getElementById('m-venue').value     = d.venue     || '';
+      document.getElementById('m-note').value      = d.note      || '';
+    } catch(e) { /* ignore */ }
+  }
+  document.getElementById('modal-tournament').classList.add('open');
+}
+
+function closeTournamentModal() {
+  document.getElementById('modal-tournament').classList.remove('open');
+  editingTournamentId = null;
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('modal-tournament')) closeTournamentModal();
+}
+
+async function saveTournament() {
+  const name = document.getElementById('m-name').value.trim();
+  if (!name) { alert('大会名を入力してください'); return; }
+  const data = {
+    name,
+    startDate: document.getElementById('m-startDate').value,
+    endDate:   document.getElementById('m-endDate').value,
+    venue:     document.getElementById('m-venue').value.trim(),
+    note:      document.getElementById('m-note').value.trim(),
+    updatedAt: new Date().toISOString()
+  };
+  try {
+    if (editingTournamentId) {
+      await withTimeout(db.collection('tournaments').doc(editingTournamentId).update(data));
+      showToast('✅ 大会を更新しました');
+      // 詳細画面が開いていれば表示を更新
+      if (currentTournamentId === editingTournamentId) {
+        document.getElementById('detail-title').textContent = name;
+      }
+    } else {
+      data.createdAt = new Date().toISOString();
+      await withTimeout(db.collection('tournaments').add(data));
+      showToast('✅ 大会を登録しました');
+    }
+    closeTournamentModal();
+    // 大会一覧画面にいれば再読み込み
+    if (document.getElementById('view-tournaments').style.display !== 'none') {
+      loadTournaments();
+    }
+  } catch(e) {
+    console.error(e);
+    showToast('❌ エラー: ' + e.message);
+  }
+}
+
+async function deleteTournament(id) {
+  if (!confirm('この大会を削除しますか？\n※ 試合データは削除されません')) return;
+  try {
+    await withTimeout(db.collection('tournaments').doc(id).delete());
+    showToast('🗑 大会を削除しました');
+    loadTournaments();
+  } catch(e) {
+    showToast('❌ エラー: ' + e.message);
+  }
+}
+
+// =====================================================
+// 試合 CRUD
+// =====================================================
+function newGame() {
+  currentGameId = null;
+  ['teamAName','teamBName','gameNo','gameDate','venue'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('pbpInput').value = '';
+  document.getElementById('output').innerHTML = '';
+  lastTotalA = 0; lastTotalB = 0;
+  updateToolbarTitle();
+  showView('editor');
+}
+
 async function openGame(id) {
   try {
-    const doc = await db.collection('games').doc(id).get();
+    const doc = await withTimeout(db.collection('games').doc(id).get());
     if (!doc.exists) { showToast('試合データが見つかりません'); return; }
     const d = doc.data();
     currentGameId = id;
-    document.getElementById('teamAName').value  = d.teamAName  || '';
-    document.getElementById('teamBName').value  = d.teamBName  || '';
-    document.getElementById('tournament').value = d.tournament || '';
-    document.getElementById('gameNo').value     = d.gameNo     || '';
-    document.getElementById('gameDate').value   = d.gameDate   || '';
-    document.getElementById('venue').value      = d.venue      || '';
-    document.getElementById('pbpInput').value   = d.pbpData    || '';
+    document.getElementById('teamAName').value = d.teamAName || '';
+    document.getElementById('teamBName').value = d.teamBName || '';
+    document.getElementById('gameNo').value    = d.gameNo    || '';
+    document.getElementById('gameDate').value  = d.gameDate  || '';
+    document.getElementById('venue').value     = d.venue     || '';
+    document.getElementById('pbpInput').value  = d.pbpData   || '';
     updateToolbarTitle();
     showView('editor');
-    // PBPがあれば自動生成
     if (d.pbpData) generate();
   } catch(e) {
     showToast('エラー: ' + e.message);
   }
 }
 
-// =====================================================
-// Firestore: 試合を保存
-// =====================================================
 async function saveGame() {
   const btn = document.getElementById('btn-save');
-  btn.disabled = true;
-  btn.textContent = '保存中...';
+  btn.disabled = true; btn.textContent = '保存中...';
   try {
     const now = new Date().toISOString();
     const data = {
+      tournamentId: currentTournamentId,
       teamAName:  document.getElementById('teamAName').value,
       teamBName:  document.getElementById('teamBName').value,
-      tournament: document.getElementById('tournament').value,
       gameNo:     document.getElementById('gameNo').value,
       gameDate:   document.getElementById('gameDate').value,
       venue:      document.getElementById('venue').value,
@@ -560,46 +943,41 @@ async function saveGame() {
       totalB:     lastTotalB,
       updatedAt:  now
     };
-
-    // 10秒タイムアウト付きで保存
-    const timeout = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('タイムアウト（10秒）。ネットワークまたはFirestoreのルールを確認してください')), 10000)
-    );
-
     if (currentGameId) {
-      await Promise.race([
-        db.collection('games').doc(currentGameId).update(data),
-        timeout
-      ]);
+      await withTimeout(db.collection('games').doc(currentGameId).update(data));
     } else {
       data.createdAt = now;
-      const savePromise = db.collection('games').add(data).then(ref => {
-        currentGameId = ref.id;
-      });
-      await Promise.race([savePromise, timeout]);
+      const ref = await withTimeout(db.collection('games').add(data));
+      currentGameId = ref.id;
     }
     showToast('✅ 保存しました');
   } catch(e) {
-    console.error('saveGame error:', e);
+    console.error(e);
     showToast('❌ 保存エラー: ' + e.message);
   } finally {
-    btn.disabled = false;
-    btn.textContent = '💾 保存';
+    btn.disabled = false; btn.textContent = '💾 保存';
   }
 }
 
-// =====================================================
-// Firestore: 試合を削除
-// =====================================================
 async function deleteGame(id) {
   if (!confirm('この試合を削除しますか？')) return;
   try {
-    await db.collection('games').doc(id).delete();
+    await withTimeout(db.collection('games').doc(id).delete());
     showToast('🗑 削除しました');
     loadGames();
   } catch(e) {
-    showToast('❌ 削除エラー: ' + e.message);
+    showToast('❌ エラー: ' + e.message);
   }
+}
+
+function backToDetail() {
+  showView('detail');
+  switchTab(currentTab);
+}
+
+function updateToolbarTitle() {
+  const n = document.getElementById('gameNo').value;
+  document.getElementById('toolbar-title').textContent = n ? `Game ${n}` : '新規試合';
 }
 
 // =====================================================
@@ -615,12 +993,12 @@ function parseEvent(ev) {
   if (!ev || !ev.trim()) return null;
   const { num: playerNum, name: playerName } = extractPlayer(ev);
   let type = null, points = 0;
-  if      (ev.includes('3P成功'))                                     { type = '3P'; points = 3; }
-  else if (ev.includes('2P成功'))                                     { type = '2P'; points = 2; }
-  else if (ev.includes('フリースロー成功'))                           { type = 'FT'; points = 1; }
-  else if (ev.includes('Pファイル') || ev.includes('Pファウル'))      { type = 'PF'; }
-  else if (ev.includes('Tファイル') || ev.includes('Tファウル'))      { type = 'TF'; }
-  else if (ev.includes('タイムアウト'))                               { type = 'TO'; }
+  if      (ev.includes('3P成功'))                                { type = '3P'; points = 3; }
+  else if (ev.includes('2P成功'))                                { type = '2P'; points = 2; }
+  else if (ev.includes('フリースロー成功'))                      { type = 'FT'; points = 1; }
+  else if (ev.includes('Pファイル') || ev.includes('Pファウル')) { type = 'PF'; }
+  else if (ev.includes('Tファイル') || ev.includes('Tファウル')) { type = 'TF'; }
+  else if (ev.includes('タイムアウト'))                          { type = 'TO'; }
   return { playerNum, playerName, type, points };
 }
 
@@ -649,7 +1027,7 @@ function buildState(plays) {
   function proc(team, evStr, q, timer) {
     const ev = parseEvent(evStr);
     if (!ev) return;
-    const qi = Math.min(q, 4) - 1;
+    const qi = Math.min(q,4) - 1;
     if (ev.playerNum && !st.players[team][ev.playerNum])
       st.players[team][ev.playerNum] = { num: ev.playerNum, name: ev.playerName || '' };
     if (ev.points > 0) {
@@ -675,20 +1053,16 @@ function buildState(plays) {
 }
 
 // =====================================================
-// HTML生成ヘルパー
+// スコアシート生成
 // =====================================================
-const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-const qClass = q => q===1||q===3 ? 'q1' : q===2||q===4 ? 'q2' : 'qot';
-
 function scoreCell(cells, score, side) {
   const c = cells[score];
   if (!c) return `<td class="${side}-blank"></td>`;
   const isFT = c.scoreType === 'FT';
-  const qc = qClass(c.quarter);
   const mark = isFT
     ? (c.idx === 0 ? `${esc(c.playerNum)}●` : '●')
     : (c.idx === 0 ? `${esc(c.playerNum)}/` : '/');
-  return `<td class="${side}-blank ${isFT?'ft-mark':'fg-mark'} ${qc}"><span>${mark}</span></td>`;
+  return `<td class="${side}-blank ${isFT?'ft-mark':'fg-mark'} ${qClass(c.quarter)}"><span>${mark}</span></td>`;
 }
 
 function buildRunningScore(st) {
@@ -699,8 +1073,7 @@ function buildRunningScore(st) {
     for (let g = 0; g < 4; g++) {
       const n = r + g * 40;
       rows += scoreCell(st.cellsA, n, 'a');
-      rows += `<td class="col-num">${n}</td>`;
-      rows += `<td class="col-num">${n}</td>`;
+      rows += `<td class="col-num">${n}</td><td class="col-num">${n}</td>`;
       rows += scoreCell(st.cellsB, n, 'b');
     }
     rows += '</tr>';
@@ -728,16 +1101,11 @@ function buildPlayerRows(team, st) {
 
 function toBoxes(team, qi, st) {
   const used = st.timeouts[team][qi] || [];
-  return [0,1,2].map(i =>
-    `<div class="q-box${used[i]!==undefined?' used':''}">${used[i]||''}</div>`
-  ).join('');
+  return [0,1,2].map(i=>`<div class="q-box${used[i]!==undefined?' used':''}">${used[i]||''}</div>`).join('');
 }
-
 function tfBoxes(team, qi, st) {
   const used = st.teamFouls[team][qi] || 0;
-  return [1,2,3,4].map(n =>
-    `<div class="q-box${n<=used?' tf-used':''}">${n}</div>`
-  ).join('');
+  return [1,2,3,4].map(n=>`<div class="q-box${n<=used?' tf-used':''}">${n}</div>`).join('');
 }
 
 function teamSection(team, teamName, st) {
@@ -753,13 +1121,9 @@ function teamSection(team, teamName, st) {
       <div class="block-title">タイムアウト</div>
       <div class="quarter-rows">
         ${[0,1].map(pair=>`<div class="qrow">${[pair*2,pair*2+1].map(qi=>`
-          <div class="q-period">
-            <span class="q-period-label">${qLabels[qi]}</span>
-            ${toBoxes(team,qi,st)}
-          </div>`).join('')}</div>`).join('')}
+          <div class="q-period"><span class="q-period-label">${qLabels[qi]}</span>${toBoxes(team,qi,st)}</div>`).join('')}</div>`).join('')}
         <div class="qrow"><div class="q-period">
-          <span class="q-period-label" style="font-size:4.5pt;">OT</span>
-          ${toBoxes(team,4,st)}
+          <span class="q-period-label" style="font-size:4.5pt;">OT</span>${toBoxes(team,4,st)}
         </div></div>
       </div>
     </div>
@@ -767,21 +1131,16 @@ function teamSection(team, teamName, st) {
       <div class="block-title">チームファウル</div>
       <div class="quarter-rows">
         ${[0,1].map(pair=>`<div class="qrow">${[pair*2,pair*2+1].map(qi=>`
-          <div class="q-period">
-            <span class="q-period-label">${qLabels[qi]}</span>
-            ${tfBoxes(team,qi,st)}
-          </div>`).join('')}</div>`).join('')}
+          <div class="q-period"><span class="q-period-label">${qLabels[qi]}</span>${tfBoxes(team,qi,st)}</div>`).join('')}</div>`).join('')}
       </div>
     </div>
   </div>
   <div class="foul-header-row">
-    <div class="col-no">No.</div>
-    <div class="col-lic" style="font-size:4.5pt;">License</div>
-    <div class="col-name">選手名</div>
-    <div class="col-hash">#</div>
+    <div class="col-no">No.</div><div class="col-lic" style="font-size:4.5pt;">License</div>
+    <div class="col-name">選手名</div><div class="col-hash">#</div>
     <div class="col-in" style="font-size:4.5pt;">in</div>
-    <div class="col-f">1</div><div class="col-f">2</div>
-    <div class="col-f">3</div><div class="col-f">4</div><div class="col-f">5</div>
+    <div class="col-f">1</div><div class="col-f">2</div><div class="col-f">3</div>
+    <div class="col-f">4</div><div class="col-f">5</div>
   </div>
   <div class="player-rows">${buildPlayerRows(team, st)}</div>
   <div class="coach-rows">
@@ -791,24 +1150,17 @@ function teamSection(team, teamName, st) {
 </div>`;
 }
 
-// =====================================================
-// メイン: スコアシート生成
-// =====================================================
 function generate() {
-  const teamAName  = document.getElementById('teamAName').value  || 'チームA';
-  const teamBName  = document.getElementById('teamBName').value  || 'チームB';
-  const tournament = document.getElementById('tournament').value;
+  const teamAName  = document.getElementById('teamAName').value || 'チームA';
+  const teamBName  = document.getElementById('teamBName').value || 'チームB';
   const gameNo     = document.getElementById('gameNo').value;
   const gameDate   = document.getElementById('gameDate').value;
   const venue      = document.getElementById('venue').value;
-
   const plays = parsePBP(document.getElementById('pbpInput').value);
   const st    = buildState(plays);
-
   lastTotalA = st.qScore.A.reduce((a,b)=>a+b,0);
   lastTotalB = st.qScore.B.reduce((a,b)=>a+b,0);
-  const winner = lastTotalA > lastTotalB ? esc(teamAName)
-               : lastTotalB > lastTotalA ? esc(teamBName) : '引き分け';
+  const winner = lastTotalA > lastTotalB ? esc(teamAName) : lastTotalB > lastTotalA ? esc(teamBName) : '引き分け';
 
   document.getElementById('output').innerHTML = `
 <div class="sheet-outer"><div class="sheet">
@@ -824,7 +1176,7 @@ function generate() {
         <div class="info-cell"><label>開始時間:</label></div>
       </div>
       <div class="info-row">
-        <div class="info-cell"><label>大会名:</label> ${esc(tournament)}</div>
+        <div class="info-cell"><label>大会名:</label> ${esc(document.getElementById('detail-title').textContent)}</div>
         <div class="info-cell"><label>日付:</label> ${esc(gameDate)}</div>
         <div class="info-cell"><label>会場:</label> ${esc(venue)}</div>
       </div>
@@ -838,14 +1190,8 @@ function generate() {
     <div class="right-panel">
       <div class="running-label">ランニングスコア</div>
       <table class="running-score-table">
-        <colgroup>${Array(4).fill(0).map(()=>`
-          <col class="col-a-blank"><col class="col-num">
-          <col class="col-num"><col class="col-b-blank">`).join('')}
-        </colgroup>
-        <thead><tr>${Array(4).fill(0).map(()=>`
-          <th colspan="2" class="th-a">A</th>
-          <th colspan="2" class="th-b">B</th>`).join('')}
-        </tr></thead>
+        <colgroup>${Array(4).fill(0).map(()=>`<col class="col-a-blank"><col class="col-num"><col class="col-num"><col class="col-b-blank">`).join('')}</colgroup>
+        <thead><tr>${Array(4).fill(0).map(()=>`<th colspan="2" class="th-a">A</th><th colspan="2" class="th-b">B</th>`).join('')}</tr></thead>
         <tbody>${buildRunningScore(st)}</tbody>
       </table>
     </div>
@@ -858,16 +1204,8 @@ function generate() {
         <th style="width:35px;">合計</th>
       </tr></thead>
       <tbody>
-        <tr>
-          <td class="qs-name">${esc(teamAName)}</td>
-          ${st.qScore.A.map(s=>`<td>${s||0}</td>`).join('')}
-          <td class="qs-total">${lastTotalA}</td>
-        </tr>
-        <tr>
-          <td class="qs-name">${esc(teamBName)}</td>
-          ${st.qScore.B.map(s=>`<td>${s||0}</td>`).join('')}
-          <td class="qs-total">${lastTotalB}</td>
-        </tr>
+        <tr><td class="qs-name">${esc(teamAName)}</td>${st.qScore.A.map(s=>`<td>${s||0}</td>`).join('')}<td class="qs-total">${lastTotalA}</td></tr>
+        <tr><td class="qs-name">${esc(teamBName)}</td>${st.qScore.B.map(s=>`<td>${s||0}</td>`).join('')}<td class="qs-total">${lastTotalB}</td></tr>
         <tr class="qs-winner">
           <td colspan="6" style="text-align:right;padding-right:6px;">勝利チーム: <strong>${winner}</strong></td>
           <td class="qs-total">${lastTotalA} - ${lastTotalB}</td>
@@ -885,9 +1223,9 @@ function generate() {
 }
 
 // =====================================================
-// 起動: 一覧を読み込む
+// 起動
 // =====================================================
-loadGames();
+loadTournaments();
 </script>
 </body>
 </html>
