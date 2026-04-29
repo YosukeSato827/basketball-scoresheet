@@ -471,9 +471,13 @@ async function loadGames() {
   const container = document.getElementById('game-list-container');
   container.innerHTML = '<div class="loading-msg">読み込み中...</div>';
   try {
-    const snap = await db.collection('games')
-      .orderBy('updatedAt', 'desc')
-      .get();
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('タイムアウト（10秒）')), 10000)
+    );
+    const snap = await Promise.race([
+      db.collection('games').orderBy('updatedAt', 'desc').get(),
+      timeout
+    ]);
     if (snap.empty) {
       container.innerHTML = `
         <div class="list-empty">
@@ -505,6 +509,7 @@ async function loadGames() {
         </div>`;
     }).join('');
   } catch(e) {
+    console.error('loadGames error:', e);
     container.innerHTML = `<div class="loading-msg" style="color:red">読み込みエラー: ${e.message}</div>`;
   }
 }
@@ -542,6 +547,7 @@ async function saveGame() {
   btn.disabled = true;
   btn.textContent = '保存中...';
   try {
+    const now = new Date().toISOString();
     const data = {
       teamAName:  document.getElementById('teamAName').value,
       teamBName:  document.getElementById('teamBName').value,
@@ -552,17 +558,29 @@ async function saveGame() {
       pbpData:    document.getElementById('pbpInput').value,
       totalA:     lastTotalA,
       totalB:     lastTotalB,
-      updatedAt:  firebase.firestore.FieldValue.serverTimestamp()
+      updatedAt:  now
     };
+
+    // 10秒タイムアウト付きで保存
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('タイムアウト（10秒）。ネットワークまたはFirestoreのルールを確認してください')), 10000)
+    );
+
     if (currentGameId) {
-      await db.collection('games').doc(currentGameId).update(data);
+      await Promise.race([
+        db.collection('games').doc(currentGameId).update(data),
+        timeout
+      ]);
     } else {
-      data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-      const ref = await db.collection('games').add(data);
-      currentGameId = ref.id;
+      data.createdAt = now;
+      const savePromise = db.collection('games').add(data).then(ref => {
+        currentGameId = ref.id;
+      });
+      await Promise.race([savePromise, timeout]);
     }
     showToast('✅ 保存しました');
   } catch(e) {
+    console.error('saveGame error:', e);
     showToast('❌ 保存エラー: ' + e.message);
   } finally {
     btn.disabled = false;
