@@ -591,6 +591,22 @@ td.qot span { color: #6a1b9a; }
 }
 
 /* =====================================================
+   得点推移グラフ
+   ===================================================== */
+.score-graph-wrap {
+  background: white; border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 16px 20px 10px; margin-bottom: 16px;
+}
+.score-graph-title {
+  font-size: 11px; font-weight: 700;
+  color: var(--text-light); letter-spacing: .1em;
+  text-transform: uppercase; padding-left: 10px;
+  margin-bottom: 10px; border-left: 3px solid var(--blue);
+}
+@media print { .score-graph-wrap { display: none !important; } }
+
+/* =====================================================
    スマホプレビューモード（PCからの確認用）
    ===================================================== */
 .preview-toggle-btn {
@@ -1550,6 +1566,129 @@ function teamSection(team, teamName, st) {
 </div>`;
 }
 
+// =====================================================
+// 得点推移グラフ
+// =====================================================
+function buildScoreTimeline(plays) {
+  // 各プレイ後の累積スコアと、クォーター終端インデックスを返す
+  const points = [{ scoreA: 0, scoreB: 0, q: 0 }]; // 開始点
+  const qMarkers = []; // { idx, q } クォーター終端
+  let scoreA = 0, scoreB = 0, prevQ = 0;
+
+  plays.forEach((play, i) => {
+    if (!play) return;
+    const { quarter, evA, evB } = play;
+
+    // クォーター変わり目 → 直前クォーターの末端マーカー
+    if (quarter !== prevQ && prevQ > 0) {
+      qMarkers.push({ idx: points.length - 1, q: prevQ });
+    }
+
+    const pA = parseEvent(evA);
+    const pB = parseEvent(evB);
+    if (pA && pA.points) scoreA += pA.points;
+    if (pB && pB.points) scoreB += pB.points;
+
+    points.push({ scoreA, scoreB, q: quarter });
+    prevQ = quarter;
+  });
+
+  // 最終クォーター末端
+  if (prevQ > 0) {
+    qMarkers.push({ idx: points.length - 1, q: prevQ });
+  }
+
+  return { points, qMarkers };
+}
+
+function buildScoreGraphSVG(plays, teamAName, teamBName) {
+  const { points, qMarkers } = buildScoreTimeline(plays);
+  if (points.length < 2) return '';
+
+  const W = 680, H = 200;
+  const padL = 36, padR = 14, padT = 14, padB = 32;
+  const gW = W - padL - padR;
+  const gH = H - padT - padB;
+
+  const maxScore = Math.max(...points.map(p => Math.max(p.scoreA, p.scoreB)), 10);
+  const yMax = Math.ceil(maxScore / 10) * 10;
+
+  const n = points.length - 1; // index範囲
+  const xOf = i => padL + (i / n) * gW;
+  const yOf = s => padT + gH - (s / yMax) * gH;
+
+  // グリッド線 (Y軸 10点刻み)
+  let gridLines = '';
+  for (let v = 0; v <= yMax; v += 10) {
+    const y = yOf(v);
+    gridLines += `<line x1="${padL}" y1="${y}" x2="${padL + gW}" y2="${y}" stroke="#E8EEF4" stroke-width="1"/>`;
+    gridLines += `<text x="${padL - 4}" y="${y + 4}" text-anchor="end" font-size="9" fill="#9AAABB">${v}</text>`;
+  }
+
+  // クォーター区切り線
+  let qLines = '';
+  qMarkers.slice(0, -1).forEach(({ idx, q }) => {
+    const x = xOf(idx);
+    qLines += `<line x1="${x}" y1="${padT}" x2="${x}" y2="${padT + gH}" stroke="#9AAABB" stroke-width="1" stroke-dasharray="4,3"/>`;
+    qLines += `<text x="${x + 4}" y="${padT + 10}" font-size="8" fill="#9AAABB">${q}Q</text>`;
+  });
+
+  // 折れ線パス生成
+  const pathA = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${xOf(i)},${yOf(p.scoreA)}`).join(' ');
+  const pathB = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${xOf(i)},${yOf(p.scoreB)}`).join(' ');
+
+  // 逆転ポイント検出（直前と比べてリードチームが変わった点）
+  let overtakeDots = '';
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1];
+    const cur  = points[i];
+    const prevLead = prev.scoreA > prev.scoreB ? 'A' : prev.scoreB > prev.scoreA ? 'B' : '=';
+    const curLead  = cur.scoreA  > cur.scoreB  ? 'A' : cur.scoreB  > cur.scoreA  ? 'B' : '=';
+    if (prevLead !== '=' && curLead !== '=' && prevLead !== curLead) {
+      const x = xOf(i);
+      // 交差点の近くに丸を置く (両チームの中間)
+      const yMid = (yOf(cur.scoreA) + yOf(cur.scoreB)) / 2;
+      overtakeDots += `<circle cx="${x}" cy="${yMid}" r="5" fill="#FF6F00" opacity="0.85"/>`;
+    }
+  }
+
+  // クォーター終端の点（両チーム）
+  let qDots = '';
+  qMarkers.forEach(({ idx }) => {
+    const p = points[idx];
+    qDots += `<circle cx="${xOf(idx)}" cy="${yOf(p.scoreA)}" r="3.5" fill="#005BAC"/>`;
+    qDots += `<circle cx="${xOf(idx)}" cy="${yOf(p.scoreB)}" r="3.5" fill="#E53935"/>`;
+  });
+
+  // X軸ラベル (クォーター名)
+  let xLabels = '';
+  qMarkers.forEach(({ idx, q }) => {
+    xLabels += `<text x="${xOf(idx)}" y="${padT + gH + 16}" text-anchor="middle" font-size="9" fill="#5A6A7A">${q}Q終</text>`;
+  });
+
+  // 凡例
+  const legY = H - 6;
+  const legend = `
+    <rect x="${padL}" y="${legY - 7}" width="14" height="3" rx="1.5" fill="#005BAC"/>
+    <text x="${padL + 17}" y="${legY}" font-size="9" fill="#005BAC" font-weight="700">${esc(teamAName)}</text>
+    <rect x="${padL + 90}" y="${legY - 7}" width="14" height="3" rx="1.5" fill="#E53935"/>
+    <text x="${padL + 107}" y="${legY}" font-size="9" fill="#E53935" font-weight="700">${esc(teamBName)}</text>
+    <circle cx="${padL + 190}" cy="${legY - 4}" r="5" fill="#FF6F00" opacity="0.85"/>
+    <text x="${padL + 198}" y="${legY}" font-size="9" fill="#FF6F00">逆転</text>
+  `;
+
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;overflow:visible" xmlns="http://www.w3.org/2000/svg">
+  ${gridLines}
+  ${qLines}
+  <path d="${pathA}" fill="none" stroke="#005BAC" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="${pathB}" fill="none" stroke="#E53935" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+  ${qDots}
+  ${overtakeDots}
+  ${xLabels}
+  ${legend}
+</svg>`;
+}
+
 function generate() {
   const teamAName  = document.getElementById('teamAName').value || 'チームA';
   const teamBName  = document.getElementById('teamBName').value || 'チームB';
@@ -1562,7 +1701,15 @@ function generate() {
   lastTotalB = st.qScore.B.reduce((a,b)=>a+b,0);
   const winner = lastTotalA > lastTotalB ? esc(teamAName) : lastTotalB > lastTotalA ? esc(teamBName) : '引き分け';
 
-  document.getElementById('output').innerHTML = `
+  const graphSVG = buildScoreGraphSVG(plays, teamAName, teamBName);
+  const graphHTML = graphSVG
+    ? `<div class="score-graph-wrap">
+        <div class="score-graph-title">得点推移グラフ</div>
+        ${graphSVG}
+      </div>`
+    : '';
+
+  document.getElementById('output').innerHTML = graphHTML + `
 <div class="sheet-outer"><div class="sheet">
   <div class="sheet-header">
     <div class="header-title-block">
