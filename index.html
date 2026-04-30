@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>バスケットボール スコアシート</title>
+<title>バスケットボール スコアシート v2</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Poppins:wght@700;900&family=Klee+One:wght@400;600&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
@@ -57,23 +57,11 @@ body {
 /* Molten logo + ScoreLink */
 .logo-block {
   display: flex; flex-direction: column; line-height: 1.1;
-  flex: 1; gap: 1px;
+  flex: 1; gap: 2px;
 }
-.logo-wordmark {
-  font-family: 'Poppins', sans-serif;
-  font-weight: 600; font-size: 20px;
-  color: white; letter-spacing: .01em;
-  line-height: 1;
-}
-.logo-wordmark .logo-o {
-  display: inline-block; position: relative;
-}
-.logo-wordmark .logo-o::after {
-  content: '';
-  position: absolute; bottom: 1px; right: 1px;
-  width: 5px; height: 5px;
-  background: var(--blue);
-  border-radius: 50%;
+.logo-img {
+  height: 28px; width: auto;
+  display: block;
 }
 .logo-product {
   font-family: 'Poppins', sans-serif;
@@ -273,6 +261,48 @@ body {
 .result-lose { color: #C62828; }
 .result-draw { color: var(--text-light); }
 .dash-no-data { text-align: center; padding: 36px; color: var(--text-light); font-size: 13px; }
+
+/* =====================================================
+   統計フィルターバー
+   ===================================================== */
+.stats-filter-bar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 10px 14px; margin-bottom: 20px;
+  background: white; border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+.filter-label {
+  font-size: 11px; font-weight: 700; color: var(--text-light);
+  letter-spacing: .06em; white-space: nowrap;
+}
+.toggle-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 13px; border-radius: 20px;
+  font-size: 12px; font-weight: 600; font-family: inherit;
+  border: 1.5px solid var(--border); background: var(--white);
+  color: var(--text-mid); cursor: pointer; transition: all .15s;
+}
+.toggle-chip.active {
+  background: var(--blue); border-color: var(--blue); color: white;
+}
+.toggle-chip:not(.active):hover { background: var(--bg); }
+.filter-divider {
+  width: 1px; height: 20px; background: var(--border); flex-shrink: 0;
+}
+.rank-switch {
+  display: inline-flex;
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.rank-switch-btn {
+  padding: 5px 13px; font-size: 12px; font-weight: 600; font-family: inherit;
+  border: none; border-right: 1px solid var(--border);
+  background: var(--white); color: var(--text-mid);
+  cursor: pointer; transition: all .15s;
+}
+.rank-switch-btn:last-child { border-right: none; }
+.rank-switch-btn.active { background: var(--blue); color: white; }
+.rank-switch-btn:not(.active):hover { background: var(--bg); }
 
 /* =====================================================
    モーダル
@@ -563,7 +593,7 @@ td.qot span { color: #6a1b9a; }
 <div id="view-tournaments">
   <div class="app-header">
     <div class="logo-block">
-      <div class="logo-wordmark">m<span class="logo-o">o</span>lten</div>
+      <img class="logo-img" src="data:image/png;base64,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" alt="molten">
       <div class="logo-product">ScoreLink</div>
     </div>
     <div class="logo-divider"></div>
@@ -828,8 +858,32 @@ async function loadGames() {
 // =====================================================
 // 成績・ランキング（大会内）
 // =====================================================
+// 成績ページ: 状態管理
+// =====================================================
+let statsData = null;
+let statsFilters = {
+  showRanking: true,
+  showTeams:   true,
+  showGames:   true,
+  rankMetric:  'pts'   // 'pts'=総得点順, 'avg'=平均得点順
+};
+
+function toggleStatsSection(key) {
+  statsFilters[key] = !statsFilters[key];
+  renderStatsContent();
+}
+
+function setRankMetric(metric) {
+  statsFilters.rankMetric = metric;
+  renderStatsContent();
+}
+
+// =====================================================
+// データ取得（1回だけ fetch → statsData にキャッシュ）
+// =====================================================
 async function loadStats() {
   const cont = document.getElementById('stats-container');
+  statsData = null;
   cont.innerHTML = '<div class="loading-msg">集計中...</div>';
   try {
     const snap = await withTimeout(
@@ -858,7 +912,6 @@ async function loadStats() {
 
       gameList.push({ id: doc.id, teamA, teamB, totalA, totalB, gameDate: d.gameDate || '', gameNo: d.gameNo || '' });
 
-      // チーム成績
       for (const [tName, pf, pa] of [[teamA, totalA, totalB],[teamB, totalB, totalA]]) {
         if (!teamMap[tName]) teamMap[tName] = {name:tName,wins:0,losses:0,draws:0,pf:0,pa:0,games:0};
         teamMap[tName].games++;
@@ -868,7 +921,6 @@ async function loadStats() {
         else teamMap[tName].draws++;
       }
 
-      // 選手得点
       for (const team of ['A','B']) {
         const tName = team === 'A' ? teamA : teamB;
         const cells = team === 'A' ? st.cellsA : st.cellsB;
@@ -889,99 +941,145 @@ async function loadStats() {
       }
     }
 
-    const scorers = Object.values(playerMap).sort((a,b) => b.pts - a.pts).slice(0, 15);
-    const teams   = Object.values(teamMap).sort((a,b) => b.wins - a.wins || (b.pf-b.pa) - (a.pf-a.pa));
-    const recent  = [...gameList].sort((a,b) => (a.gameDate > b.gameDate ? 1 : -1));
-
-    cont.innerHTML = `
-      <div class="dash-summary">
-        <div class="dash-kpi"><div class="dash-kpi-val">${snap.size}</div><div class="dash-kpi-label">試合数</div></div>
-        <div class="dash-kpi"><div class="dash-kpi-val">${Object.keys(teamMap).length}</div><div class="dash-kpi-label">チーム数</div></div>
-        <div class="dash-kpi"><div class="dash-kpi-val">${Object.keys(playerMap).length}</div><div class="dash-kpi-label">選手数</div></div>
-      </div>
-
-      <div class="dash-section">
-        <div class="dash-section-title">🏆 得点ランキング</div>
-        <div class="dash-table-wrap">
-          ${scorers.length === 0 ? '<div class="dash-no-data">データなし</div>' : `
-          <table class="dash-table"><thead><tr>
-            <th class="num" style="width:42px">順位</th>
-            <th>選手名</th><th>チーム</th>
-            <th class="num">試合</th><th class="num">総得点</th>
-            <th class="num">平均</th><th class="num">反則</th>
-          </tr></thead><tbody>
-            ${scorers.map((p,i) => {
-              const avg = p.games > 0 ? (p.pts/p.games).toFixed(1) : '0.0';
-              return `<tr>
-                <td class="num"><span class="rank-badge rank-${i+1}">${i+1}</span></td>
-                <td><strong>#${esc(p.num)}</strong> ${esc(p.name)}</td>
-                <td><span class="team-badge">${esc(p.team)}</span></td>
-                <td class="num">${p.games}</td>
-                <td class="num"><strong>${p.pts}</strong></td>
-                <td class="num">${avg}</td>
-                <td class="num">${p.fouls}</td>
-              </tr>`;
-            }).join('')}
-          </tbody></table>`}
-        </div>
-      </div>
-
-      <div class="dash-section">
-        <div class="dash-section-title">📋 チーム成績</div>
-        <div class="dash-table-wrap">
-          ${teams.length === 0 ? '<div class="dash-no-data">データなし</div>' : `
-          <table class="dash-table"><thead><tr>
-            <th>チーム名</th>
-            <th class="num">試合</th><th class="num">勝</th><th class="num">負</th><th class="num">分</th>
-            <th class="num">得点</th><th class="num">失点</th><th class="num">±</th>
-            <th style="min-width:100px">勝率</th>
-          </tr></thead><tbody>
-            ${teams.map(t => {
-              const rate = t.games > 0 ? Math.round(t.wins/t.games*100) : 0;
-              const diff = t.pf - t.pa;
-              return `<tr>
-                <td><strong>${esc(t.name)}</strong></td>
-                <td class="num">${t.games}</td>
-                <td class="num result-win">${t.wins}</td>
-                <td class="num result-lose">${t.losses}</td>
-                <td class="num result-draw">${t.draws}</td>
-                <td class="num">${t.pf}</td><td class="num">${t.pa}</td>
-                <td class="num ${diff>=0?'result-win':'result-lose'}">${diff>=0?'+':''}${diff}</td>
-                <td><div class="win-rate-bar">
-                  <div class="win-rate-track"><div class="win-rate-fill" style="width:${rate}%"></div></div>
-                  <span style="font-size:11px">${rate}%</span>
-                </div></td>
-              </tr>`;
-            }).join('')}
-          </tbody></table>`}
-        </div>
-      </div>
-
-      <div class="dash-section">
-        <div class="dash-section-title">📅 試合結果一覧</div>
-        <div class="dash-table-wrap">
-          <table class="dash-table"><thead><tr>
-            <th>日付</th><th class="num">Game</th>
-            <th>チームA</th><th class="num">スコア</th><th>チームB</th><th class="num">結果</th>
-          </tr></thead><tbody>
-            ${recent.map(g => {
-              const winA = g.totalA > g.totalB, winB = g.totalB > g.totalA;
-              return `<tr>
-                <td>${esc(g.gameDate)||'—'}</td>
-                <td class="num">${esc(g.gameNo)||'—'}</td>
-                <td class="${winA?'result-win':''}">${esc(g.teamA)}</td>
-                <td class="num"><strong>${g.totalA} - ${g.totalB}</strong></td>
-                <td class="${winB?'result-win':''}">${esc(g.teamB)}</td>
-                <td class="num">${winA?'<span class="result-win">A勝</span>':winB?'<span class="result-win">B勝</span>':'<span class="result-draw">分</span>'}</td>
-              </tr>`;
-            }).join('')}
-          </tbody></table>
-        </div>
-      </div>`;
+    statsData = { playerMap, teamMap, gameList, totalGames: snap.size };
+    renderStatsContent();
   } catch(e) {
     console.error(e);
     cont.innerHTML = `<div class="dash-no-data" style="color:red">集計エラー: ${e.message}</div>`;
   }
+}
+
+// =====================================================
+// 描画（フィルター変更時も呼ばれる）
+// =====================================================
+function renderStatsContent() {
+  if (!statsData) return;
+  const { playerMap, teamMap, gameList, totalGames } = statsData;
+  const { showRanking, showTeams, showGames, rankMetric } = statsFilters;
+  const cont = document.getElementById('stats-container');
+
+  // ランキングソート
+  const scorers = Object.values(playerMap)
+    .sort((a, b) => {
+      if (rankMetric === 'avg') {
+        const avgA = a.games > 0 ? a.pts / a.games : 0;
+        const avgB = b.games > 0 ? b.pts / b.games : 0;
+        return avgB - avgA;
+      }
+      return b.pts - a.pts;
+    })
+    .slice(0, 15);
+
+  const teams  = Object.values(teamMap).sort((a,b) => b.wins - a.wins || (b.pf-b.pa) - (a.pf-a.pa));
+  const recent = [...gameList].sort((a,b) => (a.gameDate > b.gameDate ? 1 : -1));
+  const rankLabel = rankMetric === 'avg' ? '平均得点' : '総得点';
+  const highlightCol = rankMetric === 'avg' ? 5 : 4; // 強調列インデックス(0始まり)
+
+  cont.innerHTML = `
+    <div class="stats-filter-bar">
+      <span class="filter-label">表示：</span>
+      <button class="toggle-chip ${showRanking?'active':''}" onclick="toggleStatsSection('showRanking')">得点ランキング</button>
+      <button class="toggle-chip ${showTeams?'active':''}"   onclick="toggleStatsSection('showTeams')">チーム成績</button>
+      <button class="toggle-chip ${showGames?'active':''}"   onclick="toggleStatsSection('showGames')">試合結果</button>
+      ${showRanking ? `
+      <div class="filter-divider"></div>
+      <span class="filter-label">ランキング基準：</span>
+      <div class="rank-switch">
+        <button class="rank-switch-btn ${rankMetric==='pts'?'active':''}" onclick="setRankMetric('pts')">総得点</button>
+        <button class="rank-switch-btn ${rankMetric==='avg'?'active':''}" onclick="setRankMetric('avg')">平均得点</button>
+      </div>` : ''}
+    </div>
+
+    <div class="dash-summary">
+      <div class="dash-kpi"><div class="dash-kpi-val">${totalGames}</div><div class="dash-kpi-label">試合数</div></div>
+      <div class="dash-kpi"><div class="dash-kpi-val">${Object.keys(teamMap).length}</div><div class="dash-kpi-label">チーム数</div></div>
+      <div class="dash-kpi"><div class="dash-kpi-val">${Object.keys(playerMap).length}</div><div class="dash-kpi-label">選手数</div></div>
+    </div>
+
+    ${showRanking ? `
+    <div class="dash-section">
+      <div class="dash-section-title">得点ランキング（${rankLabel}順）</div>
+      <div class="dash-table-wrap">
+        ${scorers.length === 0 ? '<div class="dash-no-data">データなし</div>' : `
+        <table class="dash-table"><thead><tr>
+          <th class="num" style="width:42px">順位</th>
+          <th>選手名</th><th>チーム</th>
+          <th class="num">試合</th>
+          <th class="num" style="${rankMetric==='pts'?'color:var(--blue);font-weight:800':''}">総得点</th>
+          <th class="num" style="${rankMetric==='avg'?'color:var(--blue);font-weight:800':''}">平均</th>
+          <th class="num">反則</th>
+        </tr></thead><tbody>
+          ${scorers.map((p,i) => {
+            const avg = p.games > 0 ? (p.pts/p.games).toFixed(1) : '0.0';
+            return `<tr>
+              <td class="num"><span class="rank-badge rank-${i+1}">${i+1}</span></td>
+              <td><strong>#${esc(p.num)}</strong> ${esc(p.name)}</td>
+              <td><span class="team-badge">${esc(p.team)}</span></td>
+              <td class="num">${p.games}</td>
+              <td class="num" style="${rankMetric==='pts'?'font-weight:700;color:var(--blue)':''}"><strong>${p.pts}</strong></td>
+              <td class="num" style="${rankMetric==='avg'?'font-weight:700;color:var(--blue)':''}">${avg}</td>
+              <td class="num">${p.fouls}</td>
+            </tr>`;
+          }).join('')}
+        </tbody></table>`}
+      </div>
+    </div>` : ''}
+
+    ${showTeams ? `
+    <div class="dash-section">
+      <div class="dash-section-title">チーム成績</div>
+      <div class="dash-table-wrap">
+        ${teams.length === 0 ? '<div class="dash-no-data">データなし</div>' : `
+        <table class="dash-table"><thead><tr>
+          <th>チーム名</th>
+          <th class="num">試合</th><th class="num">勝</th><th class="num">負</th><th class="num">分</th>
+          <th class="num">得点</th><th class="num">失点</th><th class="num">±</th>
+          <th style="min-width:100px">勝率</th>
+        </tr></thead><tbody>
+          ${teams.map(t => {
+            const rate = t.games > 0 ? Math.round(t.wins/t.games*100) : 0;
+            const diff = t.pf - t.pa;
+            return `<tr>
+              <td><strong>${esc(t.name)}</strong></td>
+              <td class="num">${t.games}</td>
+              <td class="num result-win">${t.wins}</td>
+              <td class="num result-lose">${t.losses}</td>
+              <td class="num result-draw">${t.draws}</td>
+              <td class="num">${t.pf}</td><td class="num">${t.pa}</td>
+              <td class="num ${diff>=0?'result-win':'result-lose'}">${diff>=0?'+':''}${diff}</td>
+              <td><div class="win-rate-bar">
+                <div class="win-rate-track"><div class="win-rate-fill" style="width:${rate}%"></div></div>
+                <span style="font-size:11px">${rate}%</span>
+              </div></td>
+            </tr>`;
+          }).join('')}
+        </tbody></table>`}
+      </div>
+    </div>` : ''}
+
+    ${showGames ? `
+    <div class="dash-section">
+      <div class="dash-section-title">試合結果一覧</div>
+      <div class="dash-table-wrap">
+        <table class="dash-table"><thead><tr>
+          <th>日付</th><th class="num">Game</th>
+          <th>チームA</th><th class="num">スコア</th><th>チームB</th><th class="num">結果</th>
+        </tr></thead><tbody>
+          ${recent.map(g => {
+            const winA = g.totalA > g.totalB, winB = g.totalB > g.totalA;
+            return `<tr>
+              <td>${esc(g.gameDate)||'—'}</td>
+              <td class="num">${esc(g.gameNo)||'—'}</td>
+              <td class="${winA?'result-win':''}">${esc(g.teamA)}</td>
+              <td class="num"><strong>${g.totalA} - ${g.totalB}</strong></td>
+              <td class="${winB?'result-win':''}">${esc(g.teamB)}</td>
+              <td class="num">${winA?'<span class="result-win">A勝</span>':winB?'<span class="result-win">B勝</span>':'<span class="result-draw">分</span>'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody></table>
+      </div>
+    </div>` : ''}
+  `;
 }
 
 // =====================================================
