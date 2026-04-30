@@ -6,7 +6,7 @@
 <title>バスケットボール スコアシート</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Klee+One:wght@400;600&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Poppins:wght@700;900&family=Klee+One:wght@400;600&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <style>
@@ -14,9 +14,9 @@
    Molten Brand Variables
    ===================================================== */
 :root {
-  --blue:       #1068B3;   /* Molten primary blue */
-  --blue-dark:  #0A549A;   /* hover/active */
-  --blue-dim:   #E8F2FB;   /* light tint */
+  --blue:       #005BAC;   /* Molten primary blue (Pantone 285C) */
+  --blue-dark:  #004A8E;   /* hover/active */
+  --blue-dim:   #E0EEF9;   /* light tint */
   --white:      #FFFFFF;
   --bg:         #F3F6FA;   /* page background */
   --text:       #1A1A2E;   /* main text */
@@ -52,15 +52,38 @@ body {
   display: flex; align-items: center; gap: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,.18);
 }
-.app-header h1 {
-  font-size: 16px; font-weight: 700; flex: 1;
-  letter-spacing: .03em;
+.app-header h1 { display: none; } /* ロゴブロックで代替 */
+
+/* Molten logo + ScoreLink */
+.logo-block {
+  display: flex; flex-direction: column; line-height: 1.1;
+  flex: 1; gap: 1px;
 }
-.app-logo {
-  font-size: 11px; font-weight: 700; letter-spacing: .12em;
-  text-transform: uppercase; opacity: .7;
-  border-right: 1px solid rgba(255,255,255,.3);
-  padding-right: 14px; margin-right: 4px; white-space: nowrap;
+.logo-wordmark {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 900; font-size: 21px;
+  color: white; letter-spacing: -.03em;
+  line-height: 1;
+}
+.logo-wordmark .logo-o {
+  display: inline-block; position: relative;
+}
+.logo-wordmark .logo-o::after {
+  content: '';
+  position: absolute; bottom: 1px; right: 1px;
+  width: 5px; height: 5px;
+  background: var(--blue);
+  border-radius: 50%;
+}
+.logo-product {
+  font-family: 'Poppins', sans-serif;
+  font-size: 10px; font-weight: 700;
+  color: rgba(255,255,255,.65);
+  letter-spacing: .18em; text-transform: uppercase;
+}
+.logo-divider {
+  width: 1px; height: 32px; background: rgba(255,255,255,.25);
+  flex-shrink: 0; margin: 0 4px;
 }
 .btn-hdr {
   background: rgba(255,255,255,.14); color: white;
@@ -539,9 +562,12 @@ td.qot span { color: #6a1b9a; }
      ===================================================== -->
 <div id="view-tournaments">
   <div class="app-header">
-    <span class="app-logo">molten</span>
-    <h1>バスケ スコアシート</h1>
-    <button class="btn-hdr-primary" onclick="openTournamentModal()">＋ 大会を登録</button>
+    <div class="logo-block">
+      <div class="logo-wordmark">m<span class="logo-o">o</span>lten</div>
+      <div class="logo-product">ScoreLink</div>
+    </div>
+    <div class="logo-divider"></div>
+    <button class="btn-hdr-primary" onclick="openTournamentModal()">+ 大会を登録</button>
   </div>
   <div class="page-body">
     <div class="section-eyebrow">TOURNAMENTS</div>
@@ -559,14 +585,14 @@ td.qot span { color: #6a1b9a; }
     <div class="detail-header-top">
       <button class="btn-hdr" onclick="backToTournaments()">← 大会一覧</button>
       <span class="detail-title" id="detail-title">大会名</span>
-      <button class="btn-hdr" onclick="openTournamentModal(currentTournamentId)">✏️ 編集</button>
-      <button class="btn-hdr-primary" onclick="newGame()">＋ 試合を追加</button>
+      <button class="btn-hdr" onclick="openTournamentModal(currentTournamentId)">編集</button>
+      <button class="btn-hdr-primary" onclick="newGame()">+ 試合を追加</button>
     </div>
     <div class="detail-meta" id="detail-meta"></div>
   </div>
   <div class="tab-bar">
-    <button class="tab-btn active" id="tab-games-btn" onclick="switchTab('games')">📋 試合一覧</button>
-    <button class="tab-btn" id="tab-stats-btn" onclick="switchTab('stats')">📊 成績・ランキング</button>
+    <button class="tab-btn active" id="tab-games-btn" onclick="switchTab('games')">試合一覧</button>
+    <button class="tab-btn" id="tab-stats-btn" onclick="switchTab('stats')">成績・ランキング</button>
   </div>
   <div class="page-body">
     <div id="tab-games" style="display:block">
@@ -585,8 +611,8 @@ td.qot span { color: #6a1b9a; }
   <div class="editor-toolbar">
     <button class="btn-back" onclick="backToDetail()">← 試合一覧</button>
     <span class="toolbar-title" id="toolbar-title">新規試合</span>
-    <button class="btn-save" id="btn-save" onclick="saveGame()">💾 保存</button>
-    <button class="btn-print-small" onclick="window.print()">🖨 印刷</button>
+    <button class="btn-save" id="btn-save" onclick="saveGame()">保存</button>
+    <button class="btn-print-small" onclick="window.print()">印刷</button>
   </div>
   <div class="input-section">
     <div class="input-grid">
@@ -675,7 +701,7 @@ async function loadTournaments() {
       db.collection('tournaments').orderBy('startDate', 'desc').get()
     );
     if (snap.empty) {
-      cont.innerHTML = `<div class="empty-state"><span>🏆</span>大会が登録されていません<br>「大会を登録」から追加してください</div>`;
+      cont.innerHTML = `<div class="empty-state">大会が登録されていません<br>「大会を登録」から追加してください</div>`;
       return;
     }
     // 各大会の試合数を取得
@@ -692,10 +718,9 @@ async function loadTournaments() {
       const period = [d.startDate, d.endDate].filter(Boolean).join(' 〜 ') || '日程未定';
       return `
         <div class="tournament-card" onclick="openTournament('${doc.id}')">
-          <div class="tc-icon">🏆</div>
           <div class="tc-info">
             <div class="tc-name">${esc(d.name)}</div>
-            <div class="tc-meta">📅 ${esc(period)}${d.venue ? '　📍 ' + esc(d.venue) : ''}</div>
+            <div class="tc-meta">${esc(period)}${d.venue ? '　' + esc(d.venue) : ''}</div>
             <div class="tc-badges">
               <span class="tc-badge">試合数: ${gameCount}</span>
               <span class="tc-badge">チーム数: ${teams.size}</span>
@@ -765,7 +790,7 @@ async function loadGames() {
         .get()
     );
     if (snap.empty) {
-      cont.innerHTML = `<div class="empty-state"><span>📋</span>この大会の試合がありません<br>「試合を追加」から入力してください</div>`;
+      cont.innerHTML = `<div class="empty-state">この大会の試合がありません<br>「試合を追加」から入力してください</div>`;
       return;
     }
     // gameDate → gameNo の順でソート
@@ -964,7 +989,7 @@ async function loadStats() {
 // =====================================================
 async function openTournamentModal(id = null) {
   editingTournamentId = id;
-  document.getElementById('modal-title').textContent = id ? '✏️ 大会を編集' : '🏆 大会を登録';
+  document.getElementById('modal-title').textContent = id ? '大会を編集' : '大会を登録';
   document.getElementById('m-name').value = '';
   document.getElementById('m-startDate').value = '';
   document.getElementById('m-endDate').value = '';
@@ -1007,7 +1032,7 @@ async function saveTournament() {
   try {
     if (editingTournamentId) {
       await withTimeout(db.collection('tournaments').doc(editingTournamentId).update(data));
-      showToast('✅ 大会を更新しました');
+      showToast('大会を更新しました');
       // 詳細画面が開いていれば表示を更新
       if (currentTournamentId === editingTournamentId) {
         document.getElementById('detail-title').textContent = name;
@@ -1015,7 +1040,7 @@ async function saveTournament() {
     } else {
       data.createdAt = new Date().toISOString();
       await withTimeout(db.collection('tournaments').add(data));
-      showToast('✅ 大会を登録しました');
+      showToast('大会を登録しました');
     }
     closeTournamentModal();
     // 大会一覧画面にいれば再読み込み
@@ -1024,7 +1049,7 @@ async function saveTournament() {
     }
   } catch(e) {
     console.error(e);
-    showToast('❌ エラー: ' + e.message);
+    showToast('エラー: ' + e.message);
   }
 }
 
@@ -1032,10 +1057,10 @@ async function deleteTournament(id) {
   if (!confirm('この大会を削除しますか？\n※ 試合データは削除されません')) return;
   try {
     await withTimeout(db.collection('tournaments').doc(id).delete());
-    showToast('🗑 大会を削除しました');
+    showToast('大会を削除しました');
     loadTournaments();
   } catch(e) {
-    showToast('❌ エラー: ' + e.message);
+    showToast('エラー: ' + e.message);
   }
 }
 
@@ -1098,12 +1123,12 @@ async function saveGame() {
       const ref = await withTimeout(db.collection('games').add(data));
       currentGameId = ref.id;
     }
-    showToast('✅ 保存しました');
+    showToast('保存しました');
   } catch(e) {
     console.error(e);
-    showToast('❌ 保存エラー: ' + e.message);
+    showToast('保存エラー: ' + e.message);
   } finally {
-    btn.disabled = false; btn.textContent = '💾 保存';
+    btn.disabled = false; btn.textContent = '保存';
   }
 }
 
@@ -1111,10 +1136,10 @@ async function deleteGame(id) {
   if (!confirm('この試合を削除しますか？')) return;
   try {
     await withTimeout(db.collection('games').doc(id).delete());
-    showToast('🗑 削除しました');
+    showToast('削除しました');
     loadGames();
   } catch(e) {
-    showToast('❌ エラー: ' + e.message);
+    showToast('エラー: ' + e.message);
   }
 }
 
