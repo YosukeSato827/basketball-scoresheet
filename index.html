@@ -589,6 +589,65 @@ td.qot span { color: #6a1b9a; }
   .editor-toolbar { padding: 0 10px; gap: 6px; }
   .toolbar-title { font-size: 13px; }
 }
+
+/* =====================================================
+   スマホプレビューモード（PCからの確認用）
+   ===================================================== */
+.preview-toggle-btn {
+  position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+  background: #1A1A2E; color: white;
+  border: none; border-radius: 28px;
+  padding: 10px 18px; font-size: 12px; font-weight: 700;
+  font-family: inherit; cursor: pointer;
+  display: flex; align-items: center; gap: 7px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.35);
+  transition: background .15s, transform .1s;
+}
+.preview-toggle-btn:hover { background: #2c2c44; transform: translateY(-1px); }
+.preview-toggle-btn.active { background: var(--blue); }
+
+/* プレビュー時の背景 */
+body.mobile-preview-mode {
+  background: #555;
+}
+/* アプリフレームをスマホ幅に制限 */
+body.mobile-preview-mode #app-frame {
+  width: 375px;
+  min-height: 100vh;
+  margin: 0 auto;
+  background: var(--bg);
+  box-shadow: 0 0 60px rgba(0,0,0,.5);
+  overflow: hidden;
+}
+/* スマホプレビュー時はメディアクエリを強制適用 */
+body.mobile-preview-mode .page-body { padding: 14px 12px; }
+body.mobile-preview-mode .app-header { padding: 0 14px; height: 50px; }
+body.mobile-preview-mode .detail-header { padding: 10px 14px 12px; }
+body.mobile-preview-mode .detail-title { font-size: 17px; margin-bottom: 8px; }
+body.mobile-preview-mode .detail-header-top { gap: 8px; }
+body.mobile-preview-mode .tab-bar { padding: 0 8px; }
+body.mobile-preview-mode .tab-btn { padding: 10px 16px; font-size: 12px; }
+body.mobile-preview-mode .game-card { padding: 10px 12px; gap: 10px; }
+body.mobile-preview-mode .gc-score { min-width: 72px; font-size: 20px; }
+body.mobile-preview-mode .gc-teams { font-size: 14px; }
+body.mobile-preview-mode .dash-summary { gap: 8px; }
+body.mobile-preview-mode .dash-kpi { padding: 12px 6px; }
+body.mobile-preview-mode .dash-kpi-val { font-size: 26px; }
+body.mobile-preview-mode .dash-kpi-label { font-size: 10px; }
+body.mobile-preview-mode .dash-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+body.mobile-preview-mode .dash-table { min-width: 520px; }
+body.mobile-preview-mode .dash-table th,
+body.mobile-preview-mode .dash-table td { white-space: nowrap; }
+body.mobile-preview-mode .stats-filter-bar { padding: 8px 10px; gap: 6px; }
+body.mobile-preview-mode .toggle-chip { padding: 4px 10px; font-size: 11px; }
+body.mobile-preview-mode .rank-switch-btn { padding: 4px 10px; font-size: 11px; }
+body.mobile-preview-mode .editor-toolbar { padding: 0 10px; gap: 6px; }
+body.mobile-preview-mode .toolbar-title { font-size: 13px; }
+
+/* プレビューモード時は印刷ボタンを非表示 */
+@media print {
+  .preview-toggle-btn { display: none; }
+}
 </style>
 </head>
 <body>
@@ -638,6 +697,9 @@ td.qot span { color: #6a1b9a; }
     </div>
   </div>
 </div>
+
+<!-- アプリ本体フレーム（スマホプレビュー時に幅制限） -->
+<div id="app-frame">
 
 <!-- =====================================================
      画面①: 大会一覧
@@ -716,6 +778,14 @@ td.qot span { color: #6a1b9a; }
   </div>
   <div id="output"></div>
 </div>
+
+</div><!-- /#app-frame -->
+
+<!-- スマホプレビュー切り替えボタン -->
+<button class="preview-toggle-btn" id="preview-toggle-btn" onclick="toggleMobilePreview()" title="スマホ表示を確認">
+  <span id="preview-btn-icon">📱</span>
+  <span id="preview-btn-label">スマホ確認</span>
+</button>
 
 <script>
 // =====================================================
@@ -1550,6 +1620,28 @@ function generate() {
     <div class="sig-cell"><div class="sig-label">終了時間</div><div class="sig-line"></div></div>
   </div>
 </div></div>`;
+}
+
+// =====================================================
+// スマホプレビュートグル
+// =====================================================
+function toggleMobilePreview() {
+  const active = document.body.classList.toggle('mobile-preview-mode');
+  const btn = document.getElementById('preview-toggle-btn');
+  const icon = document.getElementById('preview-btn-icon');
+  const label = document.getElementById('preview-btn-label');
+  if (active) {
+    btn.classList.add('active');
+    icon.textContent = '🖥';
+    label.textContent = 'PCモードに戻す';
+    // プレビュー枠の内側に収まるよう先頭までスクロール
+    window.scrollTo(0, 0);
+  } else {
+    btn.classList.remove('active');
+    icon.textContent = '📱';
+    label.textContent = 'スマホ確認';
+    window.scrollTo(0, 0);
+  }
 }
 
 // =====================================================
