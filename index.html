@@ -960,17 +960,23 @@ function renderStatsContent() {
   const { showRanking, showTeams, showGames, rankMetric } = statsFilters;
   const cont = document.getElementById('stats-container');
 
-  // ランキングソート
-  const scorers = Object.values(playerMap)
-    .sort((a, b) => {
-      if (rankMetric === 'avg') {
-        const avgA = a.games > 0 ? a.pts / a.games : 0;
-        const avgB = b.games > 0 ? b.pts / b.games : 0;
-        return avgB - avgA;
-      }
-      return b.pts - a.pts;
-    })
-    .slice(0, 15);
+  // ランキングソート＋同点同順位
+  const getVal = p => rankMetric === 'avg'
+    ? (p.games > 0 ? p.pts / p.games : 0)
+    : p.pts;
+
+  const allSorted = Object.values(playerMap).sort((a, b) => getVal(b) - getVal(a));
+
+  // 同点なら同じ順位、次は人数分スキップ（例：3位が3人→次は6位）
+  let curRank = 1;
+  for (let i = 0; i < allSorted.length; i++) {
+    if (i > 0 && getVal(allSorted[i]) < getVal(allSorted[i - 1])) {
+      curRank = i + 1;
+    }
+    allSorted[i].rank = curRank;
+  }
+
+  const scorers = allSorted.slice(0, 15);
 
   const teams  = Object.values(teamMap).sort((a,b) => b.wins - a.wins || (b.pf-b.pa) - (a.pf-a.pa));
   const recent = [...gameList].sort((a,b) => (a.gameDate > b.gameDate ? 1 : -1));
@@ -1011,10 +1017,10 @@ function renderStatsContent() {
           <th class="num" style="${rankMetric==='avg'?'color:var(--blue);font-weight:800':''}">平均</th>
           <th class="num">反則</th>
         </tr></thead><tbody>
-          ${scorers.map((p,i) => {
+          ${scorers.map((p) => {
             const avg = p.games > 0 ? (p.pts/p.games).toFixed(1) : '0.0';
             return `<tr>
-              <td class="num"><span class="rank-badge rank-${i+1}">${i+1}</span></td>
+              <td class="num"><span class="rank-badge rank-${p.rank}">${p.rank}</span></td>
               <td><strong>#${esc(p.num)}</strong> ${esc(p.name)}</td>
               <td><span class="team-badge">${esc(p.team)}</span></td>
               <td class="num">${p.games}</td>
