@@ -6,209 +6,313 @@
 <title>バスケットボール スコアシート</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Klee+One:wght@400;600&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <style>
+/* =====================================================
+   Molten Brand Variables
+   ===================================================== */
+:root {
+  --blue:       #1068B3;   /* Molten primary blue */
+  --blue-dark:  #0A549A;   /* hover/active */
+  --blue-dim:   #E8F2FB;   /* light tint */
+  --white:      #FFFFFF;
+  --bg:         #F3F6FA;   /* page background */
+  --text:       #1A1A2E;   /* main text */
+  --text-mid:   #5A6A7A;   /* secondary text */
+  --text-light: #9AAABB;   /* meta/hint */
+  --border:     #DDE5EE;   /* subtle border */
+  --shadow-sm:  0 1px 6px rgba(16,104,179,.08);
+  --shadow-md:  0 4px 20px rgba(16,104,179,.13);
+  --radius:     10px;
+  --radius-sm:  6px;
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Meiryo','Yu Gothic','MS Gothic',sans-serif; background: #e8eaf6; font-size: 12px; }
+body {
+  font-family: 'Noto Sans JP','Meiryo','Yu Gothic',sans-serif;
+  background: var(--bg); color: var(--text); font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* =====================================================
+   画面切り替え
+   ===================================================== */
+#view-tournaments { display: block; }
+#view-detail      { display: none; }
+#view-editor      { display: none; }
 
 /* =====================================================
    共通ヘッダー
    ===================================================== */
 .app-header {
-  background: #1a237e; color: white;
-  padding: 12px 20px; display: flex; align-items: center; gap: 10px;
+  background: var(--blue); color: white;
+  padding: 0 28px; height: 56px;
+  display: flex; align-items: center; gap: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.18);
 }
-.app-header h1 { font-size: 17px; flex: 1; }
+.app-header h1 {
+  font-size: 16px; font-weight: 700; flex: 1;
+  letter-spacing: .03em;
+}
+.app-logo {
+  font-size: 11px; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; opacity: .7;
+  border-right: 1px solid rgba(255,255,255,.3);
+  padding-right: 14px; margin-right: 4px; white-space: nowrap;
+}
 .btn-hdr {
-  background: rgba(255,255,255,.15); color: white;
-  border: 1px solid rgba(255,255,255,.4); border-radius: 6px;
-  padding: 6px 14px; font-size: 12px; font-weight: bold; cursor: pointer;
-  white-space: nowrap;
+  background: rgba(255,255,255,.14); color: white;
+  border: 1px solid rgba(255,255,255,.35); border-radius: var(--radius-sm);
+  padding: 6px 16px; font-size: 12px; font-weight: 700; cursor: pointer;
+  white-space: nowrap; transition: background .15s;
 }
-.btn-hdr:hover { background: rgba(255,255,255,.28); }
+.btn-hdr:hover { background: rgba(255,255,255,.26); }
 .btn-hdr-primary {
-  background: white; color: #1a237e;
-  border: none; border-radius: 6px;
-  padding: 6px 14px; font-size: 12px; font-weight: bold; cursor: pointer;
-  white-space: nowrap;
+  background: white; color: var(--blue);
+  border: none; border-radius: var(--radius-sm);
+  padding: 7px 18px; font-size: 12px; font-weight: 700; cursor: pointer;
+  white-space: nowrap; transition: background .15s;
 }
-.btn-hdr-primary:hover { background: #c5cae9; }
-
-/* =====================================================
-   画面切り替え
-   ===================================================== */
-#view-tournaments     { display: block; }
-#view-detail          { display: none; }
-#view-editor          { display: none; }
+.btn-hdr-primary:hover { background: #dceefa; }
 
 /* =====================================================
    大会一覧
    ===================================================== */
-.page-body { padding: 16px; max-width: 860px; margin: 0 auto; }
+.page-body { padding: 28px 24px; max-width: 880px; margin: 0 auto; }
+
+.section-eyebrow {
+  font-size: 10px; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--text-light);
+  margin-bottom: 16px;
+}
 
 .tournament-card {
-  background: white; border-radius: 10px;
-  box-shadow: 0 1px 6px rgba(0,0,0,.1);
-  padding: 16px 20px; margin-bottom: 12px;
-  cursor: pointer; transition: box-shadow .15s;
-  display: flex; align-items: center; gap: 16px;
+  background: white; border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 20px 24px; margin-bottom: 12px;
+  cursor: pointer;
+  display: flex; align-items: center; gap: 20px;
+  border-left: 3px solid transparent;
+  transition: box-shadow .2s, border-color .2s;
 }
-.tournament-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,.16); }
-.tc-icon { font-size: 32px; flex-shrink: 0; }
+.tournament-card:hover {
+  box-shadow: var(--shadow-md);
+  border-left-color: var(--blue);
+}
+.tc-icon { font-size: 28px; flex-shrink: 0; opacity: .85; }
 .tc-info { flex: 1; min-width: 0; }
-.tc-name { font-size: 16px; font-weight: bold; color: #1a237e; }
-.tc-meta { font-size: 11px; color: #777; margin-top: 3px; }
-.tc-badges { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
-.tc-badge {
-  display: inline-block; padding: 2px 8px;
-  border-radius: 10px; font-size: 11px; font-weight: bold;
-  background: #e8eaf6; color: #1a237e;
+.tc-name {
+  font-size: 17px; font-weight: 700; color: var(--text);
+  margin-bottom: 4px;
 }
-.tc-actions { display: flex; gap: 6px; flex-shrink: 0; }
-.btn-card { padding: 5px 12px; border: none; border-radius: 4px;
-  font-size: 12px; cursor: pointer; font-weight: bold; }
-.btn-open   { background: #1565c0; color: white; }
-.btn-edit   { background: #f5f5f5; color: #333; border: 1px solid #ddd; }
-.btn-delete { background: white; color: #c62828; border: 1px solid #c62828; }
+.tc-meta { font-size: 12px; color: var(--text-mid); }
+.tc-badges { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.tc-badge {
+  display: inline-block; padding: 3px 10px;
+  border-radius: 20px; font-size: 11px; font-weight: 700;
+  background: var(--blue-dim); color: var(--blue);
+}
+.tc-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.btn-card {
+  padding: 6px 14px; border: none; border-radius: var(--radius-sm);
+  font-size: 12px; cursor: pointer; font-weight: 700;
+  transition: opacity .15s;
+}
+.btn-card:hover { opacity: .82; }
+.btn-open   { background: var(--blue); color: white; }
+.btn-edit   { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+.btn-delete { background: white; color: #D32F2F; border: 1px solid #D32F2F; }
 
-.empty-state { text-align: center; padding: 60px 20px; color: #888; font-size: 14px; }
-.empty-state span { font-size: 48px; display: block; margin-bottom: 12px; }
-.loading-msg { text-align: center; padding: 30px; color: #888; }
+.empty-state {
+  text-align: center; padding: 80px 20px;
+  color: var(--text-light); font-size: 14px;
+}
+.empty-state span { font-size: 52px; display: block; margin-bottom: 16px; opacity: .6; }
+.loading-msg { text-align: center; padding: 40px; color: var(--text-light); }
 
 /* =====================================================
-   大会詳細 ヘッダー
+   大会詳細ヘッダー
    ===================================================== */
 .detail-header {
-  background: #283593; color: white; padding: 14px 20px;
+  background: var(--blue); color: white;
+  padding: 16px 28px 14px;
 }
-.detail-header-top { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-.detail-title { font-size: 18px; font-weight: bold; flex: 1; }
-.detail-meta { font-size: 12px; color: rgba(255,255,255,.8); }
+.detail-header-top {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 6px;
+}
+.detail-title { font-size: 20px; font-weight: 700; flex: 1; }
+.detail-meta { font-size: 12px; color: rgba(255,255,255,.75); }
 
-/* タブ */
+/* タブバー */
 .tab-bar {
-  display: flex; background: #1a237e; padding: 0 20px;
-  border-bottom: 2px solid #283593;
+  display: flex; background: white;
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
 }
 .tab-btn {
-  padding: 10px 20px; color: rgba(255,255,255,.7);
+  padding: 12px 22px; color: var(--text-mid);
   border: none; background: none; cursor: pointer;
-  font-size: 13px; font-weight: bold; border-bottom: 3px solid transparent;
-  margin-bottom: -2px;
+  font-size: 13px; font-weight: 700;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px; transition: color .15s;
 }
-.tab-btn.active { color: white; border-bottom-color: white; }
-.tab-btn:hover:not(.active) { color: rgba(255,255,255,.9); }
+.tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
+.tab-btn:hover:not(.active) { color: var(--text); }
 
 /* =====================================================
-   試合カード（大会詳細内）
+   試合カード
    ===================================================== */
 .game-card {
-  background: white; border-radius: 8px;
-  box-shadow: 0 1px 5px rgba(0,0,0,.08);
-  padding: 12px 16px; margin-bottom: 8px;
-  display: flex; align-items: center; gap: 12px;
-  cursor: pointer; transition: box-shadow .15s;
+  background: white; border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 14px 20px; margin-bottom: 10px;
+  display: flex; align-items: center; gap: 16px;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: box-shadow .2s, border-color .2s;
 }
-.game-card:hover { box-shadow: 0 3px 12px rgba(0,0,0,.15); }
+.game-card:hover { box-shadow: var(--shadow-md); border-left-color: var(--blue); }
 .gc-info { flex: 1; min-width: 0; }
-.gc-title { font-size: 12px; color: #777; }
-.gc-teams { font-size: 15px; font-weight: bold; }
-.gc-score { font-size: 22px; font-weight: bold; color: #1a237e; min-width: 80px; text-align: center; }
-.gc-actions { display: flex; gap: 6px; }
+.gc-title { font-size: 11px; color: var(--text-light); font-weight: 500; letter-spacing: .06em; }
+.gc-teams { font-size: 16px; font-weight: 700; margin-top: 2px; }
+.gc-score {
+  font-size: 24px; font-weight: 700; color: var(--blue);
+  min-width: 90px; text-align: center; font-variant-numeric: tabular-nums;
+}
+.gc-actions { display: flex; gap: 8px; }
 
 /* =====================================================
-   ダッシュボード（大会詳細 成績タブ）
+   ダッシュボード
    ===================================================== */
 .dash-summary {
-  display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: 12px; margin-bottom: 20px;
+  display: grid; grid-template-columns: repeat(3,1fr);
+  gap: 14px; margin-bottom: 28px;
 }
 .dash-kpi {
-  background: white; border-radius: 10px;
-  box-shadow: 0 1px 6px rgba(0,0,0,.1);
-  padding: 16px; text-align: center;
+  background: white; border-radius: var(--radius);
+  box-shadow: var(--shadow-sm); padding: 20px;
+  text-align: center; border-top: 3px solid var(--blue);
 }
-.dash-kpi-val { font-size: 32px; font-weight: bold; color: #1a237e; line-height: 1; }
-.dash-kpi-label { font-size: 11px; color: #777; margin-top: 4px; }
+.dash-kpi-val {
+  font-size: 36px; font-weight: 700; color: var(--blue);
+  line-height: 1; font-variant-numeric: tabular-nums;
+}
+.dash-kpi-label { font-size: 11px; color: var(--text-light); margin-top: 6px; font-weight: 500; letter-spacing: .04em; }
 
-.dash-section { margin-bottom: 22px; }
+.dash-section { margin-bottom: 28px; }
 .dash-section-title {
-  font-size: 14px; font-weight: bold; color: #1a237e;
-  border-left: 4px solid #1a237e; padding-left: 8px; margin-bottom: 10px;
+  font-size: 11px; font-weight: 700; color: var(--text-light);
+  letter-spacing: .1em; text-transform: uppercase;
+  padding-left: 10px; margin-bottom: 10px;
+  border-left: 3px solid var(--blue);
 }
 .dash-table-wrap {
-  background: white; border-radius: 8px;
-  box-shadow: 0 1px 6px rgba(0,0,0,.1); overflow: hidden;
+  background: white; border-radius: var(--radius);
+  box-shadow: var(--shadow-sm); overflow: hidden;
 }
-.dash-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.dash-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .dash-table th {
-  background: #e8eaf6; color: #1a237e; font-size: 11px; font-weight: bold;
-  padding: 7px 10px; text-align: left; border-bottom: 2px solid #c5cae9;
+  background: var(--blue-dim); color: var(--blue);
+  font-size: 11px; font-weight: 700; letter-spacing: .04em;
+  padding: 9px 12px; text-align: left;
+  border-bottom: 1px solid #C5DCF0;
 }
 .dash-table th.num { text-align: center; }
-.dash-table td { padding: 8px 10px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+.dash-table td {
+  padding: 10px 12px; border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
 .dash-table td.num { text-align: center; }
 .dash-table tr:last-child td { border-bottom: none; }
-.dash-table tr:hover td { background: #f5f5ff; }
+.dash-table tr:hover td { background: #F7FBFF; }
+
 .rank-badge {
-  display: inline-block; width: 22px; height: 22px;
-  border-radius: 50%; font-size: 11px; font-weight: bold;
-  text-align: center; line-height: 22px; background: #e0e0e0; color: #555;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 50%;
+  font-size: 11px; font-weight: 700;
+  background: var(--border); color: var(--text-mid);
 }
-.rank-1 { background: #FFD700; color: #7a5800; }
-.rank-2 { background: #C0C0C0; color: #444; }
-.rank-3 { background: #cd7f32; color: #fff; }
+.rank-1 { background: #FFD700; color: #7A5800; }
+.rank-2 { background: #C8CDD2; color: #444; }
+.rank-3 { background: #CE8A55; color: #fff; }
+
 .team-badge {
-  display: inline-block; padding: 2px 7px;
-  border-radius: 10px; font-size: 10px; font-weight: bold;
-  background: #e8eaf6; color: #1a237e;
+  display: inline-block; padding: 3px 9px;
+  border-radius: 20px; font-size: 11px; font-weight: 700;
+  background: var(--blue-dim); color: var(--blue);
 }
-.win-rate-bar { display: flex; align-items: center; gap: 6px; }
-.win-rate-track { flex: 1; height: 8px; background: #eee; border-radius: 4px; overflow: hidden; }
-.win-rate-fill  { height: 100%; background: #1565c0; border-radius: 4px; }
-.result-win  { color: #2e7d32; font-weight: bold; }
-.result-lose { color: #c62828; }
-.result-draw { color: #777; }
-.dash-no-data { text-align: center; padding: 30px; color: #aaa; font-size: 13px; }
+.win-rate-bar { display: flex; align-items: center; gap: 8px; }
+.win-rate-track { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.win-rate-fill  { height: 100%; background: var(--blue); border-radius: 3px; }
+.result-win  { color: #1B7F3A; font-weight: 700; }
+.result-lose { color: #C62828; }
+.result-draw { color: var(--text-light); }
+.dash-no-data { text-align: center; padding: 36px; color: var(--text-light); font-size: 13px; }
 
 /* =====================================================
-   モーダル（大会登録/編集）
+   モーダル
    ===================================================== */
 .modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,.5);
+  position: fixed; inset: 0; background: rgba(10,30,60,.45);
   display: flex; align-items: center; justify-content: center;
-  z-index: 1000; display: none;
+  z-index: 1000; display: none; backdrop-filter: blur(2px);
 }
 .modal-overlay.open { display: flex; }
 .modal {
-  background: white; border-radius: 12px;
-  padding: 24px; width: 440px; max-width: 95vw;
-  box-shadow: 0 8px 32px rgba(0,0,0,.2);
+  background: white; border-radius: var(--radius);
+  padding: 28px 32px; width: 460px; max-width: 95vw;
+  box-shadow: 0 12px 48px rgba(0,0,0,.18);
 }
-.modal h2 { font-size: 16px; color: #1a237e; margin-bottom: 18px; }
-.form-group { margin-bottom: 14px; }
-.form-group label { display: block; font-size: 11px; font-weight: bold; margin-bottom: 4px; color: #555; }
+.modal h2 {
+  font-size: 17px; font-weight: 700; color: var(--text);
+  margin-bottom: 22px;
+  padding-bottom: 14px; border-bottom: 1px solid var(--border);
+}
+.form-group { margin-bottom: 16px; }
+.form-group label {
+  display: block; font-size: 11px; font-weight: 700;
+  margin-bottom: 5px; color: var(--text-mid);
+  letter-spacing: .04em; text-transform: uppercase;
+}
 .form-group input, .form-group textarea {
-  width: 100%; padding: 8px 10px;
-  border: 1px solid #bbb; border-radius: 6px;
-  font-size: 13px; font-family: inherit;
+  width: 100%; padding: 9px 12px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 13px; font-family: inherit; color: var(--text);
+  transition: border-color .15s;
 }
-.form-group textarea { height: 70px; resize: vertical; }
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.modal-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
-.btn-modal-cancel { padding: 8px 18px; border: 1px solid #bbb; border-radius: 6px; background: white; cursor: pointer; font-size: 13px; }
-.btn-modal-save   { padding: 8px 18px; border: none; border-radius: 6px; background: #1565c0; color: white; cursor: pointer; font-size: 13px; font-weight: bold; }
-.btn-modal-save:hover { background: #0d47a1; }
+.form-group input:focus, .form-group textarea:focus {
+  outline: none; border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(16,104,179,.12);
+}
+.form-group textarea { height: 80px; resize: vertical; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.modal-btns { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+.btn-modal-cancel {
+  padding: 9px 20px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); background: white;
+  cursor: pointer; font-size: 13px; color: var(--text-mid);
+  font-weight: 500;
+}
+.btn-modal-cancel:hover { background: var(--bg); }
+.btn-modal-save {
+  padding: 9px 24px; border: none;
+  border-radius: var(--radius-sm); background: var(--blue);
+  color: white; cursor: pointer; font-size: 13px; font-weight: 700;
+}
+.btn-modal-save:hover { background: var(--blue-dark); }
 
 /* =====================================================
    トースト
    ===================================================== */
 #toast {
-  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-  background: #323232; color: white; padding: 10px 24px; border-radius: 4px;
-  font-size: 13px; z-index: 9999; opacity: 0; transition: opacity .3s; pointer-events: none;
+  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+  background: #1A1A2E; color: white; padding: 11px 26px;
+  border-radius: 8px; font-size: 13px; z-index: 9999;
+  opacity: 0; transition: opacity .3s; pointer-events: none;
+  box-shadow: 0 4px 20px rgba(0,0,0,.25);
+  white-space: nowrap;
 }
 #toast.show { opacity: 1; }
 
@@ -216,46 +320,81 @@ body { font-family: 'Meiryo','Yu Gothic','MS Gothic',sans-serif; background: #e8
    エディター
    ===================================================== */
 .editor-toolbar {
-  background: #1a237e; color: white; padding: 8px 16px;
+  background: var(--blue); color: white;
+  padding: 0 20px; height: 52px;
   display: flex; align-items: center; gap: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.15);
 }
 .btn-back {
-  background: rgba(255,255,255,.15); color: white;
-  border: 1px solid rgba(255,255,255,.4); border-radius: 4px;
-  padding: 5px 12px; font-size: 13px; cursor: pointer;
+  background: rgba(255,255,255,.14); color: white;
+  border: 1px solid rgba(255,255,255,.35); border-radius: var(--radius-sm);
+  padding: 6px 14px; font-size: 12px; cursor: pointer; font-weight: 700;
 }
-.btn-back:hover { background: rgba(255,255,255,.25); }
-.toolbar-title { flex: 1; font-size: 13px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.btn-back:hover { background: rgba(255,255,255,.26); }
+.toolbar-title {
+  flex: 1; font-size: 14px; font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .btn-save {
-  background: #43a047; color: white; border: none; border-radius: 4px;
-  padding: 5px 14px; font-size: 13px; font-weight: bold; cursor: pointer;
+  background: #1E9E4A; color: white; border: none;
+  border-radius: var(--radius-sm);
+  padding: 7px 18px; font-size: 13px; font-weight: 700; cursor: pointer;
+  transition: background .15s;
 }
-.btn-save:hover { background: #388e3c; }
-.btn-save:disabled { background: #888; cursor: default; }
+.btn-save:hover { background: #167A38; }
+.btn-save:disabled { background: #9AAABB; cursor: default; }
 .btn-print-small {
-  background: rgba(255,255,255,.15); color: white;
-  border: 1px solid rgba(255,255,255,.4); border-radius: 4px;
-  padding: 5px 12px; font-size: 13px; cursor: pointer;
+  background: rgba(255,255,255,.14); color: white;
+  border: 1px solid rgba(255,255,255,.35); border-radius: var(--radius-sm);
+  padding: 6px 14px; font-size: 12px; cursor: pointer; font-weight: 700;
 }
+
 .input-section {
-  background: white; padding: 16px 20px; margin: 12px 16px;
-  border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,.15);
+  background: white; padding: 20px 24px; margin: 16px 20px;
+  border-radius: var(--radius); box-shadow: var(--shadow-sm);
 }
-.input-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px; }
-.input-grid label { display: block; font-size: 11px; font-weight: bold; margin-bottom: 3px; }
+.input-grid {
+  display: grid; grid-template-columns: repeat(3,1fr);
+  gap: 14px; margin-bottom: 14px;
+}
+.input-grid label {
+  display: block; font-size: 10px; font-weight: 700;
+  margin-bottom: 5px; color: var(--text-mid);
+  letter-spacing: .06em; text-transform: uppercase;
+}
 .input-grid input {
-  width: 100%; padding: 6px 8px; border: 1px solid #bbb; border-radius: 4px;
-  font-size: 13px; font-family: inherit;
+  width: 100%; padding: 8px 10px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 13px; font-family: inherit; color: var(--text);
+  transition: border-color .15s;
 }
-.pbp-label { display: block; font-size: 11px; font-weight: bold; margin-bottom: 4px; }
+.input-grid input:focus {
+  outline: none; border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(16,104,179,.1);
+}
+.pbp-label {
+  display: block; font-size: 10px; font-weight: 700;
+  margin-bottom: 6px; color: var(--text-mid);
+  letter-spacing: .06em; text-transform: uppercase;
+}
 textarea#pbpInput {
-  width: 100%; height: 130px; padding: 8px; border: 1px solid #bbb; border-radius: 4px;
-  font-size: 12px; font-family: 'Consolas', monospace; resize: vertical;
+  width: 100%; height: 130px; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 12px; font-family: 'Consolas',monospace; resize: vertical;
+  color: var(--text);
 }
-.btn-row { margin-top: 10px; display: flex; gap: 8px; align-items: center; }
-.btn { padding: 8px 20px; font-size: 13px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-.btn-gen { background: #1565c0; color: white; }
-.hint { font-size: 10px; color: #777; }
+textarea#pbpInput:focus {
+  outline: none; border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(16,104,179,.1);
+}
+.btn-row { margin-top: 12px; display: flex; gap: 10px; align-items: center; }
+.btn {
+  padding: 9px 22px; font-size: 13px; border: none;
+  border-radius: var(--radius-sm); cursor: pointer; font-weight: 700;
+}
+.btn-gen { background: var(--blue); color: white; }
+.btn-gen:hover { background: var(--blue-dark); }
+.hint { font-size: 11px; color: var(--text-light); }
 
 /* =====================================================
    スコアシート本体
@@ -400,10 +539,12 @@ td.qot span { color: #6a1b9a; }
      ===================================================== -->
 <div id="view-tournaments">
   <div class="app-header">
-    <h1>🏀 バスケ スコアシート</h1>
+    <span class="app-logo">molten</span>
+    <h1>バスケ スコアシート</h1>
     <button class="btn-hdr-primary" onclick="openTournamentModal()">＋ 大会を登録</button>
   </div>
   <div class="page-body">
+    <div class="section-eyebrow">TOURNAMENTS</div>
     <div id="tournament-list-container">
       <div class="loading-msg">読み込み中...</div>
     </div>
