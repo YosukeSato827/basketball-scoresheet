@@ -150,13 +150,16 @@ body {
    ===================================================== */
 .detail-header {
   background: var(--blue); color: white;
-  padding: 16px 28px 14px;
+  padding: 14px 28px 14px;
+}
+.detail-title {
+  font-size: 20px; font-weight: 700;
+  display: block; margin-bottom: 10px;
 }
 .detail-header-top {
-  display: flex; align-items: center; gap: 12px; margin-bottom: 6px;
+  display: flex; align-items: center; gap: 10px;
 }
-.detail-title { font-size: 20px; font-weight: 700; flex: 1; }
-.detail-meta { font-size: 12px; color: rgba(255,255,255,.75); }
+.detail-meta { font-size: 12px; color: rgba(255,255,255,.75); margin-top: 8px; }
 
 /* タブバー */
 .tab-bar {
@@ -539,6 +542,53 @@ td.qot span { color: #6a1b9a; }
   .sheet { width: 100%; }
   @page { size: A4 portrait; margin: 8mm; }
 }
+
+/* =====================================================
+   モバイル対応（〜600px）
+   ===================================================== */
+@media (max-width: 600px) {
+  /* 共通余白を縮小 */
+  .page-body { padding: 14px 12px; }
+  .app-header { padding: 0 14px; height: 50px; }
+
+  /* 大会詳細ヘッダー */
+  .detail-header { padding: 10px 14px 12px; }
+  .detail-title { font-size: 17px; margin-bottom: 8px; }
+  .detail-header-top { gap: 8px; }
+
+  /* タブバー */
+  .tab-bar { padding: 0 8px; }
+  .tab-btn { padding: 10px 16px; font-size: 12px; }
+
+  /* ゲームカード */
+  .game-card { padding: 10px 12px; gap: 10px; }
+  .gc-score { min-width: 72px; font-size: 20px; }
+  .gc-teams { font-size: 14px; }
+
+  /* 大会一覧カード */
+  .tc-card { padding: 14px 16px; }
+
+  /* KPI カード */
+  .dash-summary { gap: 8px; }
+  .dash-kpi { padding: 12px 6px; }
+  .dash-kpi-val { font-size: 26px; }
+  .dash-kpi-label { font-size: 10px; }
+
+  /* テーブル：横スクロールさせて折り返し防止 */
+  .dash-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .dash-table { min-width: 520px; }
+  .dash-table th, .dash-table td { white-space: nowrap; }
+
+  /* フィルターバー */
+  .stats-filter-bar { padding: 8px 10px; gap: 6px; }
+  .filter-label { font-size: 10px; }
+  .toggle-chip { padding: 4px 10px; font-size: 11px; }
+  .rank-switch-btn { padding: 4px 10px; font-size: 11px; }
+
+  /* エディタツールバー */
+  .editor-toolbar { padding: 0 10px; gap: 6px; }
+  .toolbar-title { font-size: 13px; }
+}
 </style>
 </head>
 <body>
@@ -614,9 +664,10 @@ td.qot span { color: #6a1b9a; }
      ===================================================== -->
 <div id="view-detail">
   <div class="detail-header">
+    <span class="detail-title" id="detail-title">大会名</span>
     <div class="detail-header-top">
       <button class="btn-hdr" onclick="backToTournaments()">← 大会一覧</button>
-      <span class="detail-title" id="detail-title">大会名</span>
+      <div style="flex:1"></div>
       <button class="btn-hdr" onclick="openTournamentModal(currentTournamentId)">編集</button>
       <button class="btn-hdr-primary" onclick="newGame()">+ 試合を追加</button>
     </div>
