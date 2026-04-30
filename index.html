@@ -765,6 +765,75 @@ body.mobile-preview-mode .toolbar-title { font-size: 13px; }
   .vsb-sep { padding: 0 12px; }
   .viewer-body { padding: 14px; }
 }
+/* 大会単位 閲覧ビュー: 試合カード */
+.vt-game-list { display: flex; flex-direction: column; gap: 12px; }
+.vt-game-detail {
+  background: white; border-radius: var(--radius);
+  box-shadow: var(--shadow-sm); overflow: hidden;
+}
+.vt-game-detail summary { list-style: none; }
+.vt-game-detail summary::-webkit-details-marker { display: none; }
+.vt-game-summary {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 20px; cursor: pointer;
+  transition: background .15s; user-select: none;
+}
+.vt-game-summary:hover { background: var(--bg); }
+.vt-summary-inner { flex: 1; min-width: 0; }
+.vt-game-label {
+  font-size: 11px; font-weight: 700; color: var(--text-light);
+  letter-spacing: .08em; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 8px;
+}
+.vt-live-chip {
+  background: #E53935; color: white;
+  border-radius: 10px; padding: 1px 7px;
+  font-size: 10px; font-weight: 700;
+}
+.vt-scoreline {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+}
+.vt-team-name { font-size: 14px; font-weight: 700; color: var(--text-mid); }
+.vt-team-name.vt-winner { color: var(--blue); }
+.vt-score-a, .vt-score-b {
+  font-family: 'Poppins', sans-serif;
+  font-size: 38px; font-weight: 900; line-height: 1; color: var(--text);
+}
+.vt-score-a.vt-winner, .vt-score-b.vt-winner { color: var(--blue); }
+.vt-dash { font-size: 22px; color: var(--text-light); font-weight: 300; }
+.vt-qlabel {
+  font-size: 11px; font-weight: 700; color: var(--text-light);
+  background: var(--bg); border-radius: var(--radius-sm);
+  padding: 2px 8px; margin-left: 4px;
+}
+.vt-qrow {
+  display: flex; gap: 0; margin-top: 10px;
+  border-top: 1px solid var(--border); padding-top: 10px;
+}
+.vt-qcell {
+  display: flex; align-items: center; gap: 3px;
+  padding: 0 10px; border-right: 1px solid var(--border);
+}
+.vt-qcell:last-child { border-right: none; }
+.vt-qcell-label { color: var(--text-light); font-size: 10px; margin-right: 2px; }
+.vt-qcell-a { font-size: 12px; font-weight: 700; color: var(--blue); }
+.vt-qcell-b { font-size: 12px; font-weight: 700; color: #E53935; }
+.vt-qcell-sep { font-size: 10px; color: var(--border); }
+.vt-expand-icon {
+  color: var(--text-light); font-size: 12px;
+  transition: transform .2s; flex-shrink: 0;
+}
+details[open] .vt-expand-icon { transform: rotate(180deg); }
+.vt-game-body {
+  border-top: 1px solid var(--border);
+  padding: 16px 20px;
+}
+@media (max-width: 600px) {
+  .vt-score-a, .vt-score-b { font-size: 28px; }
+  .vt-game-summary { padding: 12px 14px; }
+  .vt-game-body { padding: 12px 14px; }
+  .vt-qcell { padding: 0 6px; }
+}
 </style>
 </head>
 <body>
@@ -847,6 +916,7 @@ body.mobile-preview-mode .toolbar-title { font-size: 13px; }
     <div class="detail-header-top">
       <button class="btn-hdr" onclick="backToTournaments()">← 大会一覧</button>
       <div style="flex:1"></div>
+      <button class="btn-hdr" onclick="copyTournamentViewUrl()">🔗 閲覧URL</button>
       <button class="btn-hdr" onclick="openTournamentModal(currentTournamentId)">編集</button>
       <button class="btn-hdr-primary" onclick="newGame()">+ 試合を追加</button>
     </div>
@@ -1106,7 +1176,6 @@ async function loadGames() {
           </div>
           <div class="gc-score">${esc(score)}</div>
           <div class="gc-actions" onclick="event.stopPropagation()">
-            <button class="btn-view-url" onclick="copyViewUrl('${doc.id}')">🔗 閲覧URL</button>
             <button class="btn-card btn-open" onclick="openGame('${doc.id}')">開く</button>
             <button class="btn-card btn-delete" onclick="deleteGame('${doc.id}')">削除</button>
           </div>
@@ -1916,13 +1985,12 @@ function toggleMobilePreview() {
 }
 
 // =====================================================
-// 閲覧専用ビュー
+// 閲覧専用ビュー（大会単位）
 // =====================================================
 let viewerUnsubscribe = null;
-let viewerTournamentName = '';
 
-function copyViewUrl(gameId) {
-  const url = `${location.origin}${location.pathname}?view=${gameId}`;
+function copyTournamentViewUrl() {
+  const url = `${location.origin}${location.pathname}?view=${currentTournamentId}`;
   if (navigator.clipboard) {
     navigator.clipboard.writeText(url)
       .then(() => showToast('閲覧URLをコピーしました'))
@@ -1932,117 +2000,135 @@ function copyViewUrl(gameId) {
   }
 }
 
-function openViewer(gameId) {
+function openViewer(tournamentId) {
   document.getElementById('app-frame').style.display = 'none';
   document.getElementById('preview-toggle-btn').style.display = 'none';
   document.getElementById('view-viewer').style.display = 'block';
-  viewerTournamentName = '';
+  document.getElementById('viewer-content').innerHTML = '<div class="loading-msg">読み込み中...</div>';
 
-  viewerUnsubscribe = db.collection('games').doc(gameId).onSnapshot(async snap => {
-    if (!snap.exists) {
-      document.getElementById('viewer-content').innerHTML = `
-        <div class="viewer-error">
-          <h2>試合データが見つかりません</h2>
-          <p>URLをご確認ください。</p>
-        </div>`;
-      return;
-    }
-    const data = snap.data();
-
-    // 大会名を1回だけ取得してキャッシュ
-    if (!viewerTournamentName && data.tournamentId) {
-      try {
-        const tDoc = await db.collection('tournaments').doc(data.tournamentId).get();
-        if (tDoc.exists) viewerTournamentName = tDoc.data().name || '';
-      } catch(e) {}
-    }
-
-    renderViewer({ ...data, tournamentName: viewerTournamentName });
-  }, err => {
+  // 大会情報を1回取得し、試合一覧をリアルタイム監視
+  db.collection('tournaments').doc(tournamentId).get().then(tSnap => {
+    const tData = tSnap.exists ? tSnap.data() : { name: '大会' };
+    viewerUnsubscribe = db.collection('games')
+      .where('tournamentId', '==', tournamentId)
+      .onSnapshot(snap => {
+        renderTournamentViewer(tData, snap.docs);
+      }, err => {
+        document.getElementById('viewer-content').innerHTML = `
+          <div class="viewer-error"><h2>読み込みエラー</h2><p>${err.message}</p></div>`;
+      });
+  }).catch(() => {
     document.getElementById('viewer-content').innerHTML = `
-      <div class="viewer-error">
-        <h2>読み込みエラー</h2>
-        <p>${err.message}</p>
-      </div>`;
+      <div class="viewer-error"><h2>大会が見つかりません</h2><p>URLをご確認ください。</p></div>`;
   });
 }
 
-function renderViewer(data) {
-  const teamAName = data.teamAName || 'チームA';
-  const teamBName = data.teamBName || 'チームB';
-  const plays = parsePBP(data.pbpData || '');
-  const st = buildState(plays);
-  const totalA = st.qScore.A.reduce((a, b) => a + b, 0);
-  const totalB = st.qScore.B.reduce((a, b) => a + b, 0);
+function renderTournamentViewer(tData, gameDocs) {
+  // 展開中の試合IDを記憶してから再描画
+  const expanded = new Set(
+    [...document.querySelectorAll('.vt-game-detail[open]')].map(el => el.dataset.gameId)
+  );
 
-  // 最終クォーター
-  const maxQ = plays.length > 0 ? Math.max(...plays.map(p => p.quarter)) : 0;
-  const qLabel = maxQ > 4 ? `延長${maxQ - 4}` : maxQ > 0 ? `${maxQ}Q` : '';
+  // 日付 → Game No. 順にソート
+  const sorted = [...gameDocs].sort((a, b) => {
+    const da = a.data(), db2 = b.data();
+    const dateA = da.gameDate || '', dateB = db2.gameDate || '';
+    if (dateA !== dateB) return dateA < dateB ? -1 : 1;
+    return (parseInt(da.gameNo) || 0) - (parseInt(db2.gameNo) || 0);
+  });
 
-  // LIVE判定：最終更新から2時間以内
-  const updatedAt = data.updatedAt ? new Date(data.updatedAt) : null;
-  const isLive = updatedAt && (Date.now() - updatedAt.getTime()) < 7200000 && (data.pbpData || '').length > 0;
-  document.getElementById('viewer-live-badge').style.display = isLive ? 'flex' : 'none';
+  const now = Date.now();
+
+  // LIVE判定：2時間以内に更新された試合があるか
+  const hasLive = sorted.some(doc => {
+    const u = doc.data().updatedAt;
+    return u && (now - new Date(u).getTime()) < 7200000;
+  });
+  document.getElementById('viewer-live-badge').style.display = hasLive ? 'flex' : 'none';
 
   // 最終更新時刻
-  if (updatedAt) {
-    const h = updatedAt.getHours().toString().padStart(2,'0');
-    const m = updatedAt.getMinutes().toString().padStart(2,'0');
-    document.getElementById('viewer-updated').textContent = `更新 ${h}:${m}`;
+  const latestMs = sorted.reduce((mx, doc) => {
+    const t = doc.data().updatedAt ? new Date(doc.data().updatedAt).getTime() : 0;
+    return t > mx ? t : mx;
+  }, 0);
+  if (latestMs > 0) {
+    const d = new Date(latestMs);
+    document.getElementById('viewer-updated').textContent =
+      `更新 ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
   }
 
-  // クォーター別スコア表示
-  const quarters = ['1Q','2Q','3Q','4Q','OT'];
-  const qCells = st.qScore.A.map((_, i) => {
-    const label = i < 4 ? `${i+1}Q` : 'OT';
-    return `<div class="vsb-qcell">
-      <div class="vsb-qcell-label">${label}</div>
-      <div class="vsb-qcell-scores">
-        <span class="vsb-qcell-a">${st.qScore.A[i]||0}</span>
-        <span style="color:var(--border)">-</span>
-        <span class="vsb-qcell-b">${st.qScore.B[i]||0}</span>
+  const period = [tData.startDate, tData.endDate].filter(Boolean).join(' 〜 ');
+  const metaLine = [period, tData.venue ? '📍 ' + tData.venue : ''].filter(Boolean).join('　');
+
+  if (sorted.length === 0) {
+    document.getElementById('viewer-content').innerHTML = `
+      <div class="viewer-tournament-name">${esc(tData.name || '大会')}</div>
+      ${metaLine ? `<div class="viewer-game-info">${esc(metaLine)}</div>` : ''}
+      <div class="viewer-error" style="padding:48px 0"><p>まだ試合データがありません</p></div>`;
+    return;
+  }
+
+  const cards = sorted.map(doc => {
+    const d = doc.data();
+    const gameId = doc.id;
+    const teamA = d.teamAName || 'チームA';
+    const teamB = d.teamBName || 'チームB';
+    const plays = parsePBP(d.pbpData || '');
+    const st = buildState(plays);
+    const totalA = st.qScore.A.reduce((a, b) => a + b, 0);
+    const totalB = st.qScore.B.reduce((a, b) => a + b, 0);
+    const maxQ = plays.length > 0 ? Math.max(...plays.map(p => p.quarter)) : 0;
+    const qLabel = maxQ > 4 ? `延長${maxQ - 4}` : maxQ > 0 ? `${maxQ}Q` : '';
+    const label = [d.gameDate, d.gameNo ? `Game ${d.gameNo}` : ''].filter(Boolean).join('　');
+    const winner = totalA > totalB ? 'A' : totalB > totalA ? 'B' : null;
+    const isGameLive = d.updatedAt && (now - new Date(d.updatedAt).getTime()) < 7200000 && plays.length > 0;
+    const graphSVG = plays.length > 1 ? buildScoreGraphSVG(plays, teamA, teamB) : '';
+    const isOpen = expanded.has(gameId);
+
+    const qRow = st.qScore.A.map((s, i) => {
+      const lbl = i < 4 ? `${i+1}Q` : 'OT';
+      return `<span class="vt-qcell">
+        <span class="vt-qcell-label">${lbl}</span>
+        <span class="vt-qcell-a">${s||0}</span>
+        <span class="vt-qcell-sep">-</span>
+        <span class="vt-qcell-b">${st.qScore.B[i]||0}</span>
+      </span>`;
+    }).join('');
+
+    return `<details class="vt-game-detail" data-game-id="${gameId}"${isOpen ? ' open' : ''}>
+      <summary class="vt-game-summary">
+        <div class="vt-summary-inner">
+          <div class="vt-game-label">
+            ${esc(label) || '試合'}
+            ${isGameLive ? '<span class="vt-live-chip">LIVE</span>' : ''}
+          </div>
+          <div class="vt-scoreline">
+            <span class="vt-team-name${winner==='A' ? ' vt-winner' : ''}">${esc(teamA)}</span>
+            <span class="vt-score-a${winner==='A' ? ' vt-winner' : ''}">${totalA}</span>
+            <span class="vt-dash">-</span>
+            <span class="vt-score-b${winner==='B' ? ' vt-winner' : ''}">${totalB}</span>
+            <span class="vt-team-name${winner==='B' ? ' vt-winner' : ''}">${esc(teamB)}</span>
+            ${qLabel ? `<span class="vt-qlabel">${qLabel}</span>` : ''}
+          </div>
+          <div class="vt-qrow">${qRow}</div>
+        </div>
+        <span class="vt-expand-icon">▼</span>
+      </summary>
+      <div class="vt-game-body">
+        ${graphSVG ? `<div class="score-graph-wrap" style="margin-bottom:16px">
+          <div class="score-graph-title">得点推移グラフ</div>${graphSVG}
+        </div>` : ''}
+        ${plays.length > 0
+          ? renderViewerScoresheet({ ...d, tournamentName: tData.name || '' })
+          : '<p style="padding:8px 0;color:var(--text-mid)">PBPデータがありません</p>'}
       </div>
-    </div>`;
+    </details>`;
   }).join('');
 
-  // 得点グラフ
-  const graphSVG = buildScoreGraphSVG(plays, teamAName, teamBName);
-
-  // ゲーム情報
-  const infoLine = [data.gameDate, data.gameNo ? `Game ${data.gameNo}` : '', data.venue].filter(Boolean).join('　');
-
   document.getElementById('viewer-content').innerHTML = `
-    ${data.tournamentName ? `<div class="viewer-tournament-name">${esc(data.tournamentName)}</div>` : ''}
-    ${infoLine ? `<div class="viewer-game-info">${esc(infoLine)}</div>` : ''}
-
-    <div class="viewer-scoreboard" style="flex-direction:column;gap:0;padding-bottom:${qCells ? '0' : '32px'}">
-      <div style="display:flex;width:100%;align-items:center;padding-bottom:${qCells ? '20px' : '0'}">
-        <div class="vsb-team">
-          <div class="vsb-name">${esc(teamAName)}</div>
-          <div class="vsb-score${totalA > totalB ? ' leading' : ''}">${totalA}</div>
-        </div>
-        <div class="vsb-sep">
-          <div class="vsb-vs">vs</div>
-          ${qLabel ? `<div class="vsb-quarter">${qLabel}</div>` : ''}
-        </div>
-        <div class="vsb-team">
-          <div class="vsb-name">${esc(teamBName)}</div>
-          <div class="vsb-score${totalB > totalA ? ' leading' : ''}">${totalB}</div>
-        </div>
-      </div>
-      ${qCells ? `<div class="vsb-qscores" style="width:100%">${qCells}</div>` : ''}
-    </div>
-
-    ${graphSVG ? `
-      <div class="score-graph-wrap" style="margin-bottom:20px">
-        <div class="score-graph-title">得点推移グラフ</div>
-        ${graphSVG}
-      </div>` : ''}
-
-    ${plays.length > 0 ? `
-      <div class="viewer-section-label">スコアシート</div>
-      ${renderViewerScoresheet(data)}` : ''}
-  `;
+    <div class="viewer-tournament-name">${esc(tData.name || '大会')}</div>
+    ${metaLine ? `<div class="viewer-game-info">${esc(metaLine)}</div>` : ''}
+    <div class="vt-game-list">${cards}</div>`;
 }
 
 function renderViewerScoresheet(data) {
@@ -2117,9 +2203,9 @@ function renderViewerScoresheet(data) {
 // =====================================================
 function initApp() {
   const params = new URLSearchParams(window.location.search);
-  const viewGameId = params.get('view');
-  if (viewGameId) {
-    openViewer(viewGameId);
+  const viewTournamentId = params.get('view');
+  if (viewTournamentId) {
+    openViewer(viewTournamentId);
   } else {
     loadTournaments();
   }
