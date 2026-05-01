@@ -981,6 +981,58 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   width: 100%; padding: 13px; background: var(--bg); color: var(--text-mid);
   border: none; border-radius: var(--radius); font-size: 14px; font-weight: 700; cursor: pointer;
 }
+/* 試合終了ボタン */
+.rec-end-btn {
+  background: rgba(255,255,255,.18); color: white;
+  border: 1px solid rgba(255,255,255,.45); border-radius: var(--radius-sm);
+  padding: 5px 10px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;
+}
+/* アクションボタンエリア（2カラム） */
+.rec-action-area { display: flex; padding: 10px 8px; gap: 8px; }
+.rec-team-col { flex: 1; display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.rec-team-col-label {
+  font-size: 11px; font-weight: 700; color: var(--text-light); text-align: center;
+  letter-spacing: .08em; text-transform: uppercase;
+  padding-bottom: 6px; border-bottom: 2px solid var(--border);
+}
+.rec-col-divider { width: 1px; background: var(--border); flex-shrink: 0; }
+.rec-act-btn {
+  padding: 14px 4px; border: none; border-radius: var(--radius);
+  font-size: 14px; font-weight: 700; cursor: pointer; width: 100%;
+  transition: opacity .1s;
+}
+.rec-act-btn:active { opacity: .72; transform: scale(.97); }
+.rec-act-scoring { background: #e8f5e9; color: #2e7d32; }
+.rec-act-foul    { background: #fff3e0; color: #e65100; }
+.rec-act-timeout { background: var(--blue-dim); color: var(--blue); }
+.rec-sub-btn {
+  background: var(--bg); color: var(--text-mid);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 10px 4px; font-size: 13px; font-weight: 700; cursor: pointer; width: 100%;
+  margin-top: 2px;
+}
+.rec-sub-btn:active { border-color: var(--blue); color: var(--blue); }
+/* コート表示 */
+.rec-court {
+  background: white; border-top: 1px solid var(--border);
+  padding: 7px 12px; display: flex; flex-direction: column; gap: 4px;
+}
+.rec-court-team { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; min-height: 22px; }
+.rec-court-label { font-size: 10px; font-weight: 700; color: var(--text-light); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; min-width: 40px; }
+.rec-court-player { font-family: 'Poppins', sans-serif; font-size: 11px; font-weight: 700; border: 1.5px solid; border-radius: 20px; padding: 1px 7px; white-space: nowrap; }
+/* 選手選択グリッド */
+.rec-player-select-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  gap: 8px; margin-bottom: 14px; max-height: 38vh; overflow-y: auto;
+}
+.rec-player-select-btn {
+  background: var(--bg); border: 2px solid var(--border); border-radius: var(--radius);
+  padding: 10px 4px; cursor: pointer; text-align: center;
+  display: flex; flex-direction: column; gap: 2px; align-items: center; transition: all .1s;
+}
+.rec-player-select-btn:active { transform: scale(.95); border-color: var(--blue); }
+.rec-psel-num  { font-family: 'Poppins', sans-serif; font-size: 20px; font-weight: 700; line-height: 1.1; }
+.rec-psel-name { font-size: 11px; color: var(--text-mid); }
 </style>
 </head>
 <body>
@@ -1132,6 +1184,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
     <button class="rec-back" onclick="backFromRecorder()">← 戻る</button>
     <span class="rec-title" id="rec-title">記録中</span>
     <span class="rec-status" id="rec-status"></span>
+    <button class="rec-end-btn" onclick="endGame()">試合終了</button>
   </div>
   <div class="rec-scoreboard">
     <div class="rec-score-team">
@@ -1151,25 +1204,53 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
     <button class="rec-q-btn" id="rec-q-4" onclick="setRecorderQ(4)">4Q</button>
     <button class="rec-q-btn" id="rec-q-5" onclick="setRecorderQ(5)">OT</button>
   </div>
-  <div class="rec-players">
-    <div class="rec-team" id="rec-team-a"></div>
-    <div class="rec-divider"></div>
-    <div class="rec-team" id="rec-team-b"></div>
+  <div class="rec-action-area">
+    <div class="rec-team-col">
+      <div class="rec-team-col-label" id="rec-col-label-a">チームA</div>
+      <button class="rec-act-btn rec-act-scoring" onclick="startAction('A','2P成功')">2P 成功</button>
+      <button class="rec-act-btn rec-act-scoring" onclick="startAction('A','3P成功')">3P 成功</button>
+      <button class="rec-act-btn rec-act-scoring" onclick="startAction('A','フリースロー成功')">FT 成功</button>
+      <button class="rec-act-btn rec-act-foul"    onclick="startAction('A','Pファウル')">ファウル</button>
+      <button class="rec-act-btn rec-act-timeout" onclick="startAction('A','タイムアウト')">タイムアウト</button>
+      <button class="rec-sub-btn" onclick="showSubstitution('A')">⇄ 交代</button>
+    </div>
+    <div class="rec-col-divider"></div>
+    <div class="rec-team-col">
+      <div class="rec-team-col-label" id="rec-col-label-b">チームB</div>
+      <button class="rec-act-btn rec-act-scoring" onclick="startAction('B','2P成功')">2P 成功</button>
+      <button class="rec-act-btn rec-act-scoring" onclick="startAction('B','3P成功')">3P 成功</button>
+      <button class="rec-act-btn rec-act-scoring" onclick="startAction('B','フリースロー成功')">FT 成功</button>
+      <button class="rec-act-btn rec-act-foul"    onclick="startAction('B','Pファウル')">ファウル</button>
+      <button class="rec-act-btn rec-act-timeout" onclick="startAction('B','タイムアウト')">タイムアウト</button>
+      <button class="rec-sub-btn" onclick="showSubstitution('B')">⇄ 交代</button>
+    </div>
+  </div>
+  <div class="rec-court">
+    <div class="rec-court-team" id="rec-court-a"></div>
+    <div class="rec-court-team" id="rec-court-b"></div>
   </div>
   <div class="rec-timer-bar">
     <button class="rec-undo-btn" onclick="undoLastEvent()">↩ 取り消し</button>
     <div class="rec-timer-wrap">
       <button class="rec-timer-display" id="rec-timer-display" onclick="editTimer()">10:00</button>
       <button class="rec-timer-btn" id="rec-timer-btn" onclick="toggleRecTimer()">▶</button>
-      <button class="rec-timer-reset" onclick="resetRecTimer()" title="リセット">⟳</button>
+      <button class="rec-timer-reset" onclick="resetRecTimer()">⟳</button>
     </div>
   </div>
-  <!-- アクションシート -->
-  <div class="rec-action-overlay" id="rec-action-overlay" onclick="closeActionSheet()">
+  <!-- 選手選択モーダル -->
+  <div class="rec-action-overlay" id="rec-player-overlay" onclick="closePlayerSelect()">
     <div class="rec-action-sheet" onclick="event.stopPropagation()">
-      <div class="rec-action-player" id="rec-action-player"></div>
-      <div class="rec-action-grid" id="rec-action-grid"></div>
-      <button class="rec-action-cancel" onclick="closeActionSheet()">キャンセル</button>
+      <div class="rec-action-player" id="rec-player-modal-title">選手を選択</div>
+      <div class="rec-player-select-grid" id="rec-player-select-grid"></div>
+      <button class="rec-action-cancel" onclick="closePlayerSelect()">キャンセル</button>
+    </div>
+  </div>
+  <!-- 交代モーダル -->
+  <div class="rec-action-overlay" id="rec-sub-overlay" onclick="closeSubstitution()">
+    <div class="rec-action-sheet" onclick="event.stopPropagation()">
+      <div class="rec-action-player" id="rec-sub-title">交代</div>
+      <div class="rec-player-select-grid" id="rec-sub-grid"></div>
+      <button class="rec-action-cancel" onclick="closeSubstitution()">キャンセル</button>
     </div>
   </div>
 </div>
@@ -2195,49 +2276,42 @@ let recCurrentQ     = 1;
 let recPbpData      = '';
 let recPlayersA     = [];
 let recPlayersB     = [];
+let recCourtA       = [];   // コート上 チームA
+let recCourtB       = [];   // コート上 チームB
 let recTeamAName    = '';
 let recTeamBName    = '';
-let recTimer        = 600;   // 秒（10:00）
+let recTimer        = 600;
 let recTimerRunning = false;
 let recTimerIv      = null;
-let recActionTeam   = null;
-let recActionPlayer = null;
-
-const REC_ACTIONS = [
-  { label: '2P 成功',  ev: '2P成功',           cls: 'act-success' },
-  { label: '2P 失敗',  ev: '2P失敗',           cls: 'act-neutral' },
-  { label: '3P 成功',  ev: '3P成功',           cls: 'act-success' },
-  { label: '3P 失敗',  ev: '3P失敗',           cls: 'act-neutral' },
-  { label: 'FT 成功',  ev: 'フリースロー成功',  cls: 'act-success' },
-  { label: 'FT 失敗',  ev: 'フリースロー失敗',  cls: 'act-neutral' },
-  { label: 'ファウル', ev: 'Pファウル',         cls: 'act-warn'    },
-  { label: 'タイムアウト', ev: 'タイムアウト',  cls: 'act-info'    },
-];
+let recSubTeam      = null;
+let recSubStep      = 0;    // 0=退場選手, 1=入場選手
+let recSubOutPlayer = null;
 
 function openRecorder() {
-  if (!currentGameId) {
-    showToast('先に保存してください');
-    return;
-  }
+  if (!currentGameId) { showToast('先に保存してください'); return; }
   recGameId    = currentGameId;
   recTeamAName = document.getElementById('teamAName').value || 'チームA';
   recTeamBName = document.getElementById('teamBName').value || 'チームB';
   recPbpData   = document.getElementById('pbpInput').value;
   recPlayersA  = parsePlayers(document.getElementById('playersA').value);
   recPlayersB  = parsePlayers(document.getElementById('playersB').value);
+  recCourtA    = [...recPlayersA];
+  recCourtB    = [...recPlayersB];
 
   clearInterval(recTimerIv);
   recTimerRunning = false;
   recTimer = 600;
 
   const gameNo = document.getElementById('gameNo').value;
-  document.getElementById('rec-title').textContent = gameNo ? `Game ${gameNo}` : '記録中';
-  document.getElementById('rec-name-a').textContent = recTeamAName;
-  document.getElementById('rec-name-b').textContent = recTeamBName;
-  document.getElementById('rec-status').textContent = '';
+  document.getElementById('rec-title').textContent     = gameNo ? `Game ${gameNo}` : '記録中';
+  document.getElementById('rec-name-a').textContent    = recTeamAName;
+  document.getElementById('rec-name-b').textContent    = recTeamBName;
+  document.getElementById('rec-col-label-a').textContent = recTeamAName;
+  document.getElementById('rec-col-label-b').textContent = recTeamBName;
+  document.getElementById('rec-status').textContent    = '';
 
   setRecorderQ(1);
-  renderRecorderPlayers();
+  updateCourtDisplay();
   updateRecScore();
   updateRecTimerDisplay();
   updateRecTimerBtn();
@@ -2262,64 +2336,52 @@ function setRecorderQ(q) {
   resetRecTimer();
 }
 
-function renderRecorderPlayers() {
-  const makeGrid = (players, team) => {
-    const color = team === 'A' ? 'var(--blue)' : '#E53935';
-    const btns = players.map(p =>
-      `<button class="rec-player-btn" onclick="showActionSheet('${team}','${esc(p.num)}','${esc(p.name)}')">
-        <span class="rec-player-num" style="color:${color}">#${esc(p.num)}</span>
-        <span class="rec-player-name">${esc(p.name)}</span>
-      </button>`
-    ).join('');
-    const addBtn = `<button class="rec-add-btn" onclick="addRecPlayer('${team}')">＋</button>`;
-    if (players.length === 0) {
-      return `<div class="rec-no-players">選手未登録</div>
-              <button class="rec-add-player-inline" onclick="addRecPlayer('${team}')">＋ 選手を追加</button>`;
-    }
-    return btns + addBtn;
+function updateCourtDisplay() {
+  const render = (players, color, label) => {
+    const chips = players.length === 0
+      ? `<span style="color:var(--text-light);font-size:11px">未登録</span>`
+      : players.map(p =>
+          `<span class="rec-court-player" style="border-color:${color};color:${color}">#${esc(p.num)}</span>`
+        ).join('');
+    return `<span class="rec-court-label">${esc(label)}</span>${chips}`;
   };
-
-  const labelA = `<div class="rec-team-label">${esc(recTeamAName)}</div>`;
-  const labelB = `<div class="rec-team-label">${esc(recTeamBName)}</div>`;
-  document.getElementById('rec-team-a').innerHTML = labelA + `<div class="rec-player-grid">${makeGrid(recPlayersA,'A')}</div>`;
-  document.getElementById('rec-team-b').innerHTML = labelB + `<div class="rec-player-grid">${makeGrid(recPlayersB,'B')}</div>`;
+  document.getElementById('rec-court-a').innerHTML = render(recCourtA, 'var(--blue)', recTeamAName);
+  document.getElementById('rec-court-b').innerHTML = render(recCourtB, '#E53935',    recTeamBName);
 }
 
-function addRecPlayer(team) {
-  const num  = prompt('背番号:');
-  if (num === null || !num.trim()) return;
-  const name = prompt('選手名:') || '';
-  const p = { num: num.trim(), name: name.trim() };
-  if (team === 'A') recPlayersA.push(p);
-  else              recPlayersB.push(p);
-  db.collection('games').doc(recGameId)
-    .update(team === 'A' ? { playersA: recPlayersA } : { playersB: recPlayersB })
-    .catch(() => {});
-  renderRecorderPlayers();
-}
+// アクションボタン押下 → 選手選択モーダルを表示
+function startAction(team, evType) {
+  if (evType === 'タイムアウト') {
+    recordEvent(evType, team, null);
+    return;
+  }
+  const court    = team === 'A' ? recCourtA : recCourtB;
+  const teamName = team === 'A' ? recTeamAName : recTeamBName;
+  const color    = team === 'A' ? 'var(--blue)' : '#E53935';
 
-function showActionSheet(team, num, name) {
-  recActionTeam   = team;
-  recActionPlayer = { num, name };
-  const teamName  = team === 'A' ? recTeamAName : recTeamBName;
-  document.getElementById('rec-action-player').textContent = `#${num} ${name}　(${teamName})`;
-  document.getElementById('rec-action-grid').innerHTML = REC_ACTIONS.map(a =>
-    `<button class="rec-action-btn ${a.cls}" onclick="recordEvent('${a.ev}')">${a.label}</button>`
+  if (court.length === 0) { showToast('選手が登録されていません'); return; }
+
+  document.getElementById('rec-player-modal-title').textContent = `${teamName}：選手を選択`;
+  document.getElementById('rec-player-select-grid').innerHTML = court.map(p =>
+    `<button class="rec-player-select-btn"
+       onclick="recordEvent('${evType}','${team}',{num:'${p.num.replace(/'/g,"\\'")}',name:'${p.name.replace(/'/g,"\\'")}'})"
+     >
+       <span class="rec-psel-num" style="color:${color}">#${esc(p.num)}</span>
+       <span class="rec-psel-name">${esc(p.name)}</span>
+     </button>`
   ).join('');
-  document.getElementById('rec-action-overlay').classList.add('show');
+  document.getElementById('rec-player-overlay').classList.add('show');
 }
 
-function closeActionSheet() {
-  document.getElementById('rec-action-overlay').classList.remove('show');
+function closePlayerSelect() {
+  document.getElementById('rec-player-overlay').classList.remove('show');
 }
 
-async function recordEvent(evType) {
-  closeActionSheet();
-  const p      = recActionPlayer;
-  const team   = recActionTeam;
-  const evStr  = p ? `#${p.num}${p.name}${evType}` : evType;
-  const timer  = getRecTimerStr();
-  const line   = team === 'A'
+async function recordEvent(evType, team, player) {
+  closePlayerSelect();
+  const timer = getRecTimerStr();
+  const evStr = player ? `#${player.num}${player.name}${evType}` : evType;
+  const line  = team === 'A'
     ? `${recCurrentQ}\t${timer}\t${evStr}\t\t`
     : `${recCurrentQ}\t${timer}\t\t\t${evStr}`;
 
@@ -2366,8 +2428,7 @@ async function undoLastEvent() {
 }
 
 function updateRecScore() {
-  const plays  = parsePBP(recPbpData);
-  const st     = buildState(plays);
+  const st = buildState(parsePBP(recPbpData));
   document.getElementById('rec-score-a').textContent = st.qScore.A.reduce((a, b) => a + b, 0);
   document.getElementById('rec-score-b').textContent = st.qScore.B.reduce((a, b) => a + b, 0);
 }
@@ -2376,49 +2437,103 @@ function setRecStatus(msg) {
   document.getElementById('rec-status').textContent = msg;
 }
 
-// タイマー
-function getRecTimerStr() {
-  const m = Math.floor(recTimer / 60);
-  const s = recTimer % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
+async function endGame() {
+  if (!confirm('試合を終了しますか？')) return;
+  try {
+    const st     = buildState(parsePBP(recPbpData));
+    const totalA = st.qScore.A.reduce((a, b) => a + b, 0);
+    const totalB = st.qScore.B.reduce((a, b) => a + b, 0);
+    await db.collection('games').doc(recGameId).update({
+      pbpData: recPbpData, totalA, totalB,
+      status: 'finished', updatedAt: new Date().toISOString()
+    });
+    showToast('試合終了しました');
+    backFromRecorder();
+  } catch(e) { showToast('エラー: ' + e.message); }
 }
 
+// 交代
+function showSubstitution(team) {
+  recSubTeam      = team;
+  recSubStep      = 0;
+  recSubOutPlayer = null;
+  renderSubstitutionModal();
+  document.getElementById('rec-sub-overlay').classList.add('show');
+}
+
+function renderSubstitutionModal() {
+  const court    = recSubTeam === 'A' ? recCourtA : recCourtB;
+  const all      = recSubTeam === 'A' ? recPlayersA : recPlayersB;
+  const bench    = all.filter(p => !court.find(c => c.num === p.num));
+  const teamName = recSubTeam === 'A' ? recTeamAName : recTeamBName;
+  const color    = recSubTeam === 'A' ? 'var(--blue)' : '#E53935';
+
+  const makeBtn = (p, fn) =>
+    `<button class="rec-player-select-btn" onclick="${fn}('${p.num.replace(/'/g,"\\'")}','${p.name.replace(/'/g,"\\'")}')">
+       <span class="rec-psel-num" style="color:${color}">#${esc(p.num)}</span>
+       <span class="rec-psel-name">${esc(p.name)}</span>
+     </button>`;
+
+  if (recSubStep === 0) {
+    document.getElementById('rec-sub-title').textContent = `${teamName}：退場する選手`;
+    document.getElementById('rec-sub-grid').innerHTML = court.length === 0
+      ? '<p style="text-align:center;color:var(--text-light);padding:12px 0">選手がいません</p>'
+      : court.map(p => makeBtn(p, 'selectSubOut')).join('');
+  } else {
+    document.getElementById('rec-sub-title').textContent = `${teamName}：入場する選手`;
+    document.getElementById('rec-sub-grid').innerHTML = bench.length === 0
+      ? '<p style="text-align:center;color:var(--text-light);padding:12px 0">ベンチに選手がいません</p>'
+      : bench.map(p => makeBtn(p, 'selectSubIn')).join('');
+  }
+}
+
+function selectSubOut(num, name) {
+  recSubOutPlayer = { num, name };
+  recSubStep = 1;
+  renderSubstitutionModal();
+}
+
+function selectSubIn(num, name) {
+  const court = recSubTeam === 'A' ? recCourtA : recCourtB;
+  const idx   = court.findIndex(p => p.num === recSubOutPlayer.num);
+  if (idx !== -1) court[idx] = { num, name };
+  else            court.push({ num, name });
+  closeSubstitution();
+  updateCourtDisplay();
+  showToast(`#${recSubOutPlayer.num} → #${num} 交代`);
+}
+
+function closeSubstitution() {
+  document.getElementById('rec-sub-overlay').classList.remove('show');
+}
+
+// タイマー
+function getRecTimerStr() {
+  const m = Math.floor(recTimer / 60), s = recTimer % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
 function updateRecTimerDisplay() {
   document.getElementById('rec-timer-display').textContent = getRecTimerStr();
 }
-
 function updateRecTimerBtn() {
   document.getElementById('rec-timer-btn').textContent = recTimerRunning ? '⏸' : '▶';
 }
-
 function toggleRecTimer() {
   if (recTimerRunning) {
-    clearInterval(recTimerIv);
-    recTimerRunning = false;
+    clearInterval(recTimerIv); recTimerRunning = false;
   } else {
     recTimerIv = setInterval(() => {
-      if (recTimer > 0) {
-        recTimer--;
-        updateRecTimerDisplay();
-      } else {
-        clearInterval(recTimerIv);
-        recTimerRunning = false;
-        updateRecTimerBtn();
-      }
+      if (recTimer > 0) { recTimer--; updateRecTimerDisplay(); }
+      else { clearInterval(recTimerIv); recTimerRunning = false; updateRecTimerBtn(); }
     }, 1000);
     recTimerRunning = true;
   }
   updateRecTimerBtn();
 }
-
 function resetRecTimer() {
-  clearInterval(recTimerIv);
-  recTimerRunning = false;
-  recTimer = 600;
-  updateRecTimerDisplay();
-  updateRecTimerBtn();
+  clearInterval(recTimerIv); recTimerRunning = false; recTimer = 600;
+  updateRecTimerDisplay(); updateRecTimerBtn();
 }
-
 function editTimer() {
   const val = prompt('タイマーを設定 (例: 5:30)', getRecTimerStr());
   if (!val) return;
