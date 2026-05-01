@@ -2586,6 +2586,7 @@ function updateCourtDisplay() {
 
 // アクションボタン押下 → 選手選択モーダルを表示
 function startAction(team, evType) {
+  navigator.vibrate?.(18);
   if (evType === 'タイムアウト') {
     recordEvent(evType, team, null);
     return;
@@ -2616,6 +2617,7 @@ function closePlayerSelect() {
 }
 
 async function recordEvent(evType, team, player) {
+  navigator.vibrate?.(45);
   closePlayerSelect();
   const timer = getRecTimerStr();
   const evStr = player ? `#${player.num}${player.name}${evType}` : evType;
@@ -2742,12 +2744,14 @@ function renderSubstitutionModal() {
 }
 
 function toggleSubPlayer(num, name) {
+  navigator.vibrate?.(12);
   if (recSubAllSelected.has(num)) recSubAllSelected.delete(num);
   else recSubAllSelected.add(num);
   renderSubstitutionModal();
 }
 
 async function confirmSubstitution() {
+  navigator.vibrate?.([30, 40, 30]);
   const team  = recSubTeam;
   const court = team === 'A' ? recCourtA : recCourtB;
   const all   = team === 'A' ? recPlayersA : recPlayersB;
@@ -2846,6 +2850,7 @@ function renderLineupModal() {
 }
 
 function toggleLineupPlayer(num, name) {
+  navigator.vibrate?.(12);
   const arr = recLineupCurrentTeam === 'A' ? recLineupTempA : recLineupTempB;
   const idx = arr.findIndex(p => p.num === num);
   if (idx !== -1) arr.splice(idx, 1);
@@ -2860,6 +2865,7 @@ function nextLineupStep() {
 }
 
 function confirmLineup() {
+  navigator.vibrate?.([30, 40, 30]);
   recCourtA = recLineupTempA.length > 0 ? [...recLineupTempA] : [...recPlayersA];
   recCourtB = recLineupTempB.length > 0 ? [...recLineupTempB] : [...recPlayersB];
   document.getElementById('rec-lineup-overlay').classList.remove('show');
