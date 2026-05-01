@@ -1048,6 +1048,19 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 .rec-psel-unknown {
   background: var(--bg) !important; border: 2px dashed var(--border) !important;
 }
+/* 交代モーダル：コート在籍中（アクティブ）状態 */
+.rec-player-select-btn.rec-sub-active {
+  border-width: 2.5px;
+}
+.rec-sub-instruction {
+  font-size: 12px; color: var(--text-mid); text-align: center;
+  margin-bottom: 12px; line-height: 1.5;
+}
+.rec-sub-confirm-btn {
+  width: 100%; padding: 13px; background: var(--blue); color: white;
+  border: none; border-radius: var(--radius); font-size: 15px; font-weight: 700;
+  cursor: pointer; margin-bottom: 8px;
+}
 /* ラインアップ選択オーバーレイ */
 .rec-lineup-overlay {
   display: none; position: fixed; inset: 0;
@@ -1362,8 +1375,10 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   <!-- 交代モーダル -->
   <div class="rec-action-overlay" id="rec-sub-overlay" onclick="closeSubstitution()">
     <div class="rec-action-sheet" onclick="event.stopPropagation()">
-      <div class="rec-action-player" id="rec-sub-title">交代</div>
+      <div class="rec-action-player" id="rec-sub-title">コートメンバー</div>
+      <div class="rec-sub-instruction">コートに出る選手をタップ（ハイライト = 出場中）</div>
       <div class="rec-player-select-grid" id="rec-sub-grid"></div>
+      <button class="rec-sub-confirm-btn" onclick="confirmSubstitution()">交代確定</button>
       <button class="rec-action-cancel" onclick="closeSubstitution()">キャンセル</button>
     </div>
   </div>
@@ -2420,9 +2435,8 @@ let recTeamBName    = '';
 let recTimer        = 600;
 let recTimerRunning = false;
 let recTimerIv      = null;
-let recSubTeam      = null;
-let recSubStep      = 0;    // 0=退場選手, 1=入場選手
-let recSubOutPlayer = null;
+let recSubTeam         = null;
+let recSubAllSelected  = new Set();
 let recLineupTempA      = [];
 let recLineupTempB      = [];
 let recLineupCurrentTeam = 'A';
@@ -2603,53 +2617,89 @@ async function endGame() {
 
 // 交代
 function showSubstitution(team) {
-  recSubTeam      = team;
-  recSubStep      = 0;
-  recSubOutPlayer = null;
+  recSubTeam = team;
+  const court = team === 'A' ? recCourtA : recCourtB;
+  recSubAllSelected = new Set(court.map(p => p.num));
   renderSubstitutionModal();
   document.getElementById('rec-sub-overlay').classList.add('show');
 }
 
 function renderSubstitutionModal() {
-  const court    = recSubTeam === 'A' ? recCourtA : recCourtB;
-  const all      = recSubTeam === 'A' ? recPlayersA : recPlayersB;
-  const bench    = all.filter(p => !court.find(c => c.num === p.num));
-  const teamName = recSubTeam === 'A' ? recTeamAName : recTeamBName;
-  const color    = recSubTeam === 'A' ? 'var(--blue)' : '#E53935';
+  const team     = recSubTeam;
+  const all      = team === 'A' ? recPlayersA : recPlayersB;
+  const teamName = team === 'A' ? recTeamAName : recTeamBName;
+  const color    = team === 'A' ? 'var(--blue)' : '#E53935';
+  const bgColor  = team === 'A' ? 'var(--blue-dim)' : '#ffebee';
 
-  const makeBtn = (p, fn) =>
-    `<button class="rec-player-select-btn" onclick="${fn}('${p.num.replace(/'/g,"\\'")}','${p.name.replace(/'/g,"\\'")}')">
-       <span class="rec-psel-num" style="color:${color}">#${esc(p.num)}</span>
-       <span class="rec-psel-name">${esc(p.name)}</span>
-     </button>`;
+  document.getElementById('rec-sub-title').textContent = `${teamName}：コートメンバー`;
 
-  if (recSubStep === 0) {
-    document.getElementById('rec-sub-title').textContent = `${teamName}：退場する選手`;
-    document.getElementById('rec-sub-grid').innerHTML = court.length === 0
-      ? '<p style="text-align:center;color:var(--text-light);padding:12px 0">選手がいません</p>'
-      : court.map(p => makeBtn(p, 'selectSubOut')).join('');
-  } else {
-    document.getElementById('rec-sub-title').textContent = `${teamName}：入場する選手`;
-    document.getElementById('rec-sub-grid').innerHTML = bench.length === 0
-      ? '<p style="text-align:center;color:var(--text-light);padding:12px 0">ベンチに選手がいません</p>'
-      : bench.map(p => makeBtn(p, 'selectSubIn')).join('');
+  if (all.length === 0) {
+    document.getElementById('rec-sub-grid').innerHTML =
+      '<p style="text-align:center;color:var(--text-light);padding:12px 0">選手が登録されていません</p>';
+    return;
   }
+
+  document.getElementById('rec-sub-grid').innerHTML = all.map(p => {
+    const isActive = recSubAllSelected.has(p.num);
+    const style    = isActive ? `border-color:${color};background:${bgColor}` : '';
+    return `<button class="rec-player-select-btn${isActive ? ' rec-sub-active' : ''}"
+      style="${style}"
+      onclick="toggleSubPlayer('${p.num.replace(/'/g,"\\'")}','${p.name.replace(/'/g,"\\'")}')">
+      <span class="rec-psel-num" style="color:${isActive ? color : 'var(--text-light)'}">#${esc(p.num)}</span>
+      <span class="rec-psel-name">${esc(p.name)}</span>
+    </button>`;
+  }).join('');
 }
 
-function selectSubOut(num, name) {
-  recSubOutPlayer = { num, name };
-  recSubStep = 1;
+function toggleSubPlayer(num, name) {
+  if (recSubAllSelected.has(num)) recSubAllSelected.delete(num);
+  else recSubAllSelected.add(num);
   renderSubstitutionModal();
 }
 
-function selectSubIn(num, name) {
-  const court = recSubTeam === 'A' ? recCourtA : recCourtB;
-  const idx   = court.findIndex(p => p.num === recSubOutPlayer.num);
-  if (idx !== -1) court[idx] = { num, name };
-  else            court.push({ num, name });
+async function confirmSubstitution() {
+  const team  = recSubTeam;
+  const court = team === 'A' ? recCourtA : recCourtB;
+  const all   = team === 'A' ? recPlayersA : recPlayersB;
+
+  const oldNums    = new Set(court.map(p => p.num));
+  const outPlayers = court.filter(p => !recSubAllSelected.has(p.num));
+  const inPlayers  = all.filter(p => recSubAllSelected.has(p.num) && !oldNums.has(p.num));
+
+  // コート更新
+  const newCourt = all.filter(p => recSubAllSelected.has(p.num));
+  if (team === 'A') recCourtA = newCourt;
+  else              recCourtB = newCourt;
+
   closeSubstitution();
   updateCourtDisplay();
-  showToast(`#${recSubOutPlayer.num} → #${num} 交代`);
+
+  // 変更があった場合だけPBPに記録
+  if (outPlayers.length === 0 && inPlayers.length === 0) return;
+
+  const timer  = getRecTimerStr();
+  const maxLen = Math.max(outPlayers.length, inPlayers.length);
+  for (let i = 0; i < maxLen; i++) {
+    const outP  = outPlayers[i];
+    const inP   = inPlayers[i];
+    const parts = ['交代'];
+    if (outP) parts.push(`OUT:#${outP.num}${outP.name}`);
+    if (inP)  parts.push(`IN:#${inP.num}${inP.name}`);
+    const evStr = parts.join(' ');
+    const line  = team === 'A'
+      ? `${recCurrentQ}\t${timer}\t${evStr}\t\t`
+      : `${recCurrentQ}\t${timer}\t\t\t${evStr}`;
+    recPbpData = recPbpData ? recPbpData + '\n' + line : line;
+  }
+
+  updatePBPFeed();
+  showToast('交代を記録しました');
+
+  try {
+    await db.collection('games').doc(recGameId).update({
+      pbpData: recPbpData, updatedAt: new Date().toISOString()
+    });
+  } catch(e) { showToast('保存エラー: ' + e.message); }
 }
 
 function closeSubstitution() {
