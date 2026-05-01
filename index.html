@@ -2498,6 +2498,47 @@ function generate() {
 }
 
 // =====================================================
+// タップフィードバック（振動 or 音）
+// =====================================================
+let _tapCtx = null;
+
+function _playTone(freq, dur, vol = 0.15) {
+  try {
+    if (!_tapCtx) _tapCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (_tapCtx.state === 'suspended') _tapCtx.resume();
+    const osc  = _tapCtx.createOscillator();
+    const gain = _tapCtx.createGain();
+    osc.connect(gain);
+    gain.connect(_tapCtx.destination);
+    const t = _tapCtx.currentTime;
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(vol, t);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.start(t);
+    osc.stop(t + dur);
+  } catch(e) {}
+}
+
+function tapFeedback(type = 'light') {
+  if (navigator.vibrate) {
+    // Android: 振動
+    if      (type === 'confirm') navigator.vibrate([30, 40, 30]);
+    else if (type === 'medium')  navigator.vibrate(45);
+    else                         navigator.vibrate(18);
+  } else {
+    // iOS: 音
+    if (type === 'confirm') {
+      _playTone(900, 0.04, 0.12);
+      setTimeout(() => _playTone(700, 0.07, 0.12), 70);
+    } else if (type === 'medium') {
+      _playTone(820, 0.05, 0.13);
+    } else {
+      _playTone(1050, 0.03, 0.09);
+    }
+  }
+}
+
+// =====================================================
 // ライブ記録
 // =====================================================
 let recGameId       = null;
@@ -2586,7 +2627,7 @@ function updateCourtDisplay() {
 
 // アクションボタン押下 → 選手選択モーダルを表示
 function startAction(team, evType) {
-  navigator.vibrate?.(18);
+  tapFeedback('light');
   if (evType === 'タイムアウト') {
     recordEvent(evType, team, null);
     return;
@@ -2617,7 +2658,7 @@ function closePlayerSelect() {
 }
 
 async function recordEvent(evType, team, player) {
-  navigator.vibrate?.(45);
+  tapFeedback('medium');
   closePlayerSelect();
   const timer = getRecTimerStr();
   const evStr = player ? `#${player.num}${player.name}${evType}` : evType;
@@ -2744,14 +2785,14 @@ function renderSubstitutionModal() {
 }
 
 function toggleSubPlayer(num, name) {
-  navigator.vibrate?.(12);
+  tapFeedback('light');
   if (recSubAllSelected.has(num)) recSubAllSelected.delete(num);
   else recSubAllSelected.add(num);
   renderSubstitutionModal();
 }
 
 async function confirmSubstitution() {
-  navigator.vibrate?.([30, 40, 30]);
+  tapFeedback('confirm');
   const team  = recSubTeam;
   const court = team === 'A' ? recCourtA : recCourtB;
   const all   = team === 'A' ? recPlayersA : recPlayersB;
@@ -2850,7 +2891,7 @@ function renderLineupModal() {
 }
 
 function toggleLineupPlayer(num, name) {
-  navigator.vibrate?.(12);
+  tapFeedback('light');
   const arr = recLineupCurrentTeam === 'A' ? recLineupTempA : recLineupTempB;
   const idx = arr.findIndex(p => p.num === num);
   if (idx !== -1) arr.splice(idx, 1);
@@ -2865,7 +2906,7 @@ function nextLineupStep() {
 }
 
 function confirmLineup() {
-  navigator.vibrate?.([30, 40, 30]);
+  tapFeedback('confirm');
   recCourtA = recLineupTempA.length > 0 ? [...recLineupTempA] : [...recPlayersA];
   recCourtB = recLineupTempB.length > 0 ? [...recLineupTempB] : [...recPlayersB];
   document.getElementById('rec-lineup-overlay').classList.remove('show');
