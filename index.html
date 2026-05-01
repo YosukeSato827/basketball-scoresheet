@@ -1124,6 +1124,21 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   font-size: 10px; font-weight: 700; color: var(--text-light);
   letter-spacing: .07em; text-transform: uppercase; margin-bottom: 8px;
 }
+.rec-pbpedit-evtype-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-bottom: 14px;
+}
+.rec-pbpedit-evtype-btn {
+  padding: 10px 4px; border: 2px solid var(--border); border-radius: var(--radius);
+  background: white; font-size: 12px; font-weight: 700; cursor: pointer;
+  color: var(--text-mid); transition: all .1s; white-space: nowrap;
+}
+.rec-pbpedit-evtype-btn:active { transform: scale(.96); }
+.rec-pbpedit-evtype-btn.evtype-active {
+  border-color: var(--blue); background: var(--blue-dim); color: var(--blue);
+}
+.rec-pbpedit-player-scroll {
+  overflow-y: auto; flex: 1; min-height: 0;
+}
 .rec-pbpedit-delete {
   width: 100%; padding: 11px; background: #ffebee; color: #c62828;
   border: none; border-radius: var(--radius); font-size: 14px; font-weight: 700;
@@ -1397,9 +1412,15 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   <div class="rec-pbpedit-overlay" id="rec-pbpedit-overlay" onclick="closePBPEdit()">
     <div class="rec-pbpedit-sheet" onclick="event.stopPropagation()">
       <div class="rec-pbpedit-info pbp-a" id="rec-pbpedit-info">イベント情報</div>
+      <div id="rec-pbpedit-evtype-section">
+        <div class="rec-pbpedit-section">プレーを変更（タップで更新）</div>
+        <div class="rec-pbpedit-evtype-grid" id="rec-pbpedit-evtype-grid"></div>
+      </div>
       <div id="rec-pbpedit-player-section">
         <div class="rec-pbpedit-section">選手を変更（タップで更新）</div>
-        <div class="rec-player-select-grid" id="rec-pbpedit-grid"></div>
+        <div class="rec-pbpedit-player-scroll">
+          <div class="rec-player-select-grid" id="rec-pbpedit-grid"></div>
+        </div>
       </div>
       <button class="rec-pbpedit-delete" id="rec-pbpedit-delete-btn">この記録を削除</button>
       <button class="rec-pbpedit-cancel" onclick="closePBPEdit()">閉じる</button>
@@ -2841,38 +2862,87 @@ function clickPBPEntry(idx) {
   const qLabel   = q <= 4 ? `${q}Q` : 'OT';
   const teamName = team === 'A' ? recTeamAName : recTeamBName;
   const color    = team === 'A' ? 'var(--blue)' : '#E53935';
+  const bgColor  = team === 'A' ? 'var(--blue-dim)' : '#ffebee';
   const cls      = team === 'A' ? 'pbp-a' : 'pbp-b';
 
   const infoEl = document.getElementById('rec-pbpedit-info');
   infoEl.textContent = `[${qLabel} ${timer}]  ${teamName}：${evStr}`;
   infoEl.className   = `rec-pbpedit-info ${cls}`;
 
-  const all       = team === 'A' ? recPlayersA : recPlayersB;
-  const sectionEl = document.getElementById('rec-pbpedit-player-section');
-  const gridEl    = document.getElementById('rec-pbpedit-grid');
+  const isSub       = evStr.startsWith('交代');
+  const evTypeSec   = document.getElementById('rec-pbpedit-evtype-section');
+  const playerSec   = document.getElementById('rec-pbpedit-player-section');
+  const gridEl      = document.getElementById('rec-pbpedit-grid');
+  const evTypeGrid  = document.getElementById('rec-pbpedit-evtype-grid');
+  const all         = team === 'A' ? recPlayersA : recPlayersB;
 
-  if (evType === 'タイムアウト' || all.length === 0) {
-    sectionEl.style.display = 'none';
+  // プレー種別ボタン（交代イベント以外）
+  if (isSub) {
+    evTypeSec.style.display = 'none';
+    playerSec.style.display = 'none';
   } else {
-    sectionEl.style.display = '';
-    const unknownBtn = `<button class="rec-player-select-btn rec-psel-unknown"
-      onclick="updatePBPEntryPlayer(${idx},null)">
-      <span class="rec-psel-num" style="color:var(--text-light)">?</span>
-      <span class="rec-psel-name">選手不明</span>
-    </button>`;
-    gridEl.innerHTML = all.map(p => {
-      const isCur = playerStr.includes('#' + p.num);
-      return `<button class="rec-player-select-btn" style="${isCur ? `border-color:${color};background:var(--blue-dim)` : ''}"
-        onclick="updatePBPEntryPlayer(${idx},{num:'${p.num.replace(/'/g,"\\'")}',name:'${p.name.replace(/'/g,"\\'")}'})"
-      >
-        <span class="rec-psel-num" style="color:${color}">#${esc(p.num)}</span>
-        <span class="rec-psel-name">${esc(p.name)}</span>
+    evTypeSec.style.display = '';
+    const LABELS = {
+      '2P成功': '2P 成功', '3P成功': '3P 成功',
+      'フリースロー成功': 'FT 成功', 'Pファウル': 'ファウル', 'タイムアウト': 'T / O'
+    };
+    evTypeGrid.innerHTML = REC_EVENT_TYPES.map(ev => {
+      const isActive = ev === evType;
+      return `<button class="rec-pbpedit-evtype-btn${isActive ? ' evtype-active' : ''}"
+        onclick="updatePBPEntryType(${idx},'${ev}')"
+      >${LABELS[ev] || ev}</button>`;
+    }).join('');
+
+    // 選手グリッド（タイムアウト以外）
+    if (evType === 'タイムアウト' || all.length === 0) {
+      playerSec.style.display = 'none';
+    } else {
+      playerSec.style.display = '';
+      const unknownBtn = `<button class="rec-player-select-btn rec-psel-unknown"
+        onclick="updatePBPEntryPlayer(${idx},null)">
+        <span class="rec-psel-num" style="color:var(--text-light)">?</span>
+        <span class="rec-psel-name">選手不明</span>
       </button>`;
-    }).join('') + unknownBtn;
+      gridEl.innerHTML = all.map(p => {
+        const isCur = playerStr.includes('#' + p.num);
+        return `<button class="rec-player-select-btn"
+          style="${isCur ? `border-color:${color};background:${bgColor}` : ''}"
+          onclick="updatePBPEntryPlayer(${idx},{num:'${p.num.replace(/'/g,"\\'")}',name:'${p.name.replace(/'/g,"\\'")}'})"
+        >
+          <span class="rec-psel-num" style="color:${color}">#${esc(p.num)}</span>
+          <span class="rec-psel-name">${esc(p.name)}</span>
+        </button>`;
+      }).join('') + unknownBtn;
+    }
   }
 
   document.getElementById('rec-pbpedit-delete-btn').onclick = () => deletePBPEntry(idx);
   document.getElementById('rec-pbpedit-overlay').classList.add('show');
+}
+
+async function updatePBPEntryType(idx, newEvType) {
+  closePBPEdit();
+  const lines = recPbpData.trim().split('\n').filter(Boolean);
+  if (idx < 0 || idx >= lines.length) return;
+  const { q, timer, team, playerStr } = parsePBPLine(lines[idx]);
+  // タイムアウトへ変更したら選手情報を除去、それ以外は保持
+  const evStr = newEvType === 'タイムアウト' ? 'タイムアウト'
+    : (playerStr ? `${playerStr}${newEvType}` : newEvType);
+  lines[idx] = team === 'A'
+    ? `${q}\t${timer}\t${evStr}\t\t`
+    : `${q}\t${timer}\t\t\t${evStr}`;
+  recPbpData = lines.join('\n');
+  updateRecScore();
+  updatePBPFeed();
+  try {
+    const st = buildState(parsePBP(recPbpData));
+    const totalA = st.qScore.A.reduce((a,b)=>a+b,0);
+    const totalB = st.qScore.B.reduce((a,b)=>a+b,0);
+    await db.collection('games').doc(recGameId).update({
+      pbpData: recPbpData, totalA, totalB, updatedAt: new Date().toISOString()
+    });
+    showToast('プレーを更新しました');
+  } catch(e) { showToast('エラー: ' + e.message); }
 }
 
 function closePBPEdit() {
