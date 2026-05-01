@@ -987,18 +987,22 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   border: 1px solid rgba(255,255,255,.45); border-radius: var(--radius-sm);
   padding: 5px 10px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;
 }
-/* アクションボタンエリア（2カラム） */
-.rec-action-area { display: flex; padding: 10px 8px; gap: 8px; }
-.rec-team-col { flex: 1; display: flex; flex-direction: column; gap: 7px; min-width: 0; }
-.rec-team-col-label {
-  font-size: 11px; font-weight: 700; color: var(--text-light); text-align: center;
-  letter-spacing: .08em; text-transform: uppercase;
-  padding-bottom: 6px; border-bottom: 2px solid var(--border);
+/* アクションボタンエリア（3カラム） */
+.rec-3col { display: flex; border-top: 1px solid var(--border); }
+.rec-team-col {
+  flex: 0 0 82px; display: flex; flex-direction: column;
+  gap: 5px; padding: 7px 5px; min-width: 0;
+  border-right: 1px solid var(--border);
 }
-.rec-col-divider { width: 1px; background: var(--border); flex-shrink: 0; }
+.rec-team-col-b { border-right: none; border-left: 1px solid var(--border); }
+.rec-team-col-label {
+  font-size: 10px; font-weight: 700; color: var(--text-light); text-align: center;
+  letter-spacing: .07em; text-transform: uppercase;
+  padding-bottom: 5px; border-bottom: 2px solid var(--border);
+}
 .rec-act-btn {
-  padding: 14px 4px; border: none; border-radius: var(--radius);
-  font-size: 14px; font-weight: 700; cursor: pointer; width: 100%;
+  padding: 10px 2px; border: none; border-radius: var(--radius);
+  font-size: 12px; font-weight: 700; cursor: pointer; width: 100%;
   transition: opacity .1s;
 }
 .rec-act-btn:active { opacity: .72; transform: scale(.97); }
@@ -1008,10 +1012,115 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 .rec-sub-btn {
   background: var(--bg); color: var(--text-mid);
   border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 10px 4px; font-size: 13px; font-weight: 700; cursor: pointer; width: 100%;
+  padding: 8px 2px; font-size: 12px; font-weight: 700; cursor: pointer; width: 100%;
   margin-top: 2px;
 }
 .rec-sub-btn:active { border-color: var(--blue); color: var(--blue); }
+/* PBP中央カラム */
+.rec-pbp-col {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--bg);
+}
+.rec-pbp-header {
+  font-size: 9px; font-weight: 700; color: var(--text-light);
+  letter-spacing: .1em; text-transform: uppercase;
+  padding: 5px 7px 4px; border-bottom: 1px solid var(--border);
+  background: white; flex-shrink: 0;
+}
+.rec-pbp-feed {
+  flex: 1; overflow-y: auto; max-height: 290px; min-height: 140px;
+}
+.rec-pbp-entry {
+  padding: 5px 7px; border-bottom: 1px solid var(--border);
+  cursor: pointer; border-left: 3px solid transparent;
+}
+.rec-pbp-entry:active { background: rgba(0,0,0,.05); }
+.rec-pbp-entry.pbp-a { border-left-color: var(--blue); }
+.rec-pbp-entry.pbp-b { border-left-color: #E53935; }
+.rec-pbp-time { font-size: 9px; color: var(--text-light); font-family: 'Poppins', sans-serif; }
+.rec-pbp-text { font-size: 11px; font-weight: 600; color: var(--text); word-break: break-all; }
+.rec-pbp-text.pbp-a { color: var(--blue); }
+.rec-pbp-text.pbp-b { color: #E53935; }
+.rec-pbp-empty {
+  text-align: center; color: var(--text-light); font-size: 11px;
+  padding: 24px 8px; line-height: 1.6;
+}
+/* 選手不明ボタン */
+.rec-psel-unknown {
+  background: var(--bg) !important; border: 2px dashed var(--border) !important;
+}
+/* ラインアップ選択オーバーレイ */
+.rec-lineup-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.6); z-index: 400; align-items: flex-end;
+}
+.rec-lineup-overlay.show { display: flex; }
+.rec-lineup-sheet {
+  background: white; border-radius: 20px 20px 0 0;
+  width: 100%; padding: 20px 16px calc(env(safe-area-inset-bottom) + 16px);
+  max-height: 82vh; display: flex; flex-direction: column;
+}
+.rec-lineup-title {
+  font-size: 16px; font-weight: 700; text-align: center; margin-bottom: 3px;
+}
+.rec-lineup-sub {
+  font-size: 12px; color: var(--text-mid); text-align: center; margin-bottom: 12px;
+}
+.rec-lineup-chips {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+  gap: 7px; overflow-y: auto; flex: 1; margin-bottom: 10px; padding: 2px;
+}
+.rec-lineup-chip {
+  border: 2px solid var(--border); border-radius: var(--radius);
+  padding: 10px 4px; cursor: pointer; text-align: center;
+  display: flex; flex-direction: column; gap: 2px; align-items: center;
+  transition: all .12s; background: white;
+}
+.rec-lineup-chip.selected { border-color: var(--blue); background: var(--blue-dim); }
+.rec-lineup-chip.selected .rec-psel-num { color: var(--blue); }
+.rec-lineup-count {
+  font-size: 12px; color: var(--text-mid); text-align: center; margin-bottom: 10px;
+}
+.rec-lineup-next-btn {
+  width: 100%; padding: 13px; background: var(--blue); color: white;
+  border: none; border-radius: var(--radius); font-size: 15px; font-weight: 700;
+  cursor: pointer; margin-bottom: 7px;
+}
+.rec-lineup-skip {
+  width: 100%; padding: 9px; background: var(--bg); color: var(--text-mid);
+  border: none; border-radius: var(--radius); font-size: 12px; font-weight: 700;
+  cursor: pointer;
+}
+/* PBP編集オーバーレイ */
+.rec-pbpedit-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.5); z-index: 350; align-items: flex-end;
+}
+.rec-pbpedit-overlay.show { display: flex; }
+.rec-pbpedit-sheet {
+  background: white; border-radius: 16px 16px 0 0;
+  width: 100%; padding: 20px 16px calc(env(safe-area-inset-bottom) + 16px);
+  max-height: 78vh; display: flex; flex-direction: column;
+}
+.rec-pbpedit-info {
+  font-size: 13px; font-weight: 600; text-align: center;
+  padding: 8px 12px; border-radius: var(--radius-sm); margin-bottom: 14px;
+}
+.rec-pbpedit-info.pbp-a { background: var(--blue-dim); color: var(--blue); }
+.rec-pbpedit-info.pbp-b { background: #ffebee; color: #E53935; }
+.rec-pbpedit-section {
+  font-size: 10px; font-weight: 700; color: var(--text-light);
+  letter-spacing: .07em; text-transform: uppercase; margin-bottom: 8px;
+}
+.rec-pbpedit-delete {
+  width: 100%; padding: 11px; background: #ffebee; color: #c62828;
+  border: none; border-radius: var(--radius); font-size: 14px; font-weight: 700;
+  cursor: pointer; margin-top: 10px; margin-bottom: 7px;
+}
+.rec-pbpedit-cancel {
+  width: 100%; padding: 10px; background: var(--bg); color: var(--text-mid);
+  border: none; border-radius: var(--radius); font-size: 13px; font-weight: 700;
+  cursor: pointer;
+}
 /* コート表示 */
 .rec-court {
   background: white; border-top: 1px solid var(--border);
@@ -1204,24 +1313,29 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
     <button class="rec-q-btn" id="rec-q-4" onclick="setRecorderQ(4)">4Q</button>
     <button class="rec-q-btn" id="rec-q-5" onclick="setRecorderQ(5)">OT</button>
   </div>
-  <div class="rec-action-area">
+  <div class="rec-3col">
     <div class="rec-team-col">
       <div class="rec-team-col-label" id="rec-col-label-a">チームA</div>
       <button class="rec-act-btn rec-act-scoring" onclick="startAction('A','2P成功')">2P 成功</button>
       <button class="rec-act-btn rec-act-scoring" onclick="startAction('A','3P成功')">3P 成功</button>
       <button class="rec-act-btn rec-act-scoring" onclick="startAction('A','フリースロー成功')">FT 成功</button>
       <button class="rec-act-btn rec-act-foul"    onclick="startAction('A','Pファウル')">ファウル</button>
-      <button class="rec-act-btn rec-act-timeout" onclick="startAction('A','タイムアウト')">タイムアウト</button>
+      <button class="rec-act-btn rec-act-timeout" onclick="startAction('A','タイムアウト')">T / O</button>
       <button class="rec-sub-btn" onclick="showSubstitution('A')">⇄ 交代</button>
     </div>
-    <div class="rec-col-divider"></div>
-    <div class="rec-team-col">
+    <div class="rec-pbp-col">
+      <div class="rec-pbp-header">PLAY LOG</div>
+      <div class="rec-pbp-feed" id="rec-pbp-feed">
+        <div class="rec-pbp-empty">記録はまだ<br>ありません</div>
+      </div>
+    </div>
+    <div class="rec-team-col rec-team-col-b">
       <div class="rec-team-col-label" id="rec-col-label-b">チームB</div>
       <button class="rec-act-btn rec-act-scoring" onclick="startAction('B','2P成功')">2P 成功</button>
       <button class="rec-act-btn rec-act-scoring" onclick="startAction('B','3P成功')">3P 成功</button>
       <button class="rec-act-btn rec-act-scoring" onclick="startAction('B','フリースロー成功')">FT 成功</button>
       <button class="rec-act-btn rec-act-foul"    onclick="startAction('B','Pファウル')">ファウル</button>
-      <button class="rec-act-btn rec-act-timeout" onclick="startAction('B','タイムアウト')">タイムアウト</button>
+      <button class="rec-act-btn rec-act-timeout" onclick="startAction('B','タイムアウト')">T / O</button>
       <button class="rec-sub-btn" onclick="showSubstitution('B')">⇄ 交代</button>
     </div>
   </div>
@@ -1251,6 +1365,29 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <div class="rec-action-player" id="rec-sub-title">交代</div>
       <div class="rec-player-select-grid" id="rec-sub-grid"></div>
       <button class="rec-action-cancel" onclick="closeSubstitution()">キャンセル</button>
+    </div>
+  </div>
+  <!-- ラインアップ選択オーバーレイ -->
+  <div class="rec-lineup-overlay" id="rec-lineup-overlay">
+    <div class="rec-lineup-sheet" onclick="event.stopPropagation()">
+      <div class="rec-lineup-title" id="rec-lineup-title">スターティング選手</div>
+      <div class="rec-lineup-sub" id="rec-lineup-sub">出場する選手をタップしてください</div>
+      <div class="rec-lineup-chips" id="rec-lineup-chips"></div>
+      <div class="rec-lineup-count" id="rec-lineup-count">0 人選択中</div>
+      <button class="rec-lineup-next-btn" id="rec-lineup-next-btn">次へ（チームB）</button>
+      <button class="rec-lineup-skip" id="rec-lineup-skip-btn">全員でそのまま開始</button>
+    </div>
+  </div>
+  <!-- PBP編集オーバーレイ -->
+  <div class="rec-pbpedit-overlay" id="rec-pbpedit-overlay" onclick="closePBPEdit()">
+    <div class="rec-pbpedit-sheet" onclick="event.stopPropagation()">
+      <div class="rec-pbpedit-info pbp-a" id="rec-pbpedit-info">イベント情報</div>
+      <div id="rec-pbpedit-player-section">
+        <div class="rec-pbpedit-section">選手を変更（タップで更新）</div>
+        <div class="rec-player-select-grid" id="rec-pbpedit-grid"></div>
+      </div>
+      <button class="rec-pbpedit-delete" id="rec-pbpedit-delete-btn">この記録を削除</button>
+      <button class="rec-pbpedit-cancel" onclick="closePBPEdit()">閉じる</button>
     </div>
   </div>
 </div>
@@ -2286,6 +2423,11 @@ let recTimerIv      = null;
 let recSubTeam      = null;
 let recSubStep      = 0;    // 0=退場選手, 1=入場選手
 let recSubOutPlayer = null;
+let recLineupTempA      = [];
+let recLineupTempB      = [];
+let recLineupCurrentTeam = 'A';
+let recPBPEditIdx   = -1;
+let recPBPEditTeam  = null;
 
 function openRecorder() {
   if (!currentGameId) { showToast('先に保存してください'); return; }
@@ -2295,27 +2437,29 @@ function openRecorder() {
   recPbpData   = document.getElementById('pbpInput').value;
   recPlayersA  = parsePlayers(document.getElementById('playersA').value);
   recPlayersB  = parsePlayers(document.getElementById('playersB').value);
-  recCourtA    = [...recPlayersA];
-  recCourtB    = [...recPlayersB];
+  recCourtA    = [];
+  recCourtB    = [];
 
   clearInterval(recTimerIv);
   recTimerRunning = false;
   recTimer = 600;
 
   const gameNo = document.getElementById('gameNo').value;
-  document.getElementById('rec-title').textContent     = gameNo ? `Game ${gameNo}` : '記録中';
-  document.getElementById('rec-name-a').textContent    = recTeamAName;
-  document.getElementById('rec-name-b').textContent    = recTeamBName;
+  document.getElementById('rec-title').textContent      = gameNo ? `Game ${gameNo}` : '記録中';
+  document.getElementById('rec-name-a').textContent     = recTeamAName;
+  document.getElementById('rec-name-b').textContent     = recTeamBName;
   document.getElementById('rec-col-label-a').textContent = recTeamAName;
   document.getElementById('rec-col-label-b').textContent = recTeamBName;
-  document.getElementById('rec-status').textContent    = '';
+  document.getElementById('rec-status').textContent     = '';
 
   setRecorderQ(1);
   updateCourtDisplay();
   updateRecScore();
+  updatePBPFeed();
   updateRecTimerDisplay();
   updateRecTimerBtn();
   showView('recorder');
+  showLineupModal();
 }
 
 function backFromRecorder() {
@@ -2359,9 +2503,12 @@ function startAction(team, evType) {
   const teamName = team === 'A' ? recTeamAName : recTeamBName;
   const color    = team === 'A' ? 'var(--blue)' : '#E53935';
 
-  if (court.length === 0) { showToast('選手が登録されていません'); return; }
-
   document.getElementById('rec-player-modal-title').textContent = `${teamName}：選手を選択`;
+  const unknownBtn = `<button class="rec-player-select-btn rec-psel-unknown"
+     onclick="recordEvent('${evType}','${team}',null)">
+     <span class="rec-psel-num" style="color:var(--text-light)">?</span>
+     <span class="rec-psel-name">選手不明</span>
+   </button>`;
   document.getElementById('rec-player-select-grid').innerHTML = court.map(p =>
     `<button class="rec-player-select-btn"
        onclick="recordEvent('${evType}','${team}',{num:'${p.num.replace(/'/g,"\\'")}',name:'${p.name.replace(/'/g,"\\'")}'})"
@@ -2369,7 +2516,7 @@ function startAction(team, evType) {
        <span class="rec-psel-num" style="color:${color}">#${esc(p.num)}</span>
        <span class="rec-psel-name">${esc(p.name)}</span>
      </button>`
-  ).join('');
+  ).join('') + unknownBtn;
   document.getElementById('rec-player-overlay').classList.add('show');
 }
 
@@ -2387,6 +2534,7 @@ async function recordEvent(evType, team, player) {
 
   recPbpData = recPbpData ? recPbpData + '\n' + line : line;
   updateRecScore();
+  updatePBPFeed();
 
   setRecStatus('保存中...');
   try {
@@ -2414,6 +2562,7 @@ async function undoLastEvent() {
   lines.pop();
   recPbpData = lines.join('\n');
   updateRecScore();
+  updatePBPFeed();
   try {
     const plays  = parsePBP(recPbpData);
     const st     = buildState(plays);
@@ -2505,6 +2654,221 @@ function selectSubIn(num, name) {
 
 function closeSubstitution() {
   document.getElementById('rec-sub-overlay').classList.remove('show');
+}
+
+// =====================================================
+// ラインアップ選択
+// =====================================================
+function showLineupModal() {
+  recLineupTempA = [];
+  recLineupTempB = [];
+  recLineupCurrentTeam = 'A';
+  renderLineupModal();
+  document.getElementById('rec-lineup-overlay').classList.add('show');
+}
+
+function renderLineupModal() {
+  const team     = recLineupCurrentTeam;
+  const players  = team === 'A' ? recPlayersA : recPlayersB;
+  const selected = team === 'A' ? recLineupTempA : recLineupTempB;
+  const teamName = team === 'A' ? recTeamAName : recTeamBName;
+  const color    = team === 'A' ? 'var(--blue)' : '#E53935';
+  const isB      = team === 'B';
+
+  document.getElementById('rec-lineup-title').textContent =
+    `${teamName} スターティング`;
+  document.getElementById('rec-lineup-sub').textContent =
+    '出場する選手をタップ（5人が基本）';
+  document.getElementById('rec-lineup-count').textContent =
+    `${selected.length} 人選択中`;
+
+  let chipsHTML = '';
+  if (players.length === 0) {
+    chipsHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--text-light);padding:24px 0;font-size:13px">選手が登録されていません</div>`;
+  } else {
+    chipsHTML = players.map(p => {
+      const isSel = selected.find(s => s.num === p.num);
+      return `<button class="rec-lineup-chip${isSel ? ' selected' : ''}"
+        onclick="toggleLineupPlayer('${p.num.replace(/'/g,"\\'")}','${p.name.replace(/'/g,"\\'")}')">
+        <span class="rec-psel-num" style="color:${isSel ? color : 'var(--text-mid)'}">#${esc(p.num)}</span>
+        <span class="rec-psel-name">${esc(p.name)}</span>
+      </button>`;
+    }).join('');
+  }
+  document.getElementById('rec-lineup-chips').innerHTML = chipsHTML;
+
+  const nextBtn = document.getElementById('rec-lineup-next-btn');
+  nextBtn.textContent = isB ? '開始' : '次へ（チームB）';
+  nextBtn.onclick = isB ? confirmLineup : nextLineupStep;
+
+  const skipBtn = document.getElementById('rec-lineup-skip-btn');
+  skipBtn.onclick = skipLineup;
+}
+
+function toggleLineupPlayer(num, name) {
+  const arr = recLineupCurrentTeam === 'A' ? recLineupTempA : recLineupTempB;
+  const idx = arr.findIndex(p => p.num === num);
+  if (idx !== -1) arr.splice(idx, 1);
+  else arr.push({ num, name });
+  renderLineupModal();
+}
+
+function nextLineupStep() {
+  recLineupCurrentTeam = 'B';
+  recLineupTempB = [];
+  renderLineupModal();
+}
+
+function confirmLineup() {
+  recCourtA = recLineupTempA.length > 0 ? [...recLineupTempA] : [...recPlayersA];
+  recCourtB = recLineupTempB.length > 0 ? [...recLineupTempB] : [...recPlayersB];
+  document.getElementById('rec-lineup-overlay').classList.remove('show');
+  updateCourtDisplay();
+}
+
+function skipLineup() {
+  recCourtA = [...recPlayersA];
+  recCourtB = [...recPlayersB];
+  document.getElementById('rec-lineup-overlay').classList.remove('show');
+  updateCourtDisplay();
+}
+
+// =====================================================
+// PBPフィード
+// =====================================================
+const REC_EVENT_TYPES = ['フリースロー成功','2P成功','3P成功','Pファウル','タイムアウト'];
+
+function parseEventStr(evStr) {
+  for (const ev of REC_EVENT_TYPES) {
+    if (evStr === ev) return { evType: ev, playerStr: '' };
+    if (evStr.endsWith(ev)) return { evType: ev, playerStr: evStr.slice(0, -ev.length) };
+  }
+  return { evType: evStr, playerStr: '' };
+}
+
+function parsePBPLine(line) {
+  const parts = line.split('\t');
+  const q     = parseInt(parts[0]) || 1;
+  const timer = parts[1] || '';
+  const evA   = parts[2] || '';
+  const evB   = parts[4] || '';
+  const team  = evA ? 'A' : 'B';
+  const evStr = evA || evB;
+  const { evType, playerStr } = parseEventStr(evStr);
+  return { q, timer, team, evStr, evType, playerStr };
+}
+
+function updatePBPFeed() {
+  const feed = document.getElementById('rec-pbp-feed');
+  if (!feed) return;
+  const lines = recPbpData.trim().split('\n').filter(Boolean);
+  if (lines.length === 0) {
+    feed.innerHTML = '<div class="rec-pbp-empty">記録はまだ<br>ありません</div>';
+    return;
+  }
+  feed.innerHTML = lines.slice().reverse().map((line, revIdx) => {
+    const idx = lines.length - 1 - revIdx;
+    const { q, timer, team, evStr } = parsePBPLine(line);
+    const qLabel = q <= 4 ? `${q}Q` : 'OT';
+    const cls    = team === 'A' ? 'pbp-a' : 'pbp-b';
+    return `<div class="rec-pbp-entry ${cls}" onclick="clickPBPEntry(${idx})">
+      <div class="rec-pbp-time">${qLabel} ${esc(timer)}</div>
+      <div class="rec-pbp-text ${cls}">${esc(evStr)}</div>
+    </div>`;
+  }).join('');
+  feed.scrollTop = 0;
+}
+
+// =====================================================
+// PBP編集
+// =====================================================
+function clickPBPEntry(idx) {
+  const lines = recPbpData.trim().split('\n').filter(Boolean);
+  if (idx < 0 || idx >= lines.length) return;
+  recPBPEditIdx  = idx;
+  const { q, timer, team, evStr, evType, playerStr } = parsePBPLine(lines[idx]);
+  recPBPEditTeam = team;
+  const qLabel   = q <= 4 ? `${q}Q` : 'OT';
+  const teamName = team === 'A' ? recTeamAName : recTeamBName;
+  const color    = team === 'A' ? 'var(--blue)' : '#E53935';
+  const cls      = team === 'A' ? 'pbp-a' : 'pbp-b';
+
+  const infoEl = document.getElementById('rec-pbpedit-info');
+  infoEl.textContent = `[${qLabel} ${timer}]  ${teamName}：${evStr}`;
+  infoEl.className   = `rec-pbpedit-info ${cls}`;
+
+  const all       = team === 'A' ? recPlayersA : recPlayersB;
+  const sectionEl = document.getElementById('rec-pbpedit-player-section');
+  const gridEl    = document.getElementById('rec-pbpedit-grid');
+
+  if (evType === 'タイムアウト' || all.length === 0) {
+    sectionEl.style.display = 'none';
+  } else {
+    sectionEl.style.display = '';
+    const unknownBtn = `<button class="rec-player-select-btn rec-psel-unknown"
+      onclick="updatePBPEntryPlayer(${idx},null)">
+      <span class="rec-psel-num" style="color:var(--text-light)">?</span>
+      <span class="rec-psel-name">選手不明</span>
+    </button>`;
+    gridEl.innerHTML = all.map(p => {
+      const isCur = playerStr.includes('#' + p.num);
+      return `<button class="rec-player-select-btn" style="${isCur ? `border-color:${color};background:var(--blue-dim)` : ''}"
+        onclick="updatePBPEntryPlayer(${idx},{num:'${p.num.replace(/'/g,"\\'")}',name:'${p.name.replace(/'/g,"\\'")}'})"
+      >
+        <span class="rec-psel-num" style="color:${color}">#${esc(p.num)}</span>
+        <span class="rec-psel-name">${esc(p.name)}</span>
+      </button>`;
+    }).join('') + unknownBtn;
+  }
+
+  document.getElementById('rec-pbpedit-delete-btn').onclick = () => deletePBPEntry(idx);
+  document.getElementById('rec-pbpedit-overlay').classList.add('show');
+}
+
+function closePBPEdit() {
+  document.getElementById('rec-pbpedit-overlay').classList.remove('show');
+}
+
+async function updatePBPEntryPlayer(idx, player) {
+  closePBPEdit();
+  const lines = recPbpData.trim().split('\n').filter(Boolean);
+  if (idx < 0 || idx >= lines.length) return;
+  const { q, timer, team, evType } = parsePBPLine(lines[idx]);
+  const evStr = player ? `#${player.num}${player.name}${evType}` : evType;
+  lines[idx]  = team === 'A'
+    ? `${q}\t${timer}\t${evStr}\t\t`
+    : `${q}\t${timer}\t\t\t${evStr}`;
+  recPbpData = lines.join('\n');
+  updateRecScore();
+  updatePBPFeed();
+  try {
+    const st = buildState(parsePBP(recPbpData));
+    const totalA = st.qScore.A.reduce((a,b)=>a+b,0);
+    const totalB = st.qScore.B.reduce((a,b)=>a+b,0);
+    await db.collection('games').doc(recGameId).update({
+      pbpData: recPbpData, totalA, totalB, updatedAt: new Date().toISOString()
+    });
+    showToast('選手を更新しました');
+  } catch(e) { showToast('エラー: ' + e.message); }
+}
+
+async function deletePBPEntry(idx) {
+  if (!confirm('この記録を削除しますか？')) return;
+  closePBPEdit();
+  const lines = recPbpData.trim().split('\n').filter(Boolean);
+  lines.splice(idx, 1);
+  recPbpData = lines.join('\n');
+  updateRecScore();
+  updatePBPFeed();
+  try {
+    const st = buildState(parsePBP(recPbpData));
+    const totalA = st.qScore.A.reduce((a,b)=>a+b,0);
+    const totalB = st.qScore.B.reduce((a,b)=>a+b,0);
+    await db.collection('games').doc(recGameId).update({
+      pbpData: recPbpData, totalA, totalB, updatedAt: new Date().toISOString()
+    });
+    showToast('削除しました');
+  } catch(e) { showToast('エラー: ' + e.message); }
 }
 
 // タイマー
