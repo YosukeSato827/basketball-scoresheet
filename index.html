@@ -851,29 +851,53 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 .players-grid textarea { height: 110px; resize: vertical; font-size: 12px; font-family: monospace; }
 
 /* レコーダー ヘッダー */
+/* スティッキーヘッダー（ヘッダー＋スコアボード＋Qバー） */
+.rec-sticky-top { position: sticky; top: 0; z-index: 50; }
 .rec-header {
   background: var(--blue); color: white;
   display: flex; align-items: center; gap: 10px;
   padding: 0 14px; height: 50px;
-  position: sticky; top: 0; z-index: 50;
 }
 .rec-back { background: rgba(255,255,255,.18); color: white; border: none; border-radius: var(--radius-sm); padding: 6px 12px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; }
 .rec-title { flex: 1; font-weight: 700; font-size: 14px; text-align: center; }
 .rec-status { font-size: 11px; color: rgba(255,255,255,.8); white-space: nowrap; min-width: 60px; text-align: right; }
 
-/* スコアボード */
+/* スコアボード（タイマーを中央に配置） */
 .rec-scoreboard {
   background: var(--blue-dark); color: white;
-  display: flex; align-items: center; justify-content: center; gap: 14px;
-  padding: 10px 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px;
 }
-.rec-score-team { text-align: center; min-width: 120px; }
+.rec-score-team { text-align: center; flex: 1; }
 .rec-score-name { font-size: 11px; font-weight: 700; opacity: .75; letter-spacing: .06em; margin-bottom: 2px; }
 .rec-score-val {
   font-family: 'Poppins', sans-serif; font-size: 48px;
   font-weight: 900; line-height: 1;
 }
-.rec-score-sep { font-size: 22px; font-weight: 300; opacity: .5; }
+/* タイマー（スコアボード中央） */
+.rec-timer-center {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  flex-shrink: 0; padding: 0 8px;
+}
+.rec-timer-display {
+  font-family: 'Poppins', sans-serif; font-size: 22px; font-weight: 700;
+  color: white; background: rgba(255,255,255,.15);
+  border: 1px solid rgba(255,255,255,.4); border-radius: var(--radius-sm);
+  padding: 2px 10px; cursor: pointer; min-width: 80px; text-align: center;
+}
+.rec-timer-btns { display: flex; gap: 8px; }
+.rec-timer-btn {
+  background: rgba(255,255,255,.25); color: white; border: none; border-radius: 50%;
+  width: 32px; height: 32px; font-size: 13px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.rec-timer-btn:active { background: rgba(255,255,255,.45); }
+.rec-timer-reset {
+  background: rgba(255,255,255,.12); color: rgba(255,255,255,.8); border: none;
+  border-radius: 50%; width: 32px; height: 32px; font-size: 14px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.rec-timer-reset:active { background: rgba(255,255,255,.28); }
 
 /* クォーター選択バー */
 .rec-q-bar {
@@ -921,19 +945,39 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   font-size: 11px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 6px;
 }
 
-/* タイマーバー */
-.rec-timer-bar {
-  position: sticky; bottom: 0;
-  background: white; border-top: 1px solid var(--border);
-  display: flex; align-items: center; gap: 8px; padding: 8px 14px;
-  box-shadow: 0 -2px 8px rgba(0,0,0,.08);
+/* ユーティリティバー（取り消し・スコアシート確認） */
+.rec-util-bar {
+  background: white; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px; padding: 7px 10px;
 }
 .rec-undo-btn {
   background: #fff3e0; color: #e65100; border: 1px solid #ffcc80;
-  border-radius: var(--radius-sm); padding: 8px 10px;
+  border-radius: var(--radius-sm); padding: 7px 10px;
   font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap;
 }
-.rec-timer-wrap { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.rec-sheet-btn {
+  background: var(--bg); color: var(--text-mid); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 7px 10px;
+  font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; margin-left: auto;
+}
+.rec-sheet-btn:active { border-color: var(--blue); color: var(--blue); }
+/* スコアシートプレビューオーバーレイ */
+.rec-sheet-preview {
+  display: none; position: fixed; inset: 0; z-index: 200;
+  background: white; overflow-y: auto;
+}
+.rec-sheet-preview.show { display: block; }
+.rec-sheet-preview-bar {
+  position: sticky; top: 0; z-index: 10; background: var(--blue); color: white;
+  display: flex; align-items: center; gap: 12px; padding: 0 14px; height: 50px;
+}
+.rec-sheet-back-btn {
+  background: rgba(255,255,255,.2); color: white; border: none;
+  border-radius: var(--radius-sm); padding: 6px 14px;
+  font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap;
+}
+.rec-sheet-preview-note { font-size: 12px; opacity: .8; }
+.rec-sheet-preview-body { padding: 12px; }
 .rec-timer-display {
   font-family: 'Poppins', sans-serif; font-size: 22px; font-weight: 700;
   color: var(--text); background: none; border: 1px solid var(--border);
@@ -1317,29 +1361,41 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
      画面④: ライブ記録
      ===================================================== -->
 <div id="view-recorder">
-  <div class="rec-header">
-    <button class="rec-back" onclick="backFromRecorder()">← 戻る</button>
-    <span class="rec-title" id="rec-title">記録中</span>
-    <span class="rec-status" id="rec-status"></span>
-    <button class="rec-end-btn" onclick="endGame()">試合終了</button>
-  </div>
-  <div class="rec-scoreboard">
-    <div class="rec-score-team">
-      <div class="rec-score-name" id="rec-name-a">チームA</div>
-      <div class="rec-score-val" id="rec-score-a">0</div>
+  <div class="rec-sticky-top">
+    <div class="rec-header">
+      <button class="rec-back" onclick="backFromRecorder()">← 戻る</button>
+      <span class="rec-title" id="rec-title">記録中</span>
+      <span class="rec-status" id="rec-status"></span>
+      <button class="rec-end-btn" onclick="endGame()">試合終了</button>
     </div>
-    <div class="rec-score-sep">-</div>
-    <div class="rec-score-team">
-      <div class="rec-score-name" id="rec-name-b">チームB</div>
-      <div class="rec-score-val" id="rec-score-b">0</div>
+    <div class="rec-scoreboard">
+      <div class="rec-score-team">
+        <div class="rec-score-name" id="rec-name-a">チームA</div>
+        <div class="rec-score-val" id="rec-score-a">0</div>
+      </div>
+      <div class="rec-timer-center">
+        <button class="rec-timer-display" id="rec-timer-display" onclick="editTimer()">10:00</button>
+        <div class="rec-timer-btns">
+          <button class="rec-timer-btn" id="rec-timer-btn" onclick="toggleRecTimer()">▶</button>
+          <button class="rec-timer-reset" onclick="resetRecTimer()">⟳</button>
+        </div>
+      </div>
+      <div class="rec-score-team">
+        <div class="rec-score-name" id="rec-name-b">チームB</div>
+        <div class="rec-score-val" id="rec-score-b">0</div>
+      </div>
+    </div>
+    <div class="rec-q-bar">
+      <button class="rec-q-btn active" id="rec-q-1" onclick="setRecorderQ(1)">1Q</button>
+      <button class="rec-q-btn" id="rec-q-2" onclick="setRecorderQ(2)">2Q</button>
+      <button class="rec-q-btn" id="rec-q-3" onclick="setRecorderQ(3)">3Q</button>
+      <button class="rec-q-btn" id="rec-q-4" onclick="setRecorderQ(4)">4Q</button>
+      <button class="rec-q-btn" id="rec-q-5" onclick="setRecorderQ(5)">OT</button>
     </div>
   </div>
-  <div class="rec-q-bar">
-    <button class="rec-q-btn active" id="rec-q-1" onclick="setRecorderQ(1)">1Q</button>
-    <button class="rec-q-btn" id="rec-q-2" onclick="setRecorderQ(2)">2Q</button>
-    <button class="rec-q-btn" id="rec-q-3" onclick="setRecorderQ(3)">3Q</button>
-    <button class="rec-q-btn" id="rec-q-4" onclick="setRecorderQ(4)">4Q</button>
-    <button class="rec-q-btn" id="rec-q-5" onclick="setRecorderQ(5)">OT</button>
+  <div class="rec-util-bar">
+    <button class="rec-undo-btn" onclick="undoLastEvent()">↩ 取り消し</button>
+    <button class="rec-sheet-btn" onclick="showSheetPreview()">📋 スコアシート確認</button>
   </div>
   <div class="rec-3col">
     <div class="rec-team-col">
@@ -1371,14 +1427,6 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
     <div class="rec-court-team" id="rec-court-a"></div>
     <div class="rec-court-team" id="rec-court-b"></div>
   </div>
-  <div class="rec-timer-bar">
-    <button class="rec-undo-btn" onclick="undoLastEvent()">↩ 取り消し</button>
-    <div class="rec-timer-wrap">
-      <button class="rec-timer-display" id="rec-timer-display" onclick="editTimer()">10:00</button>
-      <button class="rec-timer-btn" id="rec-timer-btn" onclick="toggleRecTimer()">▶</button>
-      <button class="rec-timer-reset" onclick="resetRecTimer()">⟳</button>
-    </div>
-  </div>
   <!-- 選手選択モーダル -->
   <div class="rec-action-overlay" id="rec-player-overlay" onclick="closePlayerSelect()">
     <div class="rec-action-sheet" onclick="event.stopPropagation()">
@@ -1407,6 +1455,14 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <button class="rec-lineup-next-btn" id="rec-lineup-next-btn">次へ（チームB）</button>
       <button class="rec-lineup-skip" id="rec-lineup-skip-btn">全員でそのまま開始</button>
     </div>
+  </div>
+  <!-- スコアシートプレビュー -->
+  <div id="rec-sheet-preview" class="rec-sheet-preview">
+    <div class="rec-sheet-preview-bar">
+      <button class="rec-sheet-back-btn" onclick="closeSheetPreview()">← 記録に戻る</button>
+      <span class="rec-sheet-preview-note">確認のみ（記録は継続中）</span>
+    </div>
+    <div class="rec-sheet-preview-body" id="rec-sheet-preview-body"></div>
   </div>
   <!-- PBP編集オーバーレイ -->
   <div class="rec-pbpedit-overlay" id="rec-pbpedit-overlay" onclick="closePBPEdit()">
@@ -2619,6 +2675,19 @@ function updateRecScore() {
 
 function setRecStatus(msg) {
   document.getElementById('rec-status').textContent = msg;
+}
+
+function showSheetPreview() {
+  document.getElementById('pbpInput').value = recPbpData;
+  generate();
+  document.getElementById('rec-sheet-preview-body').innerHTML =
+    document.getElementById('output').innerHTML;
+  document.getElementById('rec-sheet-preview').classList.add('show');
+  document.getElementById('rec-sheet-preview').scrollTop = 0;
+}
+
+function closeSheetPreview() {
+  document.getElementById('rec-sheet-preview').classList.remove('show');
 }
 
 async function endGame() {
