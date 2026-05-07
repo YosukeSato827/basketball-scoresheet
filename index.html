@@ -1620,7 +1620,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
     <!-- OCRセクション -->
     <div class="ocr-section">
       <div class="ocr-section-title">📷 写真から読み込み（OCR）</div>
-      <input type="file" id="ocr-file-input" accept="image/*" capture="environment" style="display:none" onchange="handleOCRFile(this)">
+      <input type="file" id="ocr-file-input" accept="image/*" style="display:none" onchange="handleOCRFile(this)">
       <button class="ocr-upload-btn" onclick="document.getElementById('ocr-file-input').click()">📷 写真を選択 / カメラで撮影</button>
       <div class="ocr-progress-wrap" id="ocr-progress-wrap">
         <div class="ocr-progress-label" id="ocr-progress-label">読み取り中...</div>
