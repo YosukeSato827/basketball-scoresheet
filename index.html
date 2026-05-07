@@ -3402,7 +3402,7 @@ async function deleteRosterTeam() {
 // OCR（Gemini Vision API）
 // =====================================================
 const GEMINI_API_KEY_STORAGE = 'gemini_api_key';
-const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent';
+const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent';
 
 function getGeminiApiKey() {
   return localStorage.getItem(GEMINI_API_KEY_STORAGE) || '';
@@ -3573,8 +3573,8 @@ async function handleOCRFile(input) {
     statusMsg.textContent = '⚠ 読み取りエラー: ' + e.message;
     if (e.message.includes('API_KEY') || e.message.includes('APIキー')) {
       promptGeminiApiKey();
-    } else if (e.message.includes('quota') || e.message.includes('RESOURCE_EXHAUSTED')) {
-      statusMsg.textContent = '⚠ APIキーの利用上限に達しました。https://aistudio.google.com/app/apikey で新しいキーを取得して「🔑 設定」から登録してください。';
+    } else if (e.message.includes('quota') || e.message.includes('RESOURCE_EXHAUSTED') || e.message.includes('limit')) {
+      statusMsg.textContent = '⚠ APIキーが使用できません。① https://aistudio.google.com/app/apikey でキーを作成 ② 「🔑 設定」から登録してください（Google Cloud ConsoleのキーはNG）';
     }
   }
   input.value = '';
