@@ -3311,8 +3311,7 @@ async function loadAndRenderRosterTeams() {
   container.innerHTML = '<div class="loading-msg" style="padding:30px 0">読み込み中...</div>';
   try {
     const snap = await db.collection('roster_teams')
-      .where('tournamentId', '==', rosterTournamentId)
-      .orderBy('createdAt').get();
+      .where('tournamentId', '==', rosterTournamentId).get();
     const teams = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     if (teams.length === 0) {
       container.innerHTML = '<div class="roster-empty">チームが登録されていません<br><br>「+ チーム追加」からロスターを登録できます</div>';
@@ -3466,7 +3465,7 @@ async function openRosterSelectModal(slot) {
   document.getElementById('modal-roster-select').classList.add('show');
   try {
     const snap = await db.collection('roster_teams')
-      .where('tournamentId', '==', tid).orderBy('createdAt').get();
+      .where('tournamentId', '==', tid).get();
     const teams = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     if (teams.length === 0) {
       listEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-light)">ロスターが登録されていません<br>大会詳細画面から登録できます</div>';
