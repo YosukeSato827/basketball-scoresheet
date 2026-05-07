@@ -3397,25 +3397,36 @@ async function handleOCRFile(input) {
   const progressLbl  = document.getElementById('ocr-progress-label');
   const statusMsg    = document.getElementById('ocr-status-msg');
   const resultSec    = document.getElementById('ocr-result-section');
-  progressWrap.style.display  = '';
-  resultSec.style.display     = 'none';
-  progressBar.style.width     = '0%';
-  statusMsg.textContent       = '';
-  progressLbl.textContent     = '読み取り中（初回は言語データのDLに時間がかかります）';
+  progressWrap.style.display = '';
+  resultSec.style.display    = 'none';
+  progressBar.style.width    = '0%';
+  statusMsg.textContent      = '';
+  progressLbl.textContent    = '読み取り中（初回は言語データのDLがあります）';
   try {
     const { data: { text } } = await Tesseract.recognize(file, 'jpn+eng', {
       logger: m => {
         if (m.status === 'recognizing text') {
           const p = Math.round(m.progress * 100);
-          progressBar.style.width  = p + '%';
-          progressLbl.textContent  = `読み取り中… ${p}%`;
+          progressBar.style.width = p + '%';
+          progressLbl.textContent = `読み取り中… ${p}%`;
         }
       }
     });
     progressWrap.style.display = 'none';
-    document.getElementById('ocr-text-raw').value = text;
-    resultSec.style.display    = '';
-    statusMsg.textContent      = '✓ 読み取り完了。内容を確認・修正してから取り込んでください。';
+    // OCR完了後、自動でパースして取り込む
+    const parsed = parseOCRRoster(text);
+    if (parsed.length > 0) {
+      const cur  = document.getElementById('roster-players-textarea').value.trim();
+      const adds = playersToText(parsed);
+      document.getElementById('roster-players-textarea').value = cur ? cur + '\n' + adds : adds;
+      statusMsg.textContent = `✓ ${parsed.length} 名を自動取り込みしました。内容を確認してください。`;
+    } else {
+      // 自動解析できなかった場合はテキストを表示して手動修正
+      document.getElementById('ocr-text-raw').value = text;
+      resultSec.style.display = '';
+      statusMsg.textContent   = '⚠ 自動解析できませんでした。下のテキストを「番号 名前」形式に修正して取り込んでください。';
+      resultSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   } catch(e) {
     progressWrap.style.display = 'none';
     statusMsg.textContent      = '⚠ 読み取りエラー: ' + e.message;
@@ -3427,7 +3438,7 @@ function importOCRResult() {
   const raw    = document.getElementById('ocr-text-raw').value;
   const parsed = parseOCRRoster(raw);
   if (parsed.length === 0) {
-    showToast('「番号 名前」の形式が見つかりませんでした。テキストを確認してください。');
+    document.getElementById('ocr-status-msg').textContent = '⚠「番号 名前」の形式が見つかりません。例: 4 山田太郎';
     return;
   }
   const cur  = document.getElementById('roster-players-textarea').value.trim();
@@ -3439,12 +3450,31 @@ function importOCRResult() {
 
 function parseOCRRoster(text) {
   const players = [];
+  const seen    = new Set();
   for (const raw of text.split('\n')) {
-    const line = raw.trim().replace(/[　\s]+/g, ' ');
-    const m = line.match(/^(\d{1,2})\s+(.{1,20})/);
+    // 全角数字→半角、空白正規化、先頭ノイズ除去
+    const line = raw.trim()
+      .replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+      .replace(/[　\t]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .replace(/^[\s\-\*\/\\|]+/, '');
+    if (!line || line.length < 2) continue;
+
+    // パターン1: 行頭が番号（4 山田、10. 佐藤、No.7 田中）
+    let m = line.match(/^(?:No\.?|#|番号:?)?(\d{1,2})[\s\.\)）。、:：\-]+(.{1,15})/i);
     if (m) {
-      const name = m[2].trim();
-      if (name.length > 0) players.push({ num: m[1], name });
+      const num = m[1], name = m[2].replace(/[\s\d\.]+$/, '').trim();
+      if (!seen.has(num) && name.length > 0) {
+        players.push({ num, name }); seen.add(num); continue;
+      }
+    }
+    // パターン2: 行末が番号（山田太郎 4）
+    m = line.match(/^(.{1,15})\s+(\d{1,2})$/);
+    if (m) {
+      const name = m[1].trim(), num = m[2];
+      if (!seen.has(num) && name.length > 0 && !/^\d+$/.test(name)) {
+        players.push({ num, name }); seen.add(num);
+      }
     }
   }
   return players;
