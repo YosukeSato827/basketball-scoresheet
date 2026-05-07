@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Poppins:wght@700;900&family=Klee+One:wght@400;600&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.2/dist/tesseract.min.js"></script>
 <style>
 /* =====================================================
    Molten Brand Variables
@@ -978,6 +979,87 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 }
 .rec-sheet-preview-note { font-size: 12px; opacity: .8; }
 .rec-sheet-preview-body { padding: 12px; }
+
+/* =====================================================
+   ロスター管理
+   ===================================================== */
+#view-roster { display: none; min-height: 100vh; background: var(--bg); }
+.roster-page-header {
+  background: var(--blue); color: white;
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 14px; height: 50px; position: sticky; top: 0; z-index: 50;
+}
+.roster-page-title { flex: 1; font-weight: 700; font-size: 14px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.roster-add-btn {
+  background: rgba(255,255,255,.18); color: white; border: 1px solid rgba(255,255,255,.45);
+  border-radius: var(--radius-sm); padding: 5px 10px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap;
+}
+.roster-list { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.roster-team-card {
+  background: white; border-radius: var(--radius); border: 1px solid var(--border);
+  padding: 14px 16px; display: flex; align-items: center; gap: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+}
+.roster-team-info { flex: 1; min-width: 0; }
+.roster-team-name { font-size: 15px; font-weight: 700; color: var(--text); }
+.roster-team-count { font-size: 12px; color: var(--text-mid); margin-top: 2px; }
+.roster-team-edit-btn {
+  background: var(--blue-dim); color: var(--blue); border: none;
+  border-radius: var(--radius-sm); padding: 7px 14px; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.roster-empty { text-align: center; color: var(--text-light); padding: 48px 20px; font-size: 14px; line-height: 1.8; }
+
+/* チーム編集モーダル */
+.modal-roster-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5);
+  z-index: 300; overflow-y: auto; padding: 20px 0 40px;
+}
+.modal-roster-overlay.show { display: block; }
+.modal-roster-sheet {
+  background: white; border-radius: var(--radius); margin: 0 auto;
+  max-width: 520px; width: calc(100% - 24px); padding: 20px 16px;
+}
+.modal-roster-title { font-size: 17px; font-weight: 700; margin-bottom: 16px; }
+.roster-select-team-btn {
+  display: block; width: 100%; background: white; border: 1.5px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px; text-align: left; cursor: pointer;
+  margin-bottom: 8px; transition: all .12s;
+}
+.roster-select-team-btn:active { border-color: var(--blue); background: var(--blue-dim); }
+.roster-select-team-btn .rst-name { font-size: 15px; font-weight: 700; color: var(--text); }
+.roster-select-team-btn .rst-count { font-size: 12px; color: var(--text-mid); margin-top: 2px; }
+
+/* ロスターから選択ボタン（ゲームエディタ内） */
+.roster-load-btn {
+  display: block; width: 100%; background: var(--bg); border: 1px dashed var(--blue);
+  border-radius: var(--radius-sm); padding: 6px; font-size: 11px; font-weight: 700;
+  color: var(--blue); cursor: pointer; margin-top: 5px;
+}
+.roster-load-btn:active { background: var(--blue-dim); }
+
+/* OCRセクション */
+.ocr-section {
+  margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border);
+}
+.ocr-section-title { font-size: 11px; font-weight: 700; color: var(--text-light); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 10px; }
+.ocr-upload-btn {
+  width: 100%; padding: 11px; background: var(--bg); border: 1.5px dashed var(--border);
+  border-radius: var(--radius); font-size: 14px; font-weight: 700; color: var(--text-mid);
+  cursor: pointer; text-align: center;
+}
+.ocr-upload-btn:active { border-color: var(--blue); color: var(--blue); }
+.ocr-progress-wrap { margin-top: 10px; display: none; }
+.ocr-progress-label { font-size: 12px; color: var(--text-mid); margin-bottom: 4px; }
+.ocr-progress-track { background: var(--border); border-radius: 4px; height: 6px; overflow: hidden; }
+.ocr-progress-bar { background: var(--blue); height: 100%; width: 0%; transition: width .2s; border-radius: 4px; }
+.ocr-result-section { margin-top: 12px; display: none; }
+.ocr-result-label { font-size: 12px; color: var(--text-mid); margin-bottom: 6px; }
+.ocr-result-textarea { width: 100%; min-height: 120px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 8px; font-size: 13px; resize: vertical; box-sizing: border-box; font-family: monospace; }
+.ocr-import-btn {
+  width: 100%; margin-top: 8px; padding: 11px; background: #e8f5e9; color: #2e7d32;
+  border: none; border-radius: var(--radius); font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.ocr-status-msg { font-size: 12px; color: var(--text-mid); margin-top: 8px; min-height: 18px; }
 .rec-timer-display {
   font-family: 'Poppins', sans-serif; font-size: 22px; font-weight: 700;
   color: var(--text); background: none; border: 1px solid var(--border);
@@ -1296,6 +1378,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
     <div class="detail-header-top">
       <button class="btn-hdr" onclick="backToTournaments()">← 大会一覧</button>
       <div style="flex:1"></div>
+      <button class="btn-hdr" onclick="openRosterView()">👥 ロスター</button>
       <button class="btn-hdr" onclick="copyTournamentViewUrl()">🔗 閲覧URL</button>
       <button class="btn-hdr" onclick="openTournamentModal(currentTournamentId)">編集</button>
       <button class="btn-hdr-primary" onclick="newGame()">+ 試合を追加</button>
@@ -1339,10 +1422,12 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <div>
         <label class="pbp-label">チームA 選手（番号 名前、1行ずつ）</label>
         <textarea id="playersA" placeholder="10 岡田&#10;7 田中&#10;3 山田"></textarea>
+        <button class="roster-load-btn" onclick="openRosterSelectModal('A')">👥 ロスターから選択</button>
       </div>
       <div>
         <label class="pbp-label">チームB 選手（番号 名前、1行ずつ）</label>
         <textarea id="playersB" placeholder="5 高尾&#10;12 鈴木&#10;8 佐藤"></textarea>
+        <button class="roster-load-btn" onclick="openRosterSelectModal('B')">👥 ロスターから選択</button>
       </div>
     </div>
     <div>
@@ -1508,6 +1593,63 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   </div>
 </div>
 
+<!-- =====================================================
+     画面⑤: ロスター管理
+     ===================================================== -->
+<div id="view-roster">
+  <div class="roster-page-header">
+    <button class="rec-back" onclick="backFromRoster()">← 戻る</button>
+    <span class="roster-page-title" id="roster-page-title">ロスター管理</span>
+    <button class="roster-add-btn" onclick="openTeamEditorModal(null)">+ チーム追加</button>
+  </div>
+  <div class="roster-list" id="roster-teams-list"></div>
+</div>
+
+<!-- チーム編集モーダル -->
+<div class="modal-roster-overlay" id="modal-roster-team" onclick="closeTeamEditorModal(event)">
+  <div class="modal-roster-sheet" onclick="event.stopPropagation()">
+    <div class="modal-roster-title" id="roster-modal-title">チームを登録</div>
+    <div class="form-group">
+      <label>チーム名</label>
+      <input type="text" id="roster-team-name-input" placeholder="例: ○○高校">
+    </div>
+    <div class="form-group">
+      <label class="pbp-label">選手リスト（番号 名前、1行ずつ）</label>
+      <textarea id="roster-players-textarea" rows="8" placeholder="4 山田太郎&#10;7 田中次郎&#10;10 佐藤一郎" style="width:100%;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:8px;font-size:13px;box-sizing:border-box;resize:vertical;font-family:monospace"></textarea>
+    </div>
+    <!-- OCRセクション -->
+    <div class="ocr-section">
+      <div class="ocr-section-title">📷 写真から読み込み（OCR）</div>
+      <input type="file" id="ocr-file-input" accept="image/*" capture="environment" style="display:none" onchange="handleOCRFile(this)">
+      <button class="ocr-upload-btn" onclick="document.getElementById('ocr-file-input').click()">📷 写真を選択 / カメラで撮影</button>
+      <div class="ocr-progress-wrap" id="ocr-progress-wrap">
+        <div class="ocr-progress-label" id="ocr-progress-label">読み取り中...</div>
+        <div class="ocr-progress-track"><div class="ocr-progress-bar" id="ocr-progress-bar"></div></div>
+      </div>
+      <div class="ocr-status-msg" id="ocr-status-msg"></div>
+      <div class="ocr-result-section" id="ocr-result-section">
+        <div class="ocr-result-label">OCR結果（修正してから取り込む）</div>
+        <textarea class="ocr-result-textarea" id="ocr-text-raw"></textarea>
+        <button class="ocr-import-btn" onclick="importOCRResult()">↓ 選手リストに取り込む</button>
+      </div>
+    </div>
+    <div class="modal-btns" style="margin-top:16px">
+      <button class="btn btn-primary" onclick="saveTeamEditorModal()">保存</button>
+      <button class="btn btn-secondary" id="roster-delete-btn" onclick="deleteRosterTeam()" style="display:none;background:#ffebee;color:#c62828">削除</button>
+      <button class="btn btn-secondary" onclick="closeTeamEditorModal()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- ロスターから選択モーダル（ゲームエディタ用） -->
+<div class="modal-roster-overlay" id="modal-roster-select" onclick="closeRosterSelectModal(event)">
+  <div class="modal-roster-sheet" onclick="event.stopPropagation()">
+    <div class="modal-roster-title" id="roster-select-title">ロスターを選択</div>
+    <div id="roster-select-list"></div>
+    <button class="btn btn-secondary" style="width:100%;margin-top:8px" onclick="closeRosterSelectModal()">キャンセル</button>
+  </div>
+</div>
+
 <!-- スマホプレビュー切り替えボタン -->
 <button class="preview-toggle-btn" id="preview-toggle-btn" onclick="toggleMobilePreview()" title="スマホ表示を確認">
   <span id="preview-btn-icon">📱</span>
@@ -1546,6 +1688,7 @@ function showView(name) {
   document.getElementById('view-detail').style.display      = name === 'detail'      ? 'block' : 'none';
   document.getElementById('view-editor').style.display      = name === 'editor'      ? 'block' : 'none';
   document.getElementById('view-recorder').style.display    = name === 'recorder'    ? 'block' : 'none';
+  document.getElementById('view-roster').style.display      = name === 'roster'      ? 'block' : 'none';
 }
 
 function parsePlayers(text) {
@@ -3142,6 +3285,222 @@ function editTimer() {
     recTimer = (parseInt(parts[0]) || 0) * 60 + (parseInt(parts[1]) || 0);
     updateRecTimerDisplay();
   }
+}
+
+// =====================================================
+// ロスター管理
+// =====================================================
+let rosterTournamentId   = null;
+let rosterTournamentName = '';
+let editingRosterTeamId  = null;  // null = 新規
+
+async function openRosterView() {
+  rosterTournamentId   = currentTournamentId;
+  rosterTournamentName = document.getElementById('detail-title')?.textContent || '大会';
+  document.getElementById('roster-page-title').textContent = `${rosterTournamentName} ロスター`;
+  showView('roster');
+  await loadAndRenderRosterTeams();
+}
+
+function backFromRoster() {
+  showView('detail');
+}
+
+async function loadAndRenderRosterTeams() {
+  const container = document.getElementById('roster-teams-list');
+  container.innerHTML = '<div class="loading-msg" style="padding:30px 0">読み込み中...</div>';
+  try {
+    const snap = await db.collection('roster_teams')
+      .where('tournamentId', '==', rosterTournamentId)
+      .orderBy('createdAt').get();
+    const teams = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (teams.length === 0) {
+      container.innerHTML = '<div class="roster-empty">チームが登録されていません<br><br>「+ チーム追加」からロスターを登録できます</div>';
+      return;
+    }
+    container.innerHTML = teams.map(t => `
+      <div class="roster-team-card">
+        <div class="roster-team-info">
+          <div class="roster-team-name">${esc(t.teamName)}</div>
+          <div class="roster-team-count">${(t.players || []).length} 名登録</div>
+        </div>
+        <button class="roster-team-edit-btn" onclick="openTeamEditorModal('${t.id}')">編集</button>
+      </div>`).join('');
+  } catch(e) { container.innerHTML = `<div class="roster-empty">エラー: ${esc(e.message)}</div>`; }
+}
+
+function openTeamEditorModal(teamId) {
+  editingRosterTeamId = teamId;
+  document.getElementById('ocr-progress-wrap').style.display   = 'none';
+  document.getElementById('ocr-result-section').style.display  = 'none';
+  document.getElementById('ocr-status-msg').textContent        = '';
+  document.getElementById('ocr-file-input').value              = '';
+  if (teamId) {
+    document.getElementById('roster-modal-title').textContent = 'チームを編集';
+    document.getElementById('roster-delete-btn').style.display = '';
+    db.collection('roster_teams').doc(teamId).get().then(doc => {
+      if (!doc.exists) return;
+      const d = doc.data();
+      document.getElementById('roster-team-name-input').value  = d.teamName || '';
+      document.getElementById('roster-players-textarea').value = playersToText(d.players || []);
+    });
+  } else {
+    document.getElementById('roster-modal-title').textContent  = 'チームを登録';
+    document.getElementById('roster-delete-btn').style.display = 'none';
+    document.getElementById('roster-team-name-input').value    = '';
+    document.getElementById('roster-players-textarea').value   = '';
+  }
+  document.getElementById('modal-roster-team').classList.add('show');
+}
+
+function closeTeamEditorModal(event) {
+  if (event && event.target !== document.getElementById('modal-roster-team')) return;
+  document.getElementById('modal-roster-team').classList.remove('show');
+}
+
+async function saveTeamEditorModal() {
+  const teamName = document.getElementById('roster-team-name-input').value.trim();
+  if (!teamName) { showToast('チーム名を入力してください'); return; }
+  const players = parsePlayers(document.getElementById('roster-players-textarea').value);
+  const now = new Date().toISOString();
+  const data = { tournamentId: rosterTournamentId, teamName, players, updatedAt: now };
+  try {
+    if (editingRosterTeamId) {
+      await db.collection('roster_teams').doc(editingRosterTeamId).update(data);
+    } else {
+      await db.collection('roster_teams').add({ ...data, createdAt: now });
+    }
+    document.getElementById('modal-roster-team').classList.remove('show');
+    await loadAndRenderRosterTeams();
+    showToast('保存しました');
+  } catch(e) { showToast('エラー: ' + e.message); }
+}
+
+async function deleteRosterTeam() {
+  if (!editingRosterTeamId) return;
+  if (!confirm('このチームを削除しますか？')) return;
+  try {
+    await db.collection('roster_teams').doc(editingRosterTeamId).delete();
+    document.getElementById('modal-roster-team').classList.remove('show');
+    await loadAndRenderRosterTeams();
+    showToast('削除しました');
+  } catch(e) { showToast('エラー: ' + e.message); }
+}
+
+// =====================================================
+// OCR（Tesseract.js）
+// =====================================================
+async function handleOCRFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const progressWrap = document.getElementById('ocr-progress-wrap');
+  const progressBar  = document.getElementById('ocr-progress-bar');
+  const progressLbl  = document.getElementById('ocr-progress-label');
+  const statusMsg    = document.getElementById('ocr-status-msg');
+  const resultSec    = document.getElementById('ocr-result-section');
+  progressWrap.style.display  = '';
+  resultSec.style.display     = 'none';
+  progressBar.style.width     = '0%';
+  statusMsg.textContent       = '';
+  progressLbl.textContent     = '読み取り中（初回は言語データのDLに時間がかかります）';
+  try {
+    const { data: { text } } = await Tesseract.recognize(file, 'jpn+eng', {
+      logger: m => {
+        if (m.status === 'recognizing text') {
+          const p = Math.round(m.progress * 100);
+          progressBar.style.width  = p + '%';
+          progressLbl.textContent  = `読み取り中… ${p}%`;
+        }
+      }
+    });
+    progressWrap.style.display = 'none';
+    document.getElementById('ocr-text-raw').value = text;
+    resultSec.style.display    = '';
+    statusMsg.textContent      = '✓ 読み取り完了。内容を確認・修正してから取り込んでください。';
+  } catch(e) {
+    progressWrap.style.display = 'none';
+    statusMsg.textContent      = '⚠ 読み取りエラー: ' + e.message;
+  }
+  input.value = '';
+}
+
+function importOCRResult() {
+  const raw    = document.getElementById('ocr-text-raw').value;
+  const parsed = parseOCRRoster(raw);
+  if (parsed.length === 0) {
+    showToast('「番号 名前」の形式が見つかりませんでした。テキストを確認してください。');
+    return;
+  }
+  const cur  = document.getElementById('roster-players-textarea').value.trim();
+  const adds = playersToText(parsed);
+  document.getElementById('roster-players-textarea').value = cur ? cur + '\n' + adds : adds;
+  document.getElementById('ocr-result-section').style.display = 'none';
+  document.getElementById('ocr-status-msg').textContent = `✓ ${parsed.length} 名を取り込みました。`;
+}
+
+function parseOCRRoster(text) {
+  const players = [];
+  for (const raw of text.split('\n')) {
+    const line = raw.trim().replace(/[　\s]+/g, ' ');
+    const m = line.match(/^(\d{1,2})\s+(.{1,20})/);
+    if (m) {
+      const name = m[2].trim();
+      if (name.length > 0) players.push({ num: m[1], name });
+    }
+  }
+  return players;
+}
+
+// =====================================================
+// ゲームエディタ ← ロスター選択
+// =====================================================
+let rosterSelectSlot = 'A';
+
+async function openRosterSelectModal(slot) {
+  rosterSelectSlot = slot;
+  const tid = currentTournamentId;
+  document.getElementById('roster-select-title').textContent =
+    `チーム${slot} にロスターを読み込む`;
+  const listEl = document.getElementById('roster-select-list');
+  listEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-light)">読み込み中...</div>';
+  document.getElementById('modal-roster-select').classList.add('show');
+  try {
+    const snap = await db.collection('roster_teams')
+      .where('tournamentId', '==', tid).orderBy('createdAt').get();
+    const teams = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (teams.length === 0) {
+      listEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-light)">ロスターが登録されていません<br>大会詳細画面から登録できます</div>';
+      return;
+    }
+    listEl.innerHTML = teams.map(t => `
+      <button class="roster-select-team-btn" onclick="applyRosterToGame('${t.id}')">
+        <div class="rst-name">${esc(t.teamName)}</div>
+        <div class="rst-count">${(t.players || []).length} 名</div>
+      </button>`).join('');
+  } catch(e) {
+    listEl.innerHTML = `<div style="text-align:center;padding:16px;color:var(--text-light)">エラー: ${esc(e.message)}</div>`;
+  }
+}
+
+function closeRosterSelectModal(event) {
+  if (event && event.target !== document.getElementById('modal-roster-select')) return;
+  document.getElementById('modal-roster-select').classList.remove('show');
+}
+
+async function applyRosterToGame(teamId) {
+  document.getElementById('modal-roster-select').classList.remove('show');
+  try {
+    const doc = await db.collection('roster_teams').doc(teamId).get();
+    if (!doc.exists) return;
+    const { teamName, players } = doc.data();
+    const nameField    = rosterSelectSlot === 'A' ? 'teamAName' : 'teamBName';
+    const playersField = rosterSelectSlot === 'A' ? 'playersA'  : 'playersB';
+    if (!document.getElementById(nameField).value) {
+      document.getElementById(nameField).value = teamName;
+    }
+    document.getElementById(playersField).value = playersToText(players || []);
+    showToast(`${teamName} のロスターを読み込みました`);
+  } catch(e) { showToast('エラー: ' + e.message); }
 }
 
 // =====================================================
