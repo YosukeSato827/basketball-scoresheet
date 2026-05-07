@@ -3541,7 +3541,8 @@ async function handleOCRFile(input) {
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
       const msg = err?.error?.message || `HTTPエラー ${response.status}`;
-      throw new Error(msg);
+      const code = err?.error?.code || response.status;
+      throw new Error(`[${code}] ${msg}`);
     }
 
     const data = await response.json();
@@ -3573,8 +3574,9 @@ async function handleOCRFile(input) {
     statusMsg.textContent = '⚠ 読み取りエラー: ' + e.message;
     if (e.message.includes('API_KEY') || e.message.includes('APIキー')) {
       promptGeminiApiKey();
-    } else if (e.message.includes('quota') || e.message.includes('RESOURCE_EXHAUSTED') || e.message.includes('limit')) {
-      statusMsg.textContent = '⚠ APIキーが使用できません。① https://aistudio.google.com/app/apikey でキーを作成 ② 「🔑 設定」から登録してください（Google Cloud ConsoleのキーはNG）';
+    } else {
+      // デバッグ用：生のエラーメッセージをそのまま表示
+      statusMsg.textContent = '⚠ エラー: ' + e.message;
     }
   }
   input.value = '';
