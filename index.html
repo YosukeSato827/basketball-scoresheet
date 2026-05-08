@@ -1129,43 +1129,64 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 .roster-add-player-btn:hover { border-color: var(--blue); color: var(--blue); }
 
 /* ユニフォームカラー */
-.uniform-row {
-  display: grid;
-  grid-template-columns: 38px 1fr 1fr 32px;
-  gap: 8px;
-  align-items: center;
-  margin-bottom: 8px;
+.uniform-entry {
+  background: var(--white);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 12px 8px;
+  margin-bottom: 10px;
+}
+.uniform-entry-header {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
 }
 .uniform-preview {
-  width: 38px; height: 38px;
-  border-radius: 8px;
+  width: 44px; height: 44px;
+  border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
-  font-weight: 900; font-size: 17px;
-  border: 1px solid rgba(0,0,0,.12);
+  font-weight: 900; font-size: 22px;
+  border: 1.5px solid rgba(0,0,0,.13);
   flex-shrink: 0;
-  transition: background .1s, color .1s;
+  transition: background .12s, color .12s;
+  letter-spacing: -.03em;
 }
-.uniform-color-group {
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
+.uniform-entry-title {
+  flex: 1; font-size: 13px; font-weight: 700; color: var(--text-mid);
 }
-.uniform-color-label {
-  font-size: 10px; color: var(--text-light); line-height: 1;
+.uniform-palette-label {
+  font-size: 11px; color: var(--text-light); font-weight: 600;
+  margin: 0 0 5px;
 }
-.uniform-color-input {
-  width: 100%; height: 32px;
-  border: 1.5px solid var(--border); border-radius: 6px;
-  padding: 2px; cursor: pointer; background: none;
+.uniform-palette {
+  display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px;
 }
+.uniform-swatch-btn {
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  border: 2.5px solid transparent;
+  cursor: pointer;
+  transition: transform .12s, box-shadow .12s;
+  padding: 0; outline: none;
+  flex-shrink: 0;
+}
+.uniform-swatch-btn:hover { transform: scale(1.18); }
+.uniform-swatch-btn.selected {
+  border-color: #1565c0;
+  box-shadow: 0 0 0 2px #1565c0;
+  transform: scale(1.1);
+}
+.uniform-swatch-btn.light-color { border-color: #ccc; }
+.uniform-swatch-btn.light-color.selected { border-color: #1565c0; }
+/* チームカード内スウォッチ */
 .uniform-swatch {
   display: inline-block;
-  width: 16px; height: 16px;
-  border-radius: 4px;
-  border: 1px solid rgba(0,0,0,.15);
+  width: 18px; height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid rgba(0,0,0,.13);
   vertical-align: middle;
   flex-shrink: 0;
 }
 .uniform-swatches {
-  display: flex; gap: 4px; align-items: center; margin-top: 3px;
+  display: flex; gap: 5px; align-items: center; margin-top: 4px;
 }
 
 .roster-table-header {
@@ -3882,67 +3903,115 @@ function appendPlayersToRegTable(players) { _appendPlayersTo('reg-players-table'
 // =====================================================
 // ユニフォームカラー共通ヘルパー
 // =====================================================
-function addUniformRow(target, bg = '#1565c0', text = '#ffffff') {
+const UNIFORM_BG_COLORS = [
+  // 白・グレー・黒
+  '#FFFFFF','#E0E0E0','#9E9E9E','#616161','#212121',
+  // ブルー系
+  '#B3E5FC','#42A5F5','#1976D2','#1565C0','#0D47A1',
+  // レッド系
+  '#FFCDD2','#EF5350','#E53935','#C62828','#8B0000',
+  // グリーン系
+  '#C8E6C9','#66BB6A','#388E3C','#2E7D32','#1B5E20',
+  // オレンジ・イエロー・ゴールド
+  '#FFE082','#FDD835','#F9A825','#FF8F00','#E65100',
+  // パープル・マルーン系
+  '#E1BEE7','#AB47BC','#7B1FA2','#6A1B9A','#880E4F',
+  // ティール・ブラウン
+  '#B2DFDB','#00897B','#00695C','#795548','#4E342E',
+];
+const UNIFORM_TEXT_COLORS = [
+  '#FFFFFF','#212121',
+  '#FDD835','#F9A825','#FF8F00',
+  '#EF5350','#C62828',
+  '#42A5F5','#1565C0','#0D47A1',
+  '#66BB6A','#2E7D32',
+  '#AB47BC','#6A1B9A',
+  '#FF8F00','#00695C',
+];
+
+function _isLightColor(hex) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return (r*299 + g*587 + b*114) / 1000 > 200;
+}
+
+function _makeColorPalette(colors, selected, onSelect) {
+  const wrap = document.createElement('div');
+  wrap.className = 'uniform-palette';
+  colors.forEach(color => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'uniform-swatch-btn' + (color === selected ? ' selected' : '') + (_isLightColor(color) ? ' light-color' : '');
+    btn.style.background = color;
+    btn.title = color;
+    btn.onclick = () => {
+      wrap.querySelectorAll('.uniform-swatch-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      onSelect(color);
+    };
+    wrap.appendChild(btn);
+  });
+  return wrap;
+}
+
+function addUniformRow(target, bg = '#1565C0', text = '#FFFFFF') {
   const list = document.getElementById(`${target}-uniforms-list`);
   if (!list) return;
-  if (list.querySelectorAll('.uniform-row').length >= 3) return;
+  if (list.querySelectorAll('.uniform-entry').length >= 3) return;
 
-  const row = document.createElement('div');
-  row.className = 'uniform-row';
+  const entry = document.createElement('div');
+  entry.className = 'uniform-entry';
+  entry.dataset.bg   = bg;
+  entry.dataset.text = text;
 
-  // プレビュー
+  // ヘッダー行：プレビュー ＋ タイトル ＋ 削除
+  const header = document.createElement('div');
+  header.className = 'uniform-entry-header';
+
   const preview = document.createElement('div');
   preview.className = 'uniform-preview';
   preview.textContent = 'A';
   preview.style.background = bg;
   preview.style.color = text;
 
-  // 背景色グループ
-  const bgGroup = document.createElement('div');
-  bgGroup.className = 'uniform-color-group';
-  const bgLabel = document.createElement('span');
-  bgLabel.className = 'uniform-color-label';
-  bgLabel.textContent = '背景色';
-  const bgInput = document.createElement('input');
-  bgInput.type = 'color';
-  bgInput.className = 'uniform-color-input';
-  bgInput.value = bg;
-  bgGroup.appendChild(bgLabel);
-  bgGroup.appendChild(bgInput);
+  const title = document.createElement('span');
+  title.className = 'uniform-entry-title';
+  title.textContent = 'ユニフォーム';
 
-  // 文字色グループ
-  const textGroup = document.createElement('div');
-  textGroup.className = 'uniform-color-group';
-  const textLabel = document.createElement('span');
-  textLabel.className = 'uniform-color-label';
-  textLabel.textContent = '文字色';
-  const textInput = document.createElement('input');
-  textInput.type = 'color';
-  textInput.className = 'uniform-color-input';
-  textInput.value = text;
-  textGroup.appendChild(textLabel);
-  textGroup.appendChild(textInput);
-
-  // プレビューをリアルタイム更新
-  const updatePreview = () => {
-    preview.style.background = bgInput.value;
-    preview.style.color = textInput.value;
-  };
-  bgInput.addEventListener('input', updatePreview);
-  textInput.addEventListener('input', updatePreview);
-
-  // 削除ボタン
   const delBtn = document.createElement('button');
   delBtn.className = 'roster-row-del';
+  delBtn.type = 'button';
   delBtn.title = '削除';
   delBtn.textContent = '×';
-  delBtn.onclick = () => { row.remove(); _updateUniformAddBtn(target); };
+  delBtn.onclick = () => { entry.remove(); _updateUniformAddBtn(target); };
 
-  row.appendChild(preview);
-  row.appendChild(bgGroup);
-  row.appendChild(textGroup);
-  row.appendChild(delBtn);
-  list.appendChild(row);
+  header.appendChild(preview);
+  header.appendChild(title);
+  header.appendChild(delBtn);
+
+  // 背景色パレット
+  const bgLabel = document.createElement('p');
+  bgLabel.className = 'uniform-palette-label';
+  bgLabel.textContent = '背景色';
+  const bgPalette = _makeColorPalette(UNIFORM_BG_COLORS, bg, color => {
+    entry.dataset.bg = color;
+    preview.style.background = color;
+  });
+
+  // 文字色パレット
+  const textLabel = document.createElement('p');
+  textLabel.className = 'uniform-palette-label';
+  textLabel.textContent = '文字色';
+  const textPalette = _makeColorPalette(UNIFORM_TEXT_COLORS, text, color => {
+    entry.dataset.text = color;
+    preview.style.color = color;
+  });
+
+  entry.appendChild(header);
+  entry.appendChild(bgLabel);
+  entry.appendChild(bgPalette);
+  entry.appendChild(textLabel);
+  entry.appendChild(textPalette);
+  list.appendChild(entry);
   _updateUniformAddBtn(target);
 }
 
@@ -3950,18 +4019,15 @@ function _updateUniformAddBtn(target) {
   const list = document.getElementById(`${target}-uniforms-list`);
   const btn  = document.getElementById(`${target}-uniform-add-btn`);
   if (!list || !btn) return;
-  btn.style.display = list.querySelectorAll('.uniform-row').length >= 3 ? 'none' : '';
+  btn.style.display = list.querySelectorAll('.uniform-entry').length >= 3 ? 'none' : '';
 }
 
 function getUniformsFrom(target) {
   const list = document.getElementById(`${target}-uniforms-list`);
   if (!list) return [];
-  const uniforms = [];
-  list.querySelectorAll('.uniform-row').forEach(row => {
-    const inputs = row.querySelectorAll('input[type="color"]');
-    if (inputs.length === 2) uniforms.push({ bg: inputs[0].value, text: inputs[1].value });
-  });
-  return uniforms;
+  return Array.from(list.querySelectorAll('.uniform-entry')).map(e => ({
+    bg: e.dataset.bg || '#1565C0', text: e.dataset.text || '#FFFFFF'
+  }));
 }
 
 function renderUniformsTo(target, uniforms) {
@@ -3976,7 +4042,7 @@ function renderUniformsTo(target, uniforms) {
 function uniformSwatchesHtml(uniforms) {
   if (!uniforms || uniforms.length === 0) return '';
   const swatches = uniforms.map(u =>
-    `<span class="uniform-swatch" style="background:${esc(u.bg)};color:${esc(u.text)}" title="背景:${esc(u.bg)} 文字:${esc(u.text)}"></span>`
+    `<span class="uniform-swatch" style="background:${esc(u.bg)}" title="背景:${esc(u.bg)} 文字:${esc(u.text)}"></span>`
   ).join('');
   return `<div class="uniform-swatches">${swatches}</div>`;
 }
