@@ -1037,6 +1037,44 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 }
 .roster-load-btn:active { background: var(--blue-dim); }
 
+/* 選手テーブル入力 */
+.roster-players-table { display: flex; flex-direction: column; gap: 5px; margin-bottom: 6px; }
+.roster-player-row { display: flex; align-items: center; gap: 6px; }
+.roster-num-input {
+  width: 54px; flex-shrink: 0; text-align: center;
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  padding: 7px 4px; font-size: 14px; font-weight: 700;
+  background: var(--white); color: var(--text);
+  -moz-appearance: textfield;
+}
+.roster-num-input::-webkit-outer-spin-button,
+.roster-num-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.roster-name-input {
+  flex: 1; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  padding: 7px 8px; font-size: 14px; background: var(--white); color: var(--text);
+}
+.roster-num-input:focus, .roster-name-input:focus {
+  outline: none; border-color: var(--blue);
+}
+.roster-row-del {
+  width: 28px; height: 28px; flex-shrink: 0;
+  background: none; border: none; color: var(--text-light);
+  font-size: 16px; cursor: pointer; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s, color .15s;
+}
+.roster-row-del:hover { background: #ffebee; color: #c62828; }
+.roster-add-player-btn {
+  width: 100%; padding: 8px; background: var(--bg);
+  border: 1.5px dashed var(--border); border-radius: var(--radius-sm);
+  font-size: 13px; color: var(--text-mid); cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+.roster-add-player-btn:hover { border-color: var(--blue); color: var(--blue); }
+.roster-table-header { display: flex; gap: 6px; padding: 0 0 2px 0; }
+.roster-th-num { width: 54px; flex-shrink: 0; font-size: 10px; font-weight: 700; color: var(--text-light); text-align: center; letter-spacing: .06em; }
+.roster-th-name { flex: 1; font-size: 10px; font-weight: 700; color: var(--text-light); letter-spacing: .06em; }
+
 /* OCRセクション */
 .ocr-section {
   margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border);
@@ -1620,8 +1658,13 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <input type="text" id="roster-team-name-input" placeholder="例: ○○高校">
     </div>
     <div class="form-group">
-      <label class="pbp-label">選手リスト（番号 名前、1行ずつ）</label>
-      <textarea id="roster-players-textarea" rows="8" placeholder="4 山田太郎&#10;7 田中次郎&#10;10 佐藤一郎" style="width:100%;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:8px;font-size:13px;box-sizing:border-box;resize:vertical;font-family:monospace"></textarea>
+      <label class="pbp-label">選手リスト</label>
+      <div class="roster-table-header">
+        <div class="roster-th-num">番号</div>
+        <div class="roster-th-name">名前</div>
+      </div>
+      <div class="roster-players-table" id="roster-players-table"></div>
+      <button class="roster-add-player-btn" onclick="addRosterPlayerRow()">＋ 選手を追加</button>
     </div>
     <!-- OCRセクション -->
     <div class="ocr-section">
@@ -3353,14 +3396,14 @@ function openTeamEditorModal(teamId) {
     db.collection('roster_teams').doc(teamId).get().then(doc => {
       if (!doc.exists) return;
       const d = doc.data();
-      document.getElementById('roster-team-name-input').value  = d.teamName || '';
-      document.getElementById('roster-players-textarea').value = playersToText(d.players || []);
+      document.getElementById('roster-team-name-input').value = d.teamName || '';
+      renderPlayersTable(d.players || []);
     });
   } else {
     document.getElementById('roster-modal-title').textContent  = 'チームを登録';
     document.getElementById('roster-delete-btn').style.display = 'none';
     document.getElementById('roster-team-name-input').value    = '';
-    document.getElementById('roster-players-textarea').value   = '';
+    renderPlayersTable([]);
   }
   document.getElementById('modal-roster-team').classList.add('show');
 }
@@ -3373,7 +3416,7 @@ function closeTeamEditorModal(event) {
 async function saveTeamEditorModal() {
   const teamName = document.getElementById('roster-team-name-input').value.trim();
   if (!teamName) { showToast('チーム名を入力してください'); return; }
-  const players = parsePlayers(document.getElementById('roster-players-textarea').value);
+  const players = getPlayersFromTable();
   const now = new Date().toISOString();
   const data = { tournamentId: rosterTournamentId, teamName, players, updatedAt: now };
   try {
@@ -3577,9 +3620,7 @@ async function handleOCRFile(input) {
     // テキストをパース
     const parsed = parseOCRRoster(text);
     if (parsed.length > 0) {
-      const cur  = document.getElementById('roster-players-textarea').value.trim();
-      const adds = playersToText(parsed);
-      document.getElementById('roster-players-textarea').value = cur ? cur + '\n' + adds : adds;
+      appendPlayersToTable(parsed);
       statusMsg.textContent = `✓ ${parsed.length} 名を自動取り込みしました。内容を確認してください。`;
     } else {
       // パース失敗時は生テキストを表示して手動修正
@@ -3609,11 +3650,53 @@ function importOCRResult() {
     document.getElementById('ocr-status-msg').textContent = '⚠「番号 名前」の形式が見つかりません。例: 4 山田太郎';
     return;
   }
-  const cur  = document.getElementById('roster-players-textarea').value.trim();
-  const adds = playersToText(parsed);
-  document.getElementById('roster-players-textarea').value = cur ? cur + '\n' + adds : adds;
+  appendPlayersToTable(parsed);
   document.getElementById('ocr-result-section').style.display = 'none';
   document.getElementById('ocr-status-msg').textContent = `✓ ${parsed.length} 名を取り込みました。`;
+}
+
+// =====================================================
+// 選手テーブルUI
+// =====================================================
+function addRosterPlayerRow(num = '', name = '') {
+  const table = document.getElementById('roster-players-table');
+  const row = document.createElement('div');
+  row.className = 'roster-player-row';
+  row.innerHTML = `
+    <input type="number" class="roster-num-input" placeholder="番" min="0" max="99" value="${esc(String(num))}">
+    <input type="text"   class="roster-name-input" placeholder="名前" value="${esc(String(name))}">
+    <button class="roster-row-del" onclick="this.parentElement.remove()" title="削除">×</button>`;
+  table.appendChild(row);
+  // 最後の行の名前フィールドにフォーカス
+  if (!num && !name) row.querySelector('.roster-num-input').focus();
+}
+
+function renderPlayersTable(players) {
+  const table = document.getElementById('roster-players-table');
+  table.innerHTML = '';
+  (players || []).forEach(p => addRosterPlayerRow(p.num, p.name));
+}
+
+function getPlayersFromTable() {
+  const rows = document.querySelectorAll('#roster-players-table .roster-player-row');
+  const players = [];
+  const seen = new Set();
+  rows.forEach(row => {
+    const num  = row.querySelector('.roster-num-input').value.trim();
+    const name = row.querySelector('.roster-name-input').value.trim();
+    if (num && name && !seen.has(num)) {
+      players.push({ num, name });
+      seen.add(num);
+    }
+  });
+  return players;
+}
+
+function appendPlayersToTable(players) {
+  const existing = new Set(getPlayersFromTable().map(p => p.num));
+  (players || []).forEach(p => {
+    if (!existing.has(p.num)) addRosterPlayerRow(p.num, p.name);
+  });
 }
 
 async function checkGeminiModels() {
