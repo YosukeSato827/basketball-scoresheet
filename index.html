@@ -158,7 +158,11 @@ body {
   display: block; margin-bottom: 10px;
 }
 .detail-header-top {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+/* サブ行（スマホ専用）はデフォルト非表示 */
+.detail-header-sub {
+  display: none;
 }
 .detail-meta { font-size: 12px; color: rgba(255,255,255,.75); margin-top: 8px; }
 
@@ -553,9 +557,16 @@ td.qot span { color: #6a1b9a; }
   .app-header { padding: 0 14px; height: 50px; }
 
   /* 大会詳細ヘッダー */
-  .detail-header { padding: 10px 14px 12px; }
+  .detail-header { padding: 10px 14px 10px; }
   .detail-title { font-size: 17px; margin-bottom: 8px; }
-  .detail-header-top { gap: 8px; }
+  /* PC用のサブボタン群を非表示にしてスマホ用サブ行を表示 */
+  .detail-header-top .btn-hdr:not(:first-child):not(:last-child) { display: none; }
+  .detail-header-top .btn-hdr-primary { font-size: 12px; padding: 6px 12px; }
+  .detail-header-sub {
+    display: flex; gap: 6px; margin-top: 8px;
+    overflow-x: auto; padding-bottom: 2px;
+  }
+  .detail-header-sub .btn-hdr { font-size: 11px; padding: 5px 10px; white-space: nowrap; flex-shrink: 0; }
 
   /* タブバー */
   .tab-bar { padding: 0 8px; }
@@ -639,9 +650,12 @@ body.mobile-preview-mode #app-frame {
 /* スマホプレビュー時はメディアクエリを強制適用 */
 body.mobile-preview-mode .page-body { padding: 14px 12px; }
 body.mobile-preview-mode .app-header { padding: 0 14px; height: 50px; }
-body.mobile-preview-mode .detail-header { padding: 10px 14px 12px; }
+body.mobile-preview-mode .detail-header { padding: 10px 14px 10px; }
 body.mobile-preview-mode .detail-title { font-size: 17px; margin-bottom: 8px; }
-body.mobile-preview-mode .detail-header-top { gap: 8px; }
+body.mobile-preview-mode .detail-header-top .btn-hdr:not(:first-child):not(:last-child) { display: none; }
+body.mobile-preview-mode .detail-header-top .btn-hdr-primary { font-size: 12px; padding: 6px 12px; }
+body.mobile-preview-mode .detail-header-sub { display: flex; gap: 6px; margin-top: 8px; overflow-x: auto; padding-bottom: 2px; }
+body.mobile-preview-mode .detail-header-sub .btn-hdr { font-size: 11px; padding: 5px 10px; white-space: nowrap; flex-shrink: 0; }
 body.mobile-preview-mode .tab-bar { padding: 0 8px; }
 body.mobile-preview-mode .tab-btn { padding: 10px 16px; font-size: 12px; }
 body.mobile-preview-mode .game-card { padding: 10px 12px; gap: 10px; }
@@ -1563,6 +1577,12 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <button class="btn-hdr" onclick="copyTournamentViewUrl()">🔗 閲覧URL</button>
       <button class="btn-hdr" onclick="openTournamentModal(currentTournamentId)">編集</button>
       <button class="btn-hdr-primary" onclick="newGame()">+ 試合を追加</button>
+    </div>
+    <div class="detail-header-sub">
+      <button class="btn-hdr" onclick="openRosterView()">👥 ロスター</button>
+      <button class="btn-hdr" onclick="copyRegisterUrl()">📋 登録URL</button>
+      <button class="btn-hdr" onclick="copyTournamentViewUrl()">🔗 閲覧URL</button>
+      <button class="btn-hdr" onclick="openTournamentModal(currentTournamentId)">編集</button>
     </div>
     <div class="detail-meta" id="detail-meta"></div>
   </div>
