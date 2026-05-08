@@ -3402,7 +3402,16 @@ async function deleteRosterTeam() {
 // OCR（Gemini Vision API）
 // =====================================================
 const GEMINI_API_KEY_STORAGE = 'gemini_api_key';
-const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent';
+// 試行するモデル候補（上から順に試す）
+const GEMINI_MODELS = [
+  'gemini-2.5-flash-preview-05-20',
+  'gemini-2.5-flash-preview-04-17',
+  'gemini-2.5-pro-preview-05-06',
+  'gemini-2.0-flash-lite',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+];
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
 
 function getGeminiApiKey() {
   return localStorage.getItem(GEMINI_API_KEY_STORAGE) || '';
@@ -3506,7 +3515,7 @@ async function handleOCRFile(input) {
     progressLbl.textContent = '画像を変換中...';
     const base64Image = await fileToBase64Gemini(file);
 
-    // Gemini API呼び出し
+    // Gemini API呼び出し（使えるモデルを自動検出）
     progressBar.style.width = '60%';
     progressLbl.textContent = 'AIが読み取り中...';
 
@@ -3521,29 +3530,41 @@ async function handleOCRFile(input) {
 10 佐藤一郎
 背番号が数字1〜99の範囲であること、名前は日本語であることを確認してください。`;
 
-    const response = await fetch(`${GEMINI_ENDPOINT}?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: prompt },
-            { inline_data: { mime_type: 'image/jpeg', data: base64Image } }
-          ]
-        }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 512 }
-      })
+    const requestBody = JSON.stringify({
+      contents: [{
+        parts: [
+          { text: prompt },
+          { inline_data: { mime_type: 'image/jpeg', data: base64Image } }
+        ]
+      }],
+      generationConfig: { temperature: 0.1, maxOutputTokens: 512 }
     });
+
+    let response = null;
+    let lastError = '';
+    for (const model of GEMINI_MODELS) {
+      progressLbl.textContent = `AIが読み取り中... (${model})`;
+      const url = `${GEMINI_BASE}${model}:generateContent?key=${apiKey}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: requestBody
+      });
+      if (res.ok) { response = res; break; }
+      const err = await res.json().catch(() => ({}));
+      const msg = (err?.error?.message || '').toLowerCase();
+      // モデルが存在しない・新規ユーザー不可 → 次のモデルを試す
+      if (res.status === 404 || msg.includes('no longer available') || msg.includes('not found')) {
+        lastError = `[${res.status}] ${err?.error?.message || ''}`;
+        continue;
+      }
+      // その他のエラーは即中断
+      throw new Error(`[${res.status}] ${err?.error?.message || 'APIエラー'}`);
+    }
+    if (!response) throw new Error('利用可能なモデルが見つかりませんでした。' + lastError);
 
     progressBar.style.width = '90%';
     progressLbl.textContent = '解析完了。データを処理中...';
-
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      const msg = err?.error?.message || `HTTPエラー ${response.status}`;
-      const code = err?.error?.code || response.status;
-      throw new Error(`[${code}] ${msg}`);
-    }
 
     const data = await response.json();
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
