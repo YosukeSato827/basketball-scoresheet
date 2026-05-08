@@ -3619,14 +3619,17 @@ async function handleOCRFile(input) {
 
     // テキストをパース
     const parsed = parseOCRRoster(text);
-    if (parsed.length > 0) {
+    const hasNames = parsed.some(p => p.name && p.name.trim().length > 0);
+    if (parsed.length > 0 && hasNames) {
       appendPlayersToTable(parsed);
       statusMsg.textContent = `✓ ${parsed.length} 名を自動取り込みしました。内容を確認してください。`;
     } else {
-      // パース失敗時は生テキストを表示して手動修正
+      // 名前が取れなかった or パース失敗 → 生テキストを表示
       document.getElementById('ocr-text-raw').value = text;
       resultSec.style.display = '';
-      statusMsg.textContent   = '⚠ 自動解析できませんでした。下のテキストを「番号 名前」形式に修正して取り込んでください。';
+      statusMsg.textContent = parsed.length > 0
+        ? '⚠ 番号は読み取れましたが名前が取得できませんでした。下のAI出力を確認してください。'
+        : '⚠ 自動解析できませんでした。下のテキストを「番号 名前」形式に修正して取り込んでください。';
       resultSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
@@ -3662,13 +3665,31 @@ function addRosterPlayerRow(num = '', name = '') {
   const table = document.getElementById('roster-players-table');
   const row = document.createElement('div');
   row.className = 'roster-player-row';
-  row.innerHTML = `
-    <input type="number" class="roster-num-input" placeholder="番" min="0" max="99" value="${esc(String(num))}">
-    <input type="text"   class="roster-name-input" placeholder="名前" value="${esc(String(name))}">
-    <button class="roster-row-del" onclick="this.parentElement.remove()" title="削除">×</button>`;
+
+  const numInput = document.createElement('input');
+  numInput.type = 'number';
+  numInput.className = 'roster-num-input';
+  numInput.placeholder = '番';
+  numInput.min = '0'; numInput.max = '99';
+  numInput.value = String(num);
+
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.className = 'roster-name-input';
+  nameInput.placeholder = '名前';
+  nameInput.value = String(name);
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'roster-row-del';
+  delBtn.title = '削除';
+  delBtn.textContent = '×';
+  delBtn.onclick = () => row.remove();
+
+  row.appendChild(numInput);
+  row.appendChild(nameInput);
+  row.appendChild(delBtn);
   table.appendChild(row);
-  // 最後の行の名前フィールドにフォーカス
-  if (!num && !name) row.querySelector('.roster-num-input').focus();
+  if (!num && !name) numInput.focus();
 }
 
 function renderPlayersTable(players) {
