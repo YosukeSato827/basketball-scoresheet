@@ -3921,9 +3921,9 @@ function renderViewerScoresheet(data) {
 // =====================================================
 function initApp() {
   // Gemini APIキーのデフォルト設定（古いキーを含め強制更新）
-  const _defaultKey = 'AIzaSyCxxCkRqtwNHw4kze5bi7wgp4_kB9O2bZs';
+  const _defaultKey = 'AIzaSyDNQJ6TjDd--DOOGl7c_Tel7C8eq1bkKcc';
   const _storedKey  = localStorage.getItem(GEMINI_API_KEY_STORAGE) || '';
-  const _oldKeys = ['AIzaSyCWfaAcLZMqHt2bGpz9bT23PhLFukVSQjE'];
+  const _oldKeys = ['AIzaSyCWfaAcLZMqHt2bGpz9bT23PhLFukVSQjE','AIzaSyCxxCkRqtwNHw4kze5bi7wgp4_kB9O2bZs'];
   if (!_storedKey || _oldKeys.includes(_storedKey)) {
     localStorage.setItem(GEMINI_API_KEY_STORAGE, _defaultKey);
   }
