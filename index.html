@@ -1127,6 +1127,47 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   transition: border-color .15s, color .15s;
 }
 .roster-add-player-btn:hover { border-color: var(--blue); color: var(--blue); }
+
+/* ユニフォームカラー */
+.uniform-row {
+  display: grid;
+  grid-template-columns: 38px 1fr 1fr 32px;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.uniform-preview {
+  width: 38px; height: 38px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 17px;
+  border: 1px solid rgba(0,0,0,.12);
+  flex-shrink: 0;
+  transition: background .1s, color .1s;
+}
+.uniform-color-group {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+.uniform-color-label {
+  font-size: 10px; color: var(--text-light); line-height: 1;
+}
+.uniform-color-input {
+  width: 100%; height: 32px;
+  border: 1.5px solid var(--border); border-radius: 6px;
+  padding: 2px; cursor: pointer; background: none;
+}
+.uniform-swatch {
+  display: inline-block;
+  width: 16px; height: 16px;
+  border-radius: 4px;
+  border: 1px solid rgba(0,0,0,.15);
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+.uniform-swatches {
+  display: flex; gap: 4px; align-items: center; margin-top: 3px;
+}
+
 .roster-table-header {
   display: grid;
   grid-template-columns: 58px 1fr 32px;
@@ -1556,6 +1597,12 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
         <div class="roster-players-table" id="reg-players-table"></div>
         <button class="roster-add-player-btn" onclick="addRegPlayerRow()">＋ 選手を追加</button>
       </div>
+      <!-- ユニフォームカラー -->
+      <div class="form-group">
+        <label>ユニフォームカラー <span style="font-size:11px;color:#999;font-weight:400">（最大3色）</span></label>
+        <div id="reg-uniforms-list"></div>
+        <button class="roster-add-player-btn" id="reg-uniform-add-btn" onclick="addUniformRow('reg')">＋ カラーを追加</button>
+      </div>
       <!-- OCRセクション -->
       <div class="ocr-section">
         <div class="ocr-section-title">📷 写真から読み込み（AI認識）</div>
@@ -1807,6 +1854,12 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       </div>
       <div class="roster-players-table" id="roster-players-table"></div>
       <button class="roster-add-player-btn" onclick="addRosterPlayerRow()">＋ 選手を追加</button>
+    </div>
+    <!-- ユニフォームカラー -->
+    <div class="form-group">
+      <label>ユニフォームカラー <span style="font-size:11px;color:#999;font-weight:400">（最大3色）</span></label>
+      <div id="roster-uniforms-list"></div>
+      <button class="roster-add-player-btn" id="roster-uniform-add-btn" onclick="addUniformRow('roster')">＋ カラーを追加</button>
     </div>
     <!-- OCRセクション -->
     <div class="ocr-section">
@@ -3525,6 +3578,7 @@ async function loadAndRenderRosterTeams() {
         <div class="roster-team-info">
           <div class="roster-team-name">${esc(t.teamName)}</div>
           <div class="roster-team-count">${(t.players || []).length} 名登録</div>
+          ${uniformSwatchesHtml(t.uniforms)}
         </div>
         <button class="roster-team-edit-btn" onclick="openTeamEditorModal('${t.id}')">編集</button>
       </div>`).join('');
@@ -3548,12 +3602,14 @@ function openTeamEditorModal(teamId) {
       const d = doc.data();
       document.getElementById('roster-team-name-input').value = d.teamName || '';
       renderPlayersTable(d.players || []);
+      renderUniformsTo('roster', d.uniforms || []);
     });
   } else {
     document.getElementById('roster-modal-title').textContent  = 'チームを登録';
     document.getElementById('roster-delete-btn').style.display = 'none';
     document.getElementById('roster-team-name-input').value    = '';
     renderPlayersTable([]);
+    renderUniformsTo('roster', []);
   }
   document.getElementById('modal-roster-team').classList.add('show');
 }
@@ -3566,9 +3622,10 @@ function closeTeamEditorModal(event) {
 async function saveTeamEditorModal() {
   const teamName = document.getElementById('roster-team-name-input').value.trim();
   if (!teamName) { showToast('チーム名を入力してください'); return; }
-  const players = getPlayersFromTable();
+  const players  = getPlayersFromTable();
+  const uniforms = getUniformsFrom('roster');
   const now = new Date().toISOString();
-  const data = { tournamentId: rosterTournamentId, teamName, players, updatedAt: now };
+  const data = { tournamentId: rosterTournamentId, teamName, players, uniforms, updatedAt: now };
   try {
     if (editingRosterTeamId) {
       await db.collection('roster_teams').doc(editingRosterTeamId).update(data);
@@ -3734,6 +3791,7 @@ async function editMyRegTeam(teamId, editToken) {
     regEditingToken  = editToken;
     document.getElementById('reg-team-name').value = d.teamName || '';
     renderRegPlayersTable(d.players || []);
+    renderUniformsTo('reg', d.uniforms || []);
     setRegFormMode('edit');
     document.getElementById('reg-form-card').scrollIntoView({ behavior: 'smooth' });
   } catch(e) { showToast('エラー: ' + e.message); }
@@ -3749,6 +3807,7 @@ function setRegFormMode(mode) {
     regEditingToken  = null;
     document.getElementById('reg-team-name').value = '';
     renderRegPlayersTable([]);
+    renderUniformsTo('reg', []);
   }
 }
 
@@ -3759,7 +3818,8 @@ async function submitTeamRegistration() {
   }
   const teamName = document.getElementById('reg-team-name').value.trim();
   if (!teamName) { showToast('チーム名を入力してください'); return; }
-  const players = getRegPlayersFromTable();
+  const players  = getRegPlayersFromTable();
+  const uniforms = getUniformsFrom('reg');
   const btn = document.getElementById('reg-submit-btn');
   const isEditing = !!regEditingTeamId;
   btn.disabled = true;
@@ -3767,7 +3827,7 @@ async function submitTeamRegistration() {
   try {
     if (isEditing) {
       await db.collection('roster_teams').doc(regEditingTeamId).update({
-        teamName, players, updatedAt: new Date().toISOString()
+        teamName, players, uniforms, updatedAt: new Date().toISOString()
       });
       const arr = getMyRegTeams(regTournamentId);
       const idx = arr.findIndex(t => t.teamId === regEditingTeamId);
@@ -3777,7 +3837,7 @@ async function submitTeamRegistration() {
     } else {
       const editToken = generateToken();
       const ref = await db.collection('roster_teams').add({
-        tournamentId: regTournamentId, teamName, players, editToken,
+        tournamentId: regTournamentId, teamName, players, uniforms, editToken,
         createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
       });
       const arr = getMyRegTeams(regTournamentId);
@@ -3818,6 +3878,108 @@ function renderRegPlayersTable(players) {
 }
 function getRegPlayersFromTable() { return _getPlayersFrom('reg-players-table'); }
 function appendPlayersToRegTable(players) { _appendPlayersTo('reg-players-table', players); }
+
+// =====================================================
+// ユニフォームカラー共通ヘルパー
+// =====================================================
+function addUniformRow(target, bg = '#1565c0', text = '#ffffff') {
+  const list = document.getElementById(`${target}-uniforms-list`);
+  if (!list) return;
+  if (list.querySelectorAll('.uniform-row').length >= 3) return;
+
+  const row = document.createElement('div');
+  row.className = 'uniform-row';
+
+  // プレビュー
+  const preview = document.createElement('div');
+  preview.className = 'uniform-preview';
+  preview.textContent = 'A';
+  preview.style.background = bg;
+  preview.style.color = text;
+
+  // 背景色グループ
+  const bgGroup = document.createElement('div');
+  bgGroup.className = 'uniform-color-group';
+  const bgLabel = document.createElement('span');
+  bgLabel.className = 'uniform-color-label';
+  bgLabel.textContent = '背景色';
+  const bgInput = document.createElement('input');
+  bgInput.type = 'color';
+  bgInput.className = 'uniform-color-input';
+  bgInput.value = bg;
+  bgGroup.appendChild(bgLabel);
+  bgGroup.appendChild(bgInput);
+
+  // 文字色グループ
+  const textGroup = document.createElement('div');
+  textGroup.className = 'uniform-color-group';
+  const textLabel = document.createElement('span');
+  textLabel.className = 'uniform-color-label';
+  textLabel.textContent = '文字色';
+  const textInput = document.createElement('input');
+  textInput.type = 'color';
+  textInput.className = 'uniform-color-input';
+  textInput.value = text;
+  textGroup.appendChild(textLabel);
+  textGroup.appendChild(textInput);
+
+  // プレビューをリアルタイム更新
+  const updatePreview = () => {
+    preview.style.background = bgInput.value;
+    preview.style.color = textInput.value;
+  };
+  bgInput.addEventListener('input', updatePreview);
+  textInput.addEventListener('input', updatePreview);
+
+  // 削除ボタン
+  const delBtn = document.createElement('button');
+  delBtn.className = 'roster-row-del';
+  delBtn.title = '削除';
+  delBtn.textContent = '×';
+  delBtn.onclick = () => { row.remove(); _updateUniformAddBtn(target); };
+
+  row.appendChild(preview);
+  row.appendChild(bgGroup);
+  row.appendChild(textGroup);
+  row.appendChild(delBtn);
+  list.appendChild(row);
+  _updateUniformAddBtn(target);
+}
+
+function _updateUniformAddBtn(target) {
+  const list = document.getElementById(`${target}-uniforms-list`);
+  const btn  = document.getElementById(`${target}-uniform-add-btn`);
+  if (!list || !btn) return;
+  btn.style.display = list.querySelectorAll('.uniform-row').length >= 3 ? 'none' : '';
+}
+
+function getUniformsFrom(target) {
+  const list = document.getElementById(`${target}-uniforms-list`);
+  if (!list) return [];
+  const uniforms = [];
+  list.querySelectorAll('.uniform-row').forEach(row => {
+    const inputs = row.querySelectorAll('input[type="color"]');
+    if (inputs.length === 2) uniforms.push({ bg: inputs[0].value, text: inputs[1].value });
+  });
+  return uniforms;
+}
+
+function renderUniformsTo(target, uniforms) {
+  const list = document.getElementById(`${target}-uniforms-list`);
+  if (!list) return;
+  list.innerHTML = '';
+  (uniforms || []).forEach(u => addUniformRow(target, u.bg, u.text));
+  _updateUniformAddBtn(target);
+}
+
+// ユニフォームスウォッチHTML生成（チームカード表示用）
+function uniformSwatchesHtml(uniforms) {
+  if (!uniforms || uniforms.length === 0) return '';
+  const swatches = uniforms.map(u =>
+    `<span class="uniform-swatch" style="background:${esc(u.bg)};color:${esc(u.text)}" title="背景:${esc(u.bg)} 文字:${esc(u.text)}"></span>`
+  ).join('');
+  return `<div class="uniform-swatches">${swatches}</div>`;
+}
 
 // 共通ヘルパー（roster & reg 両方で使う）
 function _addPlayerRowTo(tableId, num = '', name = '') {
