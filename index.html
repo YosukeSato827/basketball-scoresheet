@@ -1633,6 +1633,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       </div>
       <input type="file" id="ocr-file-input" accept="image/*" style="display:none" onchange="handleOCRFile(this)">
       <button class="ocr-upload-btn" onclick="startOCRUpload()">📷 写真を選択 / カメラで撮影</button>
+      <button class="ocr-apikey-btn" style="width:100%;margin-top:6px" onclick="checkGeminiModels()">🔍 使用可能モデルを確認（デバッグ）</button>
       <div class="ocr-progress-wrap" id="ocr-progress-wrap">
         <div class="ocr-progress-label" id="ocr-progress-label">読み取り中...</div>
         <div class="ocr-progress-track"><div class="ocr-progress-bar" id="ocr-progress-bar"></div></div>
@@ -3615,6 +3616,25 @@ function importOCRResult() {
   document.getElementById('roster-players-textarea').value = cur ? cur + '\n' + adds : adds;
   document.getElementById('ocr-result-section').style.display = 'none';
   document.getElementById('ocr-status-msg').textContent = `✓ ${parsed.length} 名を取り込みました。`;
+}
+
+async function checkGeminiModels() {
+  const key = getGeminiApiKey();
+  if (!key) { alert('APIキーが設定されていません'); return; }
+  const statusMsg = document.getElementById('ocr-status-msg');
+  statusMsg.textContent = 'モデル一覧を取得中...';
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}&pageSize=50`);
+    const data = await res.json();
+    if (!res.ok) { statusMsg.textContent = '⚠ エラー: ' + (data?.error?.message || res.status); return; }
+    const models = (data.models || [])
+      .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
+      .map(m => m.name.replace('models/', ''));
+    statusMsg.textContent = '利用可能モデル: ' + (models.length ? models.join(', ') : 'なし');
+    alert('generateContent対応モデル:\n\n' + models.join('\n'));
+  } catch(e) {
+    statusMsg.textContent = '⚠ ' + e.message;
+  }
 }
 
 function parseOCRRoster(text) {
