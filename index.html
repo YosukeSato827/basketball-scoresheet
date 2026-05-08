@@ -1052,6 +1052,102 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 .roster-load-btn:active { background: var(--blue-dim); }
 
 /* =====================================================
+   試合セットアップモーダル
+   ===================================================== */
+.setup-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.55);
+  display: flex; align-items: flex-start; justify-content: center;
+  z-index: 300; overflow-y: auto; padding: 16px 8px 32px;
+}
+.setup-overlay.hidden { display: none; }
+.setup-sheet {
+  background: white; border-radius: var(--radius);
+  width: 100%; max-width: 520px;
+  padding: 20px 16px 16px; box-shadow: 0 8px 40px rgba(0,0,0,.25);
+}
+.setup-title {
+  font-size: 18px; font-weight: 700; color: var(--text);
+  margin-bottom: 18px; text-align: center;
+}
+.setup-team-section { margin-bottom: 16px; }
+.setup-team-label {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 700; color: var(--text-mid);
+  margin-bottom: 8px;
+}
+.setup-badge {
+  width: 24px; height: 24px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 900; color: white; flex-shrink: 0;
+}
+.setup-badge-a { background: var(--blue); }
+.setup-badge-b { background: #e53935; }
+.setup-selected-name {
+  flex: 1; font-size: 13px; font-weight: 700; color: var(--blue);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.setup-team-cards {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+}
+.setup-team-card {
+  background: white; border: 2px solid var(--border);
+  border-radius: var(--radius); padding: 12px 10px;
+  text-align: left; cursor: pointer; transition: all .12s;
+}
+.setup-team-card:hover { border-color: #90CAF9; background: #f5f9ff; }
+.setup-team-card.selected-a { border-color: var(--blue); background: var(--blue-dim); }
+.setup-team-card.selected-b { border-color: #e53935; background: #fff5f5; }
+.setup-card-name { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 3px; word-break: break-all; }
+.setup-card-count { font-size: 11px; color: var(--text-mid); }
+.setup-manual-row {
+  display: flex; gap: 6px; margin-top: 8px; align-items: center;
+}
+.setup-manual-input {
+  flex: 1; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  padding: 8px 10px; font-size: 14px;
+}
+.setup-manual-input:focus { outline: none; border-color: var(--blue); }
+.setup-manual-btn {
+  background: none; border: 1.5px dashed var(--border);
+  border-radius: var(--radius-sm); padding: 8px 12px;
+  font-size: 12px; color: var(--text-mid); cursor: pointer;
+  white-space: nowrap;
+}
+.setup-manual-btn:hover { border-color: var(--blue); color: var(--blue); }
+.setup-divider { height: 1px; background: var(--border); margin: 14px 0; }
+.setup-meta-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px;
+}
+.setup-meta-grid input {
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  padding: 8px 8px; font-size: 13px; width: 100%; box-sizing: border-box;
+}
+.setup-meta-grid input:focus { outline: none; border-color: var(--blue); }
+.setup-actions { display: flex; flex-direction: column; gap: 8px; }
+.setup-btn-live {
+  width: 100%; padding: 13px; background: #e53935; color: white;
+  border: none; border-radius: var(--radius); font-size: 15px;
+  font-weight: 700; cursor: pointer;
+}
+.setup-btn-live:hover { background: #c62828; }
+.setup-btn-editor {
+  width: 100%; padding: 11px; background: var(--blue); color: white;
+  border: none; border-radius: var(--radius); font-size: 14px;
+  font-weight: 700; cursor: pointer;
+}
+.setup-btn-editor:hover { background: var(--blue-dark); }
+.setup-btn-cancel {
+  width: 100%; padding: 10px; background: none; color: var(--text-mid);
+  border: 1.5px solid var(--border); border-radius: var(--radius);
+  font-size: 13px; cursor: pointer;
+}
+.setup-no-roster {
+  grid-column: 1 / -1; text-align: center; padding: 14px;
+  color: var(--text-light); font-size: 13px;
+  border: 1.5px dashed var(--border); border-radius: var(--radius);
+}
+
+/* =====================================================
    チーム登録ページ（公開URL用）
    ===================================================== */
 #view-register { min-height: 100vh; background: var(--bg); }
@@ -1942,6 +2038,58 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   </div>
 </div>
 
+<!-- =====================================================
+     試合セットアップモーダル
+     ===================================================== -->
+<div class="setup-overlay hidden" id="modal-game-setup" onclick="closeGameSetupModal(event)">
+  <div class="setup-sheet" onclick="event.stopPropagation()">
+    <div class="setup-title">⚙️ 試合セットアップ</div>
+
+    <!-- チームA -->
+    <div class="setup-team-section">
+      <div class="setup-team-label">
+        <span class="setup-badge setup-badge-a">A</span>
+        チームA
+        <span class="setup-selected-name" id="setup-a-selected">（未選択）</span>
+      </div>
+      <div class="setup-team-cards" id="setup-cards-a"></div>
+      <div class="setup-manual-row" id="setup-manual-row-a" style="display:none">
+        <input class="setup-manual-input" id="setup-manual-input-a" placeholder="チームA 名前を入力">
+      </div>
+      <button class="setup-manual-btn" onclick="toggleManualInput('a')">✏️ 手入力する</button>
+    </div>
+
+    <!-- チームB -->
+    <div class="setup-team-section">
+      <div class="setup-team-label">
+        <span class="setup-badge setup-badge-b">B</span>
+        チームB
+        <span class="setup-selected-name" id="setup-b-selected">（未選択）</span>
+      </div>
+      <div class="setup-team-cards" id="setup-cards-b"></div>
+      <div class="setup-manual-row" id="setup-manual-row-b" style="display:none">
+        <input class="setup-manual-input" id="setup-manual-input-b" placeholder="チームB 名前を入力">
+      </div>
+      <button class="setup-manual-btn" onclick="toggleManualInput('b')">✏️ 手入力する</button>
+    </div>
+
+    <div class="setup-divider"></div>
+
+    <!-- 試合情報 -->
+    <div class="setup-meta-grid">
+      <input id="setup-game-no" placeholder="試合番号">
+      <input id="setup-date"    placeholder="日付">
+      <input id="setup-venue"   placeholder="会場">
+    </div>
+
+    <div class="setup-actions">
+      <button class="setup-btn-live"   onclick="confirmGameSetup('recorder')">🎙 ライブ記録を開始</button>
+      <button class="setup-btn-editor" onclick="confirmGameSetup('editor')">📝 エディタで開く</button>
+      <button class="setup-btn-cancel" onclick="closeGameSetupModal()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
 <!-- スマホプレビュー切り替えボタン -->
 <button class="preview-toggle-btn" id="preview-toggle-btn" onclick="toggleMobilePreview()" title="スマホ表示を確認">
   <span id="preview-btn-icon">📱</span>
@@ -2470,20 +2618,143 @@ async function deleteTournament(id) {
 }
 
 // =====================================================
+// 試合セットアップモーダル
+// =====================================================
+let setupTeamA = null;  // { teamId, teamName, players, uniforms }
+let setupTeamB = null;
+
+async function openGameSetupModal() {
+  setupTeamA = null;
+  setupTeamB = null;
+  // フォームリセット
+  ['setup-game-no','setup-date','setup-venue'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('setup-a-selected').textContent = '（未選択）';
+  document.getElementById('setup-b-selected').textContent = '（未選択）';
+  document.getElementById('setup-manual-row-a').style.display = 'none';
+  document.getElementById('setup-manual-row-b').style.display = 'none';
+  document.getElementById('setup-manual-input-a').value = '';
+  document.getElementById('setup-manual-input-b').value = '';
+  document.getElementById('modal-game-setup').classList.remove('hidden');
+  await loadSetupTeamCards();
+}
+
+async function loadSetupTeamCards() {
+  const cardsA = document.getElementById('setup-cards-a');
+  const cardsB = document.getElementById('setup-cards-b');
+  const loading = '<div class="setup-no-roster">読み込み中...</div>';
+  cardsA.innerHTML = loading;
+  cardsB.innerHTML = loading;
+  try {
+    const snap = await db.collection('roster_teams')
+      .where('tournamentId', '==', currentTournamentId).get();
+    const teams = snap.docs.map(d => ({ teamId: d.id, ...d.data() }));
+    if (teams.length === 0) {
+      const msg = '<div class="setup-no-roster">登録チームなし<br><small>手入力でご入力ください</small></div>';
+      cardsA.innerHTML = msg;
+      cardsB.innerHTML = msg;
+      return;
+    }
+    const makeCard = (t, slot) => {
+      const swatches = (t.uniforms || []).map(u =>
+        `<span class="uniform-swatch" style="background:${esc(u.bg)}"></span>`).join('');
+      const swatchHtml = swatches ? `<div class="uniform-swatches" style="margin-top:5px">${swatches}</div>` : '';
+      return `<button class="setup-team-card" id="setup-card-${slot}-${t.teamId}"
+        onclick="selectSetupTeam('${slot}','${t.teamId}',${JSON.stringify(t).replace(/"/g,'&quot;')})">
+        <div class="setup-card-name">${esc(t.teamName)}</div>
+        <div class="setup-card-count">${(t.players||[]).length}名</div>
+        ${swatchHtml}
+      </button>`;
+    };
+    cardsA.innerHTML = teams.map(t => makeCard(t,'a')).join('');
+    cardsB.innerHTML = teams.map(t => makeCard(t,'b')).join('');
+  } catch(e) {
+    const err = `<div class="setup-no-roster">エラー: ${esc(e.message)}</div>`;
+    cardsA.innerHTML = err;
+    cardsB.innerHTML = err;
+  }
+}
+
+function selectSetupTeam(slot, teamId, teamData) {
+  const isA = slot === 'a';
+  if (isA) setupTeamA = teamData; else setupTeamB = teamData;
+  // カードのハイライト更新
+  document.querySelectorAll(`#setup-cards-${slot} .setup-team-card`).forEach(btn => {
+    btn.classList.remove('selected-a','selected-b');
+  });
+  const card = document.getElementById(`setup-card-${slot}-${teamId}`);
+  if (card) card.classList.add(isA ? 'selected-a' : 'selected-b');
+  // 選択名表示更新
+  document.getElementById(`setup-${slot}-selected`).textContent = teamData.teamName;
+  // 手入力欄を隠す
+  document.getElementById(`setup-manual-row-${slot}`).style.display = 'none';
+}
+
+function toggleManualInput(slot) {
+  const row = document.getElementById(`setup-manual-row-${slot}`);
+  const showing = row.style.display !== 'none';
+  row.style.display = showing ? 'none' : 'flex';
+  if (!showing) {
+    document.getElementById(`setup-manual-input-${slot}`).focus();
+    // カードの選択解除
+    document.querySelectorAll(`#setup-cards-${slot} .setup-team-card`).forEach(btn => {
+      btn.classList.remove('selected-a','selected-b');
+    });
+    if (slot === 'a') setupTeamA = null; else setupTeamB = null;
+    document.getElementById(`setup-${slot}-selected`).textContent = '（手入力）';
+  }
+}
+
+function closeGameSetupModal(event) {
+  if (event && event.target !== document.getElementById('modal-game-setup')) return;
+  document.getElementById('modal-game-setup').classList.add('hidden');
+}
+
+function confirmGameSetup(mode) {
+  // チームA確定
+  const manualA = document.getElementById('setup-manual-input-a').value.trim();
+  const manualB = document.getElementById('setup-manual-input-b').value.trim();
+  const teamAData = setupTeamA || (manualA ? { teamName: manualA, players: [], uniforms: [] } : null);
+  const teamBData = setupTeamB || (manualB ? { teamName: manualB, players: [], uniforms: [] } : null);
+  if (!teamAData && !teamBData) {
+    showToast('チームAまたはチームBを選択してください');
+    return;
+  }
+  const gameNo = document.getElementById('setup-game-no').value.trim();
+  const date   = document.getElementById('setup-date').value.trim();
+  const venue  = document.getElementById('setup-venue').value.trim();
+  document.getElementById('modal-game-setup').classList.add('hidden');
+
+  // エディタに反映
+  currentGameId = null;
+  document.getElementById('teamAName').value  = teamAData?.teamName || '';
+  document.getElementById('teamBName').value  = teamBData?.teamName || '';
+  document.getElementById('gameNo').value     = gameNo;
+  document.getElementById('gameDate').value   = date;
+  document.getElementById('venue').value      = venue;
+  document.getElementById('playersA').value   = playersToText(teamAData?.players || []);
+  document.getElementById('playersB').value   = playersToText(teamBData?.players || []);
+  document.getElementById('pbpInput').value   = '';
+  document.getElementById('output').innerHTML = '';
+  updateToolbarTitle();
+
+  if (mode === 'recorder') {
+    // ライブ記録：先に保存してから起動
+    saveGame().then(() => {
+      // ユニフォーム情報をrecorderに渡す
+      recUniformsA = teamAData?.uniforms || [];
+      recUniformsB = teamBData?.uniforms || [];
+      openRecorder();
+    });
+  } else {
+    showView('editor');
+  }
+}
+
+// =====================================================
 // 試合 CRUD
 // =====================================================
 function newGame() {
-  currentGameId = null;
-  ['teamAName','teamBName','gameNo','gameDate','venue'].forEach(id => {
-    document.getElementById(id).value = '';
-  });
-  document.getElementById('pbpInput').value = '';
-  document.getElementById('playersA').value = '';
-  document.getElementById('playersB').value = '';
-  document.getElementById('output').innerHTML = '';
-  lastTotalA = 0; lastTotalB = 0;
-  updateToolbarTitle();
-  showView('editor');
+  openGameSetupModal();
 }
 
 async function openGame(id) {
@@ -2990,6 +3261,8 @@ let recCourtA       = [];   // コート上 チームA
 let recCourtB       = [];   // コート上 チームB
 let recTeamAName    = '';
 let recTeamBName    = '';
+let recUniformsA    = [];   // ユニフォームカラー チームA
+let recUniformsB    = [];   // ユニフォームカラー チームB
 let recTimer        = 600;
 let recTimerRunning = false;
 let recTimerIv      = null;
@@ -3003,6 +3276,9 @@ let recPBPEditTeam  = null;
 
 function openRecorder() {
   if (!currentGameId) { showToast('先に保存してください'); return; }
+  // セットアップモーダル経由でない場合はユニフォームをリセット
+  if (!recUniformsA) recUniformsA = [];
+  if (!recUniformsB) recUniformsB = [];
   recGameId    = currentGameId;
   recTeamAName = document.getElementById('teamAName').value || 'チームA';
   recTeamBName = document.getElementById('teamBName').value || 'チームB';
@@ -3017,11 +3293,18 @@ function openRecorder() {
   recTimer = 600;
 
   const gameNo = document.getElementById('gameNo').value;
-  document.getElementById('rec-title').textContent      = gameNo ? `Game ${gameNo}` : '記録中';
-  document.getElementById('rec-name-a').textContent     = recTeamAName;
-  document.getElementById('rec-name-b').textContent     = recTeamBName;
+  document.getElementById('rec-title').textContent       = gameNo ? `Game ${gameNo}` : '記録中';
   document.getElementById('rec-col-label-a').textContent = recTeamAName;
   document.getElementById('rec-col-label-b').textContent = recTeamBName;
+  // チーム名 ＋ ユニフォームスウォッチ表示
+  const makeRecTeamName = (name, uniforms) => {
+    const sw = (uniforms||[]).map(u =>
+      `<span class="uniform-swatch" style="background:${u.bg};width:14px;height:14px;border-radius:3px;display:inline-block;margin-left:4px;vertical-align:middle"></span>`
+    ).join('');
+    return `${esc(name)}${sw}`;
+  };
+  document.getElementById('rec-name-a').innerHTML = makeRecTeamName(recTeamAName, recUniformsA);
+  document.getElementById('rec-name-b').innerHTML = makeRecTeamName(recTeamBName, recUniformsB);
   document.getElementById('rec-status').textContent     = '';
 
   setRecorderQ(1);
