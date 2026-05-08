@@ -3405,12 +3405,10 @@ async function deleteRosterTeam() {
 const GEMINI_API_KEY_STORAGE = 'gemini_api_key';
 // 試行するモデル候補（上から順に試す）
 const GEMINI_MODELS = [
-  'gemini-2.5-flash-preview-05-20',
-  'gemini-2.5-flash-preview-04-17',
-  'gemini-2.5-pro-preview-05-06',
-  'gemini-2.0-flash-lite',
+  'gemini-2.5-flash',
   'gemini-2.0-flash',
-  'gemini-1.5-flash',
+  'gemini-2.0-flash-lite',
+  'gemini-flash-latest',
 ];
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
 
