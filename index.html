@@ -1038,42 +1038,54 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 .roster-load-btn:active { background: var(--blue-dim); }
 
 /* 選手テーブル入力 */
-.roster-players-table { display: flex; flex-direction: column; gap: 5px; margin-bottom: 6px; }
-.roster-player-row { display: flex; align-items: center; gap: 6px; }
+.roster-players-table { display: block; margin-bottom: 6px; }
+.roster-player-row {
+  display: grid;
+  grid-template-columns: 58px 1fr 32px;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 5px;
+}
 .roster-num-input {
-  width: 54px; flex-shrink: 0; text-align: center;
+  width: 100%; box-sizing: border-box;
+  text-align: center;
   border: 1.5px solid var(--border); border-radius: var(--radius-sm);
-  padding: 7px 4px; font-size: 14px; font-weight: 700;
+  padding: 8px 4px; font-size: 14px; font-weight: 700;
   background: var(--white); color: var(--text);
   -moz-appearance: textfield;
 }
 .roster-num-input::-webkit-outer-spin-button,
 .roster-num-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .roster-name-input {
-  flex: 1; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
-  padding: 7px 8px; font-size: 14px; background: var(--white); color: var(--text);
+  width: 100%; box-sizing: border-box;
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  padding: 8px 8px; font-size: 14px;
+  background: var(--white); color: var(--text);
 }
 .roster-num-input:focus, .roster-name-input:focus {
   outline: none; border-color: var(--blue);
 }
 .roster-row-del {
-  width: 28px; height: 28px; flex-shrink: 0;
+  width: 32px; height: 32px;
   background: none; border: none; color: var(--text-light);
-  font-size: 16px; cursor: pointer; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; cursor: pointer; border-radius: 50%;
   transition: background .15s, color .15s;
 }
-.roster-row-del:hover { background: #ffebee; color: #c62828; }
+.roster-row-del:hover, .roster-row-del:active { background: #ffebee; color: #c62828; }
 .roster-add-player-btn {
-  width: 100%; padding: 8px; background: var(--bg);
+  width: 100%; padding: 9px; background: var(--bg);
   border: 1.5px dashed var(--border); border-radius: var(--radius-sm);
   font-size: 13px; color: var(--text-mid); cursor: pointer;
   transition: border-color .15s, color .15s;
 }
 .roster-add-player-btn:hover { border-color: var(--blue); color: var(--blue); }
-.roster-table-header { display: flex; gap: 6px; padding: 0 0 2px 0; }
-.roster-th-num { width: 54px; flex-shrink: 0; font-size: 10px; font-weight: 700; color: var(--text-light); text-align: center; letter-spacing: .06em; }
-.roster-th-name { flex: 1; font-size: 10px; font-weight: 700; color: var(--text-light); letter-spacing: .06em; }
+.roster-table-header {
+  display: grid;
+  grid-template-columns: 58px 1fr 32px;
+  gap: 6px; padding: 0 0 4px 0;
+}
+.roster-th-num { font-size: 10px; font-weight: 700; color: var(--text-light); text-align: center; letter-spacing: .06em; }
+.roster-th-name { font-size: 10px; font-weight: 700; color: var(--text-light); letter-spacing: .06em; }
 
 /* OCRセクション */
 .ocr-section {
