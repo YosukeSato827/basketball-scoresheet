@@ -1785,6 +1785,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   <div class="roster-page-header">
     <button class="rec-back" onclick="backFromRoster()">← 戻る</button>
     <span class="roster-page-title" id="roster-page-title">ロスター管理</span>
+    <button class="roster-add-btn" onclick="loadAndRenderRosterTeams()" style="margin-right:4px;background:rgba(255,255,255,.12)">🔄</button>
     <button class="roster-add-btn" onclick="openTeamEditorModal(null)">+ チーム追加</button>
   </div>
   <div class="roster-list" id="roster-teams-list"></div>
@@ -1936,13 +1937,27 @@ async function loadTournaments() {
       cont.innerHTML = `<div class="empty-state">大会が登録されていません<br>「大会を登録」から追加してください</div>`;
       return;
     }
-    // 各大会の試合数を取得
+    // 各大会の試合数・チーム数を取得
     const cards = await Promise.all(snap.docs.map(async doc => {
       const d = doc.data();
-      const gSnap = await db.collection('games')
-        .where('tournamentId', '==', doc.id).get();
+      let gSnap, rSnap;
+      try {
+        [gSnap, rSnap] = await Promise.all([
+          db.collection('games').where('tournamentId', '==', doc.id).get(),
+          db.collection('roster_teams').where('tournamentId', '==', doc.id).get()
+        ]);
+      } catch(qErr) {
+        console.error('[DEBUG] loadTournaments query error for', doc.id, qErr);
+        // gamesだけ取得して継続
+        try { gSnap = await db.collection('games').where('tournamentId', '==', doc.id).get(); } catch(e2) { gSnap = { size: 0, docs: [] }; }
+        rSnap = { size: 0, docs: [] };
+      }
       const gameCount = gSnap.size;
+      const rosterCount = rSnap.size;
+      console.log('[DEBUG] tournament', doc.id, 'games:', gameCount, 'roster_teams:', rosterCount);
+      // ロスター登録チーム ＋ 試合に登場したチームを合算
       const teams = new Set();
+      rSnap.docs.forEach(r => { if (r.data().teamName) teams.add(r.data().teamName); });
       gSnap.docs.forEach(g => {
         if (g.data().teamAName) teams.add(g.data().teamAName);
         if (g.data().teamBName) teams.add(g.data().teamBName);
@@ -1958,6 +1973,7 @@ async function loadTournaments() {
               <span class="tc-badge">チーム数: ${teams.size}</span>
               ${d.note ? `<span class="tc-badge">${esc(d.note.slice(0,20))}</span>` : ''}
             </div>
+            <div style="font-size:10px;color:#aaa;margin-top:2px">ID:${doc.id} / roster:${rosterCount}</div>
           </div>
           <div class="tc-actions" onclick="event.stopPropagation()">
             <button class="btn-card btn-open" onclick="openTournament('${doc.id}')">開く</button>
@@ -3508,11 +3524,18 @@ async function loadAndRenderRosterTeams() {
   const container = document.getElementById('roster-teams-list');
   container.innerHTML = '<div class="loading-msg" style="padding:30px 0">読み込み中...</div>';
   try {
+    console.log('[DEBUG] loadAndRenderRosterTeams: rosterTournamentId =', rosterTournamentId);
     const snap = await db.collection('roster_teams')
       .where('tournamentId', '==', rosterTournamentId).get();
+    console.log('[DEBUG] roster_teams query result count:', snap.docs.length);
+    snap.docs.forEach(d => console.log('[DEBUG] doc:', d.id, JSON.stringify(d.data())));
     const teams = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     if (teams.length === 0) {
-      container.innerHTML = '<div class="roster-empty">チームが登録されていません<br><br>「+ チーム追加」からロスターを登録できます</div>';
+      // 全件取得して件数確認（デバッグ用）
+      const allSnap = await db.collection('roster_teams').limit(5).get();
+      console.log('[DEBUG] roster_teams total (first 5):', allSnap.docs.length);
+      allSnap.docs.forEach(d => console.log('[DEBUG] all doc:', d.id, JSON.stringify(d.data())));
+      container.innerHTML = `<div class="roster-empty">チームが登録されていません<br><br>「+ チーム追加」からロスターを登録できます<br><small style="color:#999;font-size:11px;margin-top:8px;display:block">大会ID: ${esc(rosterTournamentId || '(未設定)')}</small></div>`;
       return;
     }
     container.innerHTML = teams.map(t => `
@@ -3523,7 +3546,10 @@ async function loadAndRenderRosterTeams() {
         </div>
         <button class="roster-team-edit-btn" onclick="openTeamEditorModal('${t.id}')">編集</button>
       </div>`).join('');
-  } catch(e) { container.innerHTML = `<div class="roster-empty">エラー: ${esc(e.message)}</div>`; }
+  } catch(e) {
+    console.error('[DEBUG] loadAndRenderRosterTeams error:', e);
+    container.innerHTML = `<div class="roster-empty">エラー: ${esc(e.message)}</div>`;
+  }
 }
 
 function openTeamEditorModal(teamId) {
@@ -3746,14 +3772,19 @@ function setRegFormMode(mode) {
 }
 
 async function submitTeamRegistration() {
+  if (!regTournamentId) {
+    showToast('❌ 大会IDが取得できていません。URLを確認してページを再読み込みしてください。');
+    return;
+  }
   const teamName = document.getElementById('reg-team-name').value.trim();
   if (!teamName) { showToast('チーム名を入力してください'); return; }
   const players = getRegPlayersFromTable();
   const btn = document.getElementById('reg-submit-btn');
+  const isEditing = !!regEditingTeamId;
   btn.disabled = true;
   btn.textContent = '保存中...';
   try {
-    if (regEditingTeamId) {
+    if (isEditing) {
       await db.collection('roster_teams').doc(regEditingTeamId).update({
         teamName, players, updatedAt: new Date().toISOString()
       });
@@ -3764,10 +3795,12 @@ async function submitTeamRegistration() {
       showRegSuccess('✅ 更新しました！');
     } else {
       const editToken = generateToken();
+      console.log('[DEBUG] submitTeamRegistration: regTournamentId =', regTournamentId);
       const ref = await db.collection('roster_teams').add({
         tournamentId: regTournamentId, teamName, players, editToken,
         createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
       });
+      console.log('[DEBUG] saved doc.id =', ref.id, '/ tournamentId =', regTournamentId);
       const arr = getMyRegTeams(regTournamentId);
       arr.push({ teamId: ref.id, teamName, editToken });
       saveMyRegTeams(regTournamentId, arr);
@@ -3775,12 +3808,12 @@ async function submitTeamRegistration() {
       regEditingToken  = editToken;
       setRegFormMode('edit');
       renderMyRegTeams();
-      showRegSuccess('✅ 登録しました！内容は後からこのページで編集できます。');
+      showRegSuccess(`✅ 登録しました！[ID:${regTournamentId}] 内容は後からこのページで編集できます。`);
     }
   } catch(e) { showToast('エラー: ' + e.message); }
   finally {
     btn.disabled = false;
-    btn.textContent = regEditingTeamId ? '💾 更新する' : '📝 登録する';
+    btn.textContent = isEditing ? '💾 更新する' : '📝 登録する';
   }
 }
 
