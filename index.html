@@ -1098,10 +1098,24 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   cursor: pointer; text-align: center;
 }
 .ocr-upload-btn:active { border-color: var(--blue); color: var(--blue); }
-.ocr-progress-wrap { margin-top: 10px; display: none; }
-.ocr-progress-label { font-size: 12px; color: var(--text-mid); margin-bottom: 4px; }
-.ocr-progress-track { background: var(--border); border-radius: 4px; height: 6px; overflow: hidden; }
-.ocr-progress-bar { background: var(--blue); height: 100%; width: 0%; transition: width .2s; border-radius: 4px; }
+.ocr-progress-wrap {
+  margin-top: 10px; display: none;
+  background: var(--blue-dim); border-radius: var(--radius);
+  padding: 14px 16px; text-align: center;
+}
+.ocr-progress-pct {
+  font-family: 'Poppins', sans-serif; font-size: 32px; font-weight: 700;
+  color: var(--blue); line-height: 1; margin-bottom: 6px;
+}
+.ocr-progress-label { font-size: 12px; color: var(--text-mid); margin-bottom: 8px; }
+.ocr-progress-track { background: rgba(0,91,172,.15); border-radius: 6px; height: 8px; overflow: hidden; }
+.ocr-progress-bar {
+  background: var(--blue); height: 100%; width: 0%;
+  transition: width .4s ease; border-radius: 6px;
+}
+.ocr-upload-btn.processing {
+  opacity: .5; pointer-events: none; cursor: default;
+}
 .ocr-result-section { margin-top: 12px; display: none; }
 .ocr-result-label { font-size: 12px; color: var(--text-mid); margin-bottom: 6px; }
 .ocr-result-textarea { width: 100%; min-height: 120px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 8px; font-size: 13px; resize: vertical; box-sizing: border-box; font-family: monospace; }
@@ -1690,7 +1704,8 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <button class="ocr-upload-btn" onclick="startOCRUpload()">📷 写真を選択 / カメラで撮影</button>
       <button class="ocr-apikey-btn" style="width:100%;margin-top:6px" onclick="checkGeminiModels()">🔍 使用可能モデルを確認（デバッグ）</button>
       <div class="ocr-progress-wrap" id="ocr-progress-wrap">
-        <div class="ocr-progress-label" id="ocr-progress-label">読み取り中...</div>
+        <div class="ocr-progress-pct" id="ocr-progress-pct">0%</div>
+        <div class="ocr-progress-label" id="ocr-progress-label">処理中...</div>
         <div class="ocr-progress-track"><div class="ocr-progress-bar" id="ocr-progress-bar"></div></div>
       </div>
       <div class="ocr-status-msg" id="ocr-status-msg"></div>
@@ -3549,14 +3564,22 @@ async function handleOCRFile(input) {
   const progressWrap = document.getElementById('ocr-progress-wrap');
   const progressBar  = document.getElementById('ocr-progress-bar');
   const progressLbl  = document.getElementById('ocr-progress-label');
+  const progressPct  = document.getElementById('ocr-progress-pct');
   const statusMsg    = document.getElementById('ocr-status-msg');
   const resultSec    = document.getElementById('ocr-result-section');
+  const uploadBtn    = document.querySelector('.ocr-upload-btn');
+
+  function setProgress(pct, label) {
+    progressBar.style.width = pct + '%';
+    progressPct.textContent = pct + '%';
+    progressLbl.textContent = label;
+  }
 
   progressWrap.style.display = '';
   resultSec.style.display    = 'none';
-  progressBar.style.width    = '20%';
   statusMsg.textContent      = '';
-  progressLbl.textContent    = '画像を準備中...';
+  if (uploadBtn) uploadBtn.classList.add('processing');
+  setProgress(10, '画像を読み込み中...');
 
   try {
     const apiKey = getGeminiApiKey();
@@ -3565,13 +3588,10 @@ async function handleOCRFile(input) {
     }
 
     // 画像をbase64変換
-    progressBar.style.width = '40%';
-    progressLbl.textContent = '画像を変換中...';
+    setProgress(30, '画像を圧縮中...');
     const base64Image = await fileToBase64Gemini(file);
 
-    // Gemini API呼び出し（使えるモデルを自動検出）
-    progressBar.style.width = '60%';
-    progressLbl.textContent = 'AIが読み取り中...';
+    setProgress(50, 'AIに送信中...');
 
     const prompt = `この画像はバスケットボールの選手登録票または名簿です。
 表や一覧から背番号（ユニフォームナンバー）と選手名を全員分抽出してください。
@@ -3597,7 +3617,7 @@ async function handleOCRFile(input) {
     let response = null;
     let lastError = '';
     for (const model of GEMINI_MODELS) {
-      progressLbl.textContent = `AIが読み取り中... (${model})`;
+      setProgress(60, `AIが読み取り中...`);
       const url = `${GEMINI_BASE}${model}:generateContent?key=${apiKey}`;
       const res = await fetch(url, {
         method: 'POST',
@@ -3607,23 +3627,23 @@ async function handleOCRFile(input) {
       if (res.ok) { response = res; break; }
       const err = await res.json().catch(() => ({}));
       const msg = (err?.error?.message || '').toLowerCase();
-      // モデルが存在しない・新規ユーザー不可 → 次のモデルを試す
       if (res.status === 404 || msg.includes('no longer available') || msg.includes('not found')) {
         lastError = `[${res.status}] ${err?.error?.message || ''}`;
         continue;
       }
-      // その他のエラーは即中断
       throw new Error(`[${res.status}] ${err?.error?.message || 'APIエラー'}`);
     }
     if (!response) throw new Error('利用可能なモデルが見つかりませんでした。' + lastError);
 
-    progressBar.style.width = '90%';
-    progressLbl.textContent = '解析完了。データを処理中...';
+    setProgress(90, '結果を解析中...');
 
     const data = await response.json();
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
+    setProgress(100, '完了！');
+    await new Promise(r => setTimeout(r, 400)); // 100%を一瞬見せる
     progressWrap.style.display = 'none';
+    if (uploadBtn) uploadBtn.classList.remove('processing');
 
     if (!text.trim()) {
       throw new Error('Geminiから応答がありませんでした');
@@ -3647,15 +3667,15 @@ async function handleOCRFile(input) {
 
   } catch(e) {
     progressWrap.style.display = 'none';
-    statusMsg.textContent = '⚠ 読み取りエラー: ' + e.message;
-    if (e.message.includes('API_KEY') || e.message.includes('APIキー')) {
+    statusMsg.textContent = '⚠ エラー: ' + e.message;
+    if (e.message.includes('API_KEY') || e.message.includes('APIキー') || e.message.includes('leaked')) {
       promptGeminiApiKey();
-    } else {
-      // デバッグ用：生のエラーメッセージをそのまま表示
-      statusMsg.textContent = '⚠ エラー: ' + e.message;
     }
+  } finally {
+    progressWrap.style.display = 'none';
+    if (uploadBtn) uploadBtn.classList.remove('processing');
+    input.value = '';
   }
-  input.value = '';
 }
 
 function importOCRResult() {
