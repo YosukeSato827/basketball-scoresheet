@@ -1531,7 +1531,6 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   <div class="page-body" style="max-width:560px">
     <div class="reg-tournament-badge" id="reg-tournament-badge">大会名</div>
     <div class="reg-page-title">チーム登録</div>
-    <div id="reg-debug-id" style="font-size:11px;color:#999;text-align:center;margin-top:-8px;margin-bottom:8px"></div>
 
     <!-- 登録済みチーム（このデバイス） -->
     <div id="reg-my-teams-section" style="display:none">
@@ -1941,21 +1940,11 @@ async function loadTournaments() {
     // 各大会の試合数・チーム数を取得
     const cards = await Promise.all(snap.docs.map(async doc => {
       const d = doc.data();
-      let gSnap, rSnap;
-      try {
-        [gSnap, rSnap] = await Promise.all([
-          db.collection('games').where('tournamentId', '==', doc.id).get(),
-          db.collection('roster_teams').where('tournamentId', '==', doc.id).get()
-        ]);
-      } catch(qErr) {
-        console.error('[DEBUG] loadTournaments query error for', doc.id, qErr);
-        // gamesだけ取得して継続
-        try { gSnap = await db.collection('games').where('tournamentId', '==', doc.id).get(); } catch(e2) { gSnap = { size: 0, docs: [] }; }
-        rSnap = { size: 0, docs: [] };
-      }
+      const [gSnap, rSnap] = await Promise.all([
+        db.collection('games').where('tournamentId', '==', doc.id).get(),
+        db.collection('roster_teams').where('tournamentId', '==', doc.id).get()
+      ]);
       const gameCount = gSnap.size;
-      const rosterCount = rSnap.size;
-      console.log('[DEBUG] tournament', doc.id, 'games:', gameCount, 'roster_teams:', rosterCount);
       // ロスター登録チーム ＋ 試合に登場したチームを合算
       const teams = new Set();
       rSnap.docs.forEach(r => { if (r.data().teamName) teams.add(r.data().teamName); });
@@ -1974,7 +1963,6 @@ async function loadTournaments() {
               <span class="tc-badge">チーム数: ${teams.size}</span>
               ${d.note ? `<span class="tc-badge">${esc(d.note.slice(0,20))}</span>` : ''}
             </div>
-            <div style="font-size:10px;color:#aaa;margin-top:2px">ID:${doc.id} / roster:${rosterCount}</div>
           </div>
           <div class="tc-actions" onclick="event.stopPropagation()">
             <button class="btn-card btn-open" onclick="openTournament('${doc.id}')">開く</button>
@@ -3525,18 +3513,11 @@ async function loadAndRenderRosterTeams() {
   const container = document.getElementById('roster-teams-list');
   container.innerHTML = '<div class="loading-msg" style="padding:30px 0">読み込み中...</div>';
   try {
-    console.log('[DEBUG] loadAndRenderRosterTeams: rosterTournamentId =', rosterTournamentId);
     const snap = await db.collection('roster_teams')
       .where('tournamentId', '==', rosterTournamentId).get();
-    console.log('[DEBUG] roster_teams query result count:', snap.docs.length);
-    snap.docs.forEach(d => console.log('[DEBUG] doc:', d.id, JSON.stringify(d.data())));
     const teams = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     if (teams.length === 0) {
-      // 全件取得して件数確認（デバッグ用）
-      const allSnap = await db.collection('roster_teams').limit(5).get();
-      console.log('[DEBUG] roster_teams total (first 5):', allSnap.docs.length);
-      allSnap.docs.forEach(d => console.log('[DEBUG] all doc:', d.id, JSON.stringify(d.data())));
-      container.innerHTML = `<div class="roster-empty">チームが登録されていません<br><br>「+ チーム追加」からロスターを登録できます<br><small style="color:#999;font-size:11px;margin-top:8px;display:block">大会ID: ${esc(rosterTournamentId || '(未設定)')}</small></div>`;
+      container.innerHTML = '<div class="roster-empty">チームが登録されていません<br><br>「+ チーム追加」からロスターを登録できます</div>';
       return;
     }
     container.innerHTML = teams.map(t => `
@@ -3548,7 +3529,6 @@ async function loadAndRenderRosterTeams() {
         <button class="roster-team-edit-btn" onclick="openTeamEditorModal('${t.id}')">編集</button>
       </div>`).join('');
   } catch(e) {
-    console.error('[DEBUG] loadAndRenderRosterTeams error:', e);
     container.innerHTML = `<div class="roster-empty">エラー: ${esc(e.message)}</div>`;
   }
 }
@@ -3719,19 +3699,13 @@ async function initRegisterView(tournamentId) {
   regTournamentId  = tournamentId;
   regEditingTeamId = null;
   regEditingToken  = null;
-  console.log('[DEBUG] initRegisterView called, tournamentId =', tournamentId);
   showView('register');
   updateAllApiKeyStatus();
-  // 大会IDをページ上に表示（デバッグ用）
-  document.getElementById('reg-debug-id').textContent = tournamentId ? `大会ID: ${tournamentId}` : '⚠ 大会IDが取得できていません';
   try {
     const doc = await db.collection('tournaments').doc(tournamentId).get();
-    const name = doc.exists ? (doc.data().name || '大会') : tournamentId ? '大会（名前取得失敗）' : '⚠ 大会IDなし';
+    const name = doc.exists ? (doc.data().name || '大会') : '大会';
     document.getElementById('reg-tournament-badge').textContent = name;
-  } catch(e) {
-    console.error('[DEBUG] tournament fetch error:', e);
-    document.getElementById('reg-tournament-badge').textContent = 'エラー: ' + e.message;
-  }
+  } catch(e) { /* ignore */ }
   renderMyRegTeams();
   setRegFormMode('new');
 }
@@ -3802,12 +3776,10 @@ async function submitTeamRegistration() {
       showRegSuccess('✅ 更新しました！');
     } else {
       const editToken = generateToken();
-      console.log('[DEBUG] submitTeamRegistration: regTournamentId =', regTournamentId);
       const ref = await db.collection('roster_teams').add({
         tournamentId: regTournamentId, teamName, players, editToken,
         createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
       });
-      console.log('[DEBUG] saved doc.id =', ref.id, '/ tournamentId =', regTournamentId);
       const arr = getMyRegTeams(regTournamentId);
       arr.push({ teamId: ref.id, teamName, editToken });
       saveMyRegTeams(regTournamentId, arr);
@@ -3815,7 +3787,7 @@ async function submitTeamRegistration() {
       regEditingToken  = editToken;
       setRegFormMode('edit');
       renderMyRegTeams();
-      showRegSuccess(`✅ 登録しました！[ID:${regTournamentId}] 内容は後からこのページで編集できます。`);
+      showRegSuccess('✅ 登録しました！内容は後からこのページで編集できます。');
     }
   } catch(e) { showToast('エラー: ' + e.message); }
   finally {
