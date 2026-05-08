@@ -1037,6 +1037,54 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 }
 .roster-load-btn:active { background: var(--blue-dim); }
 
+/* =====================================================
+   チーム登録ページ（公開URL用）
+   ===================================================== */
+#view-register { min-height: 100vh; background: var(--bg); }
+.reg-tournament-badge {
+  background: var(--blue); color: white;
+  font-size: 12px; font-weight: 700; letter-spacing: .08em;
+  padding: 4px 12px; border-radius: 20px; display: inline-block;
+  margin-bottom: 8px;
+}
+.reg-page-title {
+  font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 20px;
+}
+.reg-my-team-card {
+  background: white; border: 1.5px solid var(--border); border-radius: var(--radius);
+  padding: 12px 14px; display: flex; align-items: center; gap: 10px;
+  margin-bottom: 8px;
+}
+.reg-my-team-name { flex: 1; font-weight: 700; font-size: 15px; }
+.reg-form-card {
+  background: white; border-radius: var(--radius); padding: 18px 16px;
+  box-shadow: var(--shadow-sm);
+}
+.reg-form-title {
+  font-size: 16px; font-weight: 700; color: var(--text);
+  margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border);
+}
+.reg-new-btn {
+  width: 100%; padding: 10px; background: var(--bg);
+  border: 1.5px dashed var(--border); border-radius: var(--radius);
+  font-size: 14px; font-weight: 700; color: var(--text-mid);
+  cursor: pointer; margin-top: 8px;
+}
+.reg-new-btn:hover { border-color: var(--blue); color: var(--blue); }
+.reg-submit-btn {
+  width: 100%; margin-top: 20px; padding: 15px;
+  background: var(--blue); color: white; border: none;
+  border-radius: var(--radius); font-size: 16px; font-weight: 700;
+  cursor: pointer; transition: background .15s;
+}
+.reg-submit-btn:hover { background: var(--blue-dark); }
+.reg-submit-btn:disabled { opacity: .5; cursor: default; }
+.reg-success-msg {
+  background: #e8f5e9; color: #2e7d32; border-radius: var(--radius);
+  padding: 14px 16px; font-size: 14px; font-weight: 700;
+  text-align: center; margin-top: 16px;
+}
+
 /* 選手テーブル入力 */
 .roster-players-table { display: block; margin-bottom: 6px; }
 .roster-player-row {
@@ -1449,6 +1497,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <button class="btn-hdr" onclick="backToTournaments()">← 大会一覧</button>
       <div style="flex:1"></div>
       <button class="btn-hdr" onclick="openRosterView()">👥 ロスター</button>
+      <button class="btn-hdr" onclick="copyRegisterUrl()">📋 登録URL</button>
       <button class="btn-hdr" onclick="copyTournamentViewUrl()">🔗 閲覧URL</button>
       <button class="btn-hdr" onclick="openTournamentModal(currentTournamentId)">編集</button>
       <button class="btn-hdr-primary" onclick="newGame()">+ 試合を追加</button>
@@ -1465,6 +1514,72 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
     </div>
     <div id="tab-stats" style="display:none">
       <div id="stats-container"><div class="loading-msg">集計中...</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- =====================================================
+     画面: チーム登録（公開URL）
+     ===================================================== -->
+<div id="view-register" style="display:none">
+  <div class="app-header">
+    <div class="logo-block">
+      <div class="logo-wordmark">molten</div>
+      <div class="logo-product">SCORELINK</div>
+    </div>
+  </div>
+  <div class="page-body" style="max-width:560px">
+    <div class="reg-tournament-badge" id="reg-tournament-badge">大会名</div>
+    <div class="reg-page-title">チーム登録</div>
+
+    <!-- 登録済みチーム（このデバイス） -->
+    <div id="reg-my-teams-section" style="display:none">
+      <div class="section-eyebrow" style="margin:0 0 8px">このデバイスで登録済み</div>
+      <div id="reg-my-teams-list"></div>
+      <button class="reg-new-btn" onclick="setRegFormMode('new')">＋ 別のチームを登録</button>
+    </div>
+
+    <!-- 登録フォーム -->
+    <div class="reg-form-card" id="reg-form-card" style="margin-top:16px">
+      <div class="reg-form-title" id="reg-form-title">新しいチームを登録</div>
+      <div class="form-group">
+        <label>チーム名 <span style="color:#e53935">*</span></label>
+        <input type="text" id="reg-team-name" placeholder="例: ○○高校"
+          style="width:100%;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-size:15px;box-sizing:border-box">
+      </div>
+      <div class="form-group">
+        <label class="pbp-label">選手リスト</label>
+        <div class="roster-table-header">
+          <div class="roster-th-num">番号</div>
+          <div class="roster-th-name">名前</div>
+        </div>
+        <div class="roster-players-table" id="reg-players-table"></div>
+        <button class="roster-add-player-btn" onclick="addRegPlayerRow()">＋ 選手を追加</button>
+      </div>
+      <!-- OCRセクション -->
+      <div class="ocr-section">
+        <div class="ocr-section-title">📷 写真から読み込み（AI認識）</div>
+        <div class="ocr-apikey-row">
+          <span class="ocr-apikey-label">Gemini APIキー:</span>
+          <span class="ocr-apikey-status" id="reg-apikey-status">確認中...</span>
+          <button class="ocr-apikey-btn" onclick="promptGeminiApiKey();updateAllApiKeyStatus()">🔑 設定</button>
+        </div>
+        <input type="file" id="reg-file-input" accept="image/*" style="display:none" onchange="handleOCRToTable(this,'reg')">
+        <button class="ocr-upload-btn" id="reg-upload-btn" onclick="startOCRForTarget('reg')">📷 写真を選択 / カメラで撮影</button>
+        <div class="ocr-progress-wrap" id="reg-progress-wrap">
+          <div class="ocr-progress-pct" id="reg-progress-pct">0%</div>
+          <div class="ocr-progress-label" id="reg-progress-label">処理中...</div>
+          <div class="ocr-progress-track"><div class="ocr-progress-bar" id="reg-progress-bar"></div></div>
+        </div>
+        <div class="ocr-status-msg" id="reg-status-msg"></div>
+        <div class="ocr-result-section" id="reg-result-section">
+          <div class="ocr-result-label">認識結果（修正してから取り込む）</div>
+          <textarea class="ocr-result-textarea" id="reg-text-raw"></textarea>
+          <button class="ocr-import-btn" onclick="importOCRToTable('reg')">↓ 選手リストに取り込む</button>
+        </div>
+      </div>
+      <button class="reg-submit-btn" id="reg-submit-btn" onclick="submitTeamRegistration()">📝 登録する</button>
+      <div class="reg-success-msg" id="reg-success-msg" style="display:none"></div>
     </div>
   </div>
 </div>
@@ -1700,8 +1815,8 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
         <span class="ocr-apikey-status" id="ocr-apikey-status">確認中...</span>
         <button class="ocr-apikey-btn" onclick="promptGeminiApiKey()">🔑 設定</button>
       </div>
-      <input type="file" id="ocr-file-input" accept="image/*" style="display:none" onchange="handleOCRFile(this)">
-      <button class="ocr-upload-btn" onclick="startOCRUpload()">📷 写真を選択 / カメラで撮影</button>
+      <input type="file" id="ocr-file-input" accept="image/*" style="display:none" onchange="handleOCRToTable(this,'ocr')">
+      <button class="ocr-upload-btn" id="ocr-upload-btn" onclick="startOCRForTarget('ocr')">📷 写真を選択 / カメラで撮影</button>
       <button class="ocr-apikey-btn" style="width:100%;margin-top:6px" onclick="checkGeminiModels()">🔍 使用可能モデルを確認（デバッグ）</button>
       <div class="ocr-progress-wrap" id="ocr-progress-wrap">
         <div class="ocr-progress-pct" id="ocr-progress-pct">0%</div>
@@ -1712,7 +1827,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <div class="ocr-result-section" id="ocr-result-section">
         <div class="ocr-result-label">認識結果（修正してから取り込む）</div>
         <textarea class="ocr-result-textarea" id="ocr-text-raw"></textarea>
-        <button class="ocr-import-btn" onclick="importOCRResult()">↓ 選手リストに取り込む</button>
+        <button class="ocr-import-btn" onclick="importOCRToTable('ocr')">↓ 選手リストに取り込む</button>
       </div>
     </div>
     <div class="modal-btns" style="margin-top:16px">
@@ -1771,6 +1886,7 @@ function showView(name) {
   document.getElementById('view-editor').style.display      = name === 'editor'      ? 'block' : 'none';
   document.getElementById('view-recorder').style.display    = name === 'recorder'    ? 'block' : 'none';
   document.getElementById('view-roster').style.display      = name === 'roster'      ? 'block' : 'none';
+  document.getElementById('view-register').style.display    = name === 'register'    ? 'block' : 'none';
 }
 
 function parsePlayers(text) {
@@ -3518,16 +3634,7 @@ function promptGeminiApiKey() {
   setGeminiApiKey(newKey);
 }
 
-function startOCRUpload() {
-  const key = getGeminiApiKey();
-  if (!key) {
-    const statusMsg = document.getElementById('ocr-status-msg');
-    statusMsg.textContent = '⚠ Gemini APIキーが設定されていません。「🔑 設定」ボタンで登録してください。';
-    promptGeminiApiKey();
-    return;
-  }
-  document.getElementById('ocr-file-input').click();
-}
+function startOCRUpload() { startOCRForTarget('ocr'); }
 
 // 画像ファイルをbase64に変換（必要に応じてリサイズ）
 async function fileToBase64Gemini(file) {
@@ -3557,24 +3664,230 @@ async function fileToBase64Gemini(file) {
   });
 }
 
-async function handleOCRFile(input) {
+async function handleOCRFile(input) { await handleOCRToTable(input, 'ocr'); }
+function importOCRResult() { importOCRToTable('ocr'); }
+
+// =====================================================
+// 選手テーブルUI
+// =====================================================
+// =====================================================
+// チーム登録（公開URL）
+// =====================================================
+let regTournamentId   = null;
+let regEditingTeamId  = null;
+let regEditingToken   = null;
+
+function getMyRegTeamsKey(tid) { return `reg_teams_${tid}`; }
+function getMyRegTeams(tid) {
+  return JSON.parse(localStorage.getItem(getMyRegTeamsKey(tid)) || '[]');
+}
+function saveMyRegTeams(tid, arr) {
+  localStorage.setItem(getMyRegTeamsKey(tid), JSON.stringify(arr));
+}
+function generateToken() {
+  return Math.random().toString(36).slice(2,10) + Math.random().toString(36).slice(2,10);
+}
+
+async function initRegisterView(tournamentId) {
+  regTournamentId  = tournamentId;
+  regEditingTeamId = null;
+  regEditingToken  = null;
+  showView('register');
+  updateAllApiKeyStatus();
+  try {
+    const doc = await db.collection('tournaments').doc(tournamentId).get();
+    const name = doc.exists ? (doc.data().name || '大会') : '大会';
+    document.getElementById('reg-tournament-badge').textContent = name;
+  } catch(e) { /* ignore */ }
+  renderMyRegTeams();
+  setRegFormMode('new');
+}
+
+function renderMyRegTeams() {
+  const myTeams = getMyRegTeams(regTournamentId);
+  const section = document.getElementById('reg-my-teams-section');
+  const list    = document.getElementById('reg-my-teams-list');
+  if (myTeams.length === 0) { section.style.display = 'none'; return; }
+  section.style.display = '';
+  list.innerHTML = myTeams.map(t => `
+    <div class="reg-my-team-card">
+      <div class="reg-my-team-name">🏀 ${esc(t.teamName)}</div>
+      <button class="btn btn-secondary" style="font-size:13px;padding:6px 14px"
+        onclick="editMyRegTeam('${t.teamId}','${t.editToken}')">編集</button>
+    </div>`).join('');
+}
+
+async function editMyRegTeam(teamId, editToken) {
+  try {
+    const doc = await db.collection('roster_teams').doc(teamId).get();
+    if (!doc.exists) { showToast('チームが見つかりません'); return; }
+    const d = doc.data();
+    if (d.editToken !== editToken) { showToast('編集権限がありません'); return; }
+    regEditingTeamId = teamId;
+    regEditingToken  = editToken;
+    document.getElementById('reg-team-name').value = d.teamName || '';
+    renderRegPlayersTable(d.players || []);
+    setRegFormMode('edit');
+    document.getElementById('reg-form-card').scrollIntoView({ behavior: 'smooth' });
+  } catch(e) { showToast('エラー: ' + e.message); }
+}
+
+function setRegFormMode(mode) {
+  const isEdit = mode === 'edit';
+  document.getElementById('reg-form-title').textContent = isEdit ? 'チーム情報を編集' : '新しいチームを登録';
+  document.getElementById('reg-submit-btn').textContent = isEdit ? '💾 更新する' : '📝 登録する';
+  document.getElementById('reg-success-msg').style.display = 'none';
+  if (!isEdit) {
+    regEditingTeamId = null;
+    regEditingToken  = null;
+    document.getElementById('reg-team-name').value = '';
+    renderRegPlayersTable([]);
+  }
+}
+
+async function submitTeamRegistration() {
+  const teamName = document.getElementById('reg-team-name').value.trim();
+  if (!teamName) { showToast('チーム名を入力してください'); return; }
+  const players = getRegPlayersFromTable();
+  const btn = document.getElementById('reg-submit-btn');
+  btn.disabled = true;
+  btn.textContent = '保存中...';
+  try {
+    if (regEditingTeamId) {
+      await db.collection('roster_teams').doc(regEditingTeamId).update({
+        teamName, players, updatedAt: new Date().toISOString()
+      });
+      const arr = getMyRegTeams(regTournamentId);
+      const idx = arr.findIndex(t => t.teamId === regEditingTeamId);
+      if (idx >= 0) arr[idx].teamName = teamName;
+      saveMyRegTeams(regTournamentId, arr);
+      showRegSuccess('✅ 更新しました！');
+    } else {
+      const editToken = generateToken();
+      const ref = await db.collection('roster_teams').add({
+        tournamentId: regTournamentId, teamName, players, editToken,
+        createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
+      });
+      const arr = getMyRegTeams(regTournamentId);
+      arr.push({ teamId: ref.id, teamName, editToken });
+      saveMyRegTeams(regTournamentId, arr);
+      regEditingTeamId = ref.id;
+      regEditingToken  = editToken;
+      setRegFormMode('edit');
+      renderMyRegTeams();
+      showRegSuccess('✅ 登録しました！内容は後からこのページで編集できます。');
+    }
+  } catch(e) { showToast('エラー: ' + e.message); }
+  finally {
+    btn.disabled = false;
+    btn.textContent = regEditingTeamId ? '💾 更新する' : '📝 登録する';
+  }
+}
+
+function showRegSuccess(msg) {
+  const el = document.getElementById('reg-success-msg');
+  el.textContent = msg; el.style.display = '';
+  setTimeout(() => el.style.display = 'none', 4000);
+}
+
+// 登録URLをコピー
+function copyRegisterUrl() {
+  const url = `${location.origin}${location.pathname}?register=${currentTournamentId}`;
+  navigator.clipboard.writeText(url)
+    .then(() => showToast('📋 チーム登録URLをコピーしました'))
+    .catch(() => prompt('URLをコピーしてください', url));
+}
+
+// 登録ページ用プレイヤーテーブル（roster版と同じロジック）
+function addRegPlayerRow(num = '', name = '') { _addPlayerRowTo('reg-players-table', num, name); }
+function renderRegPlayersTable(players) {
+  document.getElementById('reg-players-table').innerHTML = '';
+  (players || []).forEach(p => addRegPlayerRow(p.num, p.name));
+}
+function getRegPlayersFromTable() { return _getPlayersFrom('reg-players-table'); }
+function appendPlayersToRegTable(players) { _appendPlayersTo('reg-players-table', players); }
+
+// 共通ヘルパー（roster & reg 両方で使う）
+function _addPlayerRowTo(tableId, num = '', name = '') {
+  const table = document.getElementById(tableId);
+  const row = document.createElement('div');
+  row.className = 'roster-player-row';
+  const numInput = document.createElement('input');
+  numInput.type = 'number'; numInput.className = 'roster-num-input';
+  numInput.placeholder = '番'; numInput.min = '0'; numInput.max = '99';
+  numInput.value = String(num);
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text'; nameInput.className = 'roster-name-input';
+  nameInput.placeholder = '名前'; nameInput.value = String(name);
+  const delBtn = document.createElement('button');
+  delBtn.className = 'roster-row-del'; delBtn.title = '削除';
+  delBtn.textContent = '×'; delBtn.onclick = () => row.remove();
+  row.appendChild(numInput); row.appendChild(nameInput); row.appendChild(delBtn);
+  table.appendChild(row);
+  if (!num && !name) numInput.focus();
+}
+function _getPlayersFrom(tableId) {
+  const players = [], seen = new Set();
+  document.querySelectorAll(`#${tableId} .roster-player-row`).forEach(row => {
+    const num  = row.querySelector('.roster-num-input').value.trim();
+    const name = row.querySelector('.roster-name-input').value.trim();
+    if (num && name && !seen.has(num)) { players.push({ num, name }); seen.add(num); }
+  });
+  return players;
+}
+function _appendPlayersTo(tableId, players) {
+  const existing = new Set(_getPlayersFrom(tableId).map(p => p.num));
+  (players || []).forEach(p => { if (!existing.has(p.num)) _addPlayerRowTo(tableId, p.num, p.name); });
+}
+
+function updateAllApiKeyStatus() {
+  updateGeminiApiKeyStatus();
+  // reg-apikey-status
+  const key = getGeminiApiKey();
+  const el  = document.getElementById('reg-apikey-status');
+  if (!el) return;
+  if (key) { el.textContent = '設定済み (' + key.slice(0,8) + '...)'; el.className = 'ocr-apikey-status set'; }
+  else     { el.textContent = '未設定'; el.className = 'ocr-apikey-status unset'; }
+}
+
+// OCR 汎用関数（target: 'roster' or 'reg'）
+function startOCRForTarget(target) {
+  const key = getGeminiApiKey();
+  if (!key) {
+    document.getElementById(`${target}-status-msg`).textContent = '⚠ Gemini APIキーが設定されていません。「🔑 設定」ボタンで登録してください。';
+    promptGeminiApiKey();
+    return;
+  }
+  document.getElementById(`${target}-file-input`).click();
+}
+
+async function handleOCRToTable(input, target) {
   const file = input.files[0];
   if (!file) return;
-
-  const progressWrap = document.getElementById('ocr-progress-wrap');
-  const progressBar  = document.getElementById('ocr-progress-bar');
-  const progressLbl  = document.getElementById('ocr-progress-label');
-  const progressPct  = document.getElementById('ocr-progress-pct');
-  const statusMsg    = document.getElementById('ocr-status-msg');
-  const resultSec    = document.getElementById('ocr-result-section');
-  const uploadBtn    = document.querySelector('.ocr-upload-btn');
+  const ids = {
+    progressWrap: `${target}-progress-wrap`,
+    progressBar:  `${target}-progress-bar`,
+    progressLbl:  `${target}-progress-label`,
+    progressPct:  `${target}-progress-pct`,
+    statusMsg:    `${target}-status-msg`,
+    resultSec:    `${target}-result-section`,
+    textRaw:      `${target}-text-raw`,
+    uploadBtn:    `${target}-upload-btn`,
+    tableId:      target === 'reg' ? 'reg-players-table' : 'roster-players-table',
+  };
+  const progressWrap = document.getElementById(ids.progressWrap);
+  const progressBar  = document.getElementById(ids.progressBar);
+  const progressLbl  = document.getElementById(ids.progressLbl);
+  const progressPct  = document.getElementById(ids.progressPct);
+  const statusMsg    = document.getElementById(ids.statusMsg);
+  const resultSec    = document.getElementById(ids.resultSec);
+  const uploadBtn    = document.getElementById(ids.uploadBtn);
 
   function setProgress(pct, label) {
     progressBar.style.width = pct + '%';
     progressPct.textContent = pct + '%';
     progressLbl.textContent = label;
   }
-
   progressWrap.style.display = 'block';
   resultSec.style.display    = 'none';
   statusMsg.textContent      = '';
@@ -3583,94 +3896,44 @@ async function handleOCRFile(input) {
 
   try {
     const apiKey = getGeminiApiKey();
-    if (!apiKey) {
-      throw new Error('APIキーが設定されていません');
-    }
-
-    // 画像をbase64変換
+    if (!apiKey) throw new Error('APIキーが設定されていません');
     setProgress(30, '画像を圧縮中...');
     const base64Image = await fileToBase64Gemini(file);
-
     setProgress(50, 'AIに送信中...');
-
-    const prompt = `この画像はバスケットボールの選手登録票または名簿です。
-表や一覧から背番号（ユニフォームナンバー）と選手名を全員分抽出してください。
-結果は必ず以下の形式で出力してください（他の説明は一切不要）：
-番号 名前
-番号 名前
-例：
-4 山田太郎
-7 田中次郎
-10 佐藤一郎
-背番号が数字1〜99の範囲であること、名前は日本語であることを確認してください。`;
-
-    const requestBody = JSON.stringify({
-      contents: [{
-        parts: [
-          { text: prompt },
-          { inline_data: { mime_type: 'image/jpeg', data: base64Image } }
-        ]
-      }],
-      generationConfig: { temperature: 0.1, maxOutputTokens: 512 }
-    });
-
-    let response = null;
-    let lastError = '';
+    const prompt = `この画像はバスケットボールの選手登録票または名簿です。表や一覧から背番号（ユニフォームナンバー）と選手名を全員分抽出してください。結果は必ず以下の形式で出力してください（他の説明は一切不要）：\n番号 名前\n番号 名前\n例：\n4 山田太郎\n7 田中次郎\n10 佐藤一郎\n背番号が数字1〜99の範囲であること、名前は日本語であることを確認してください。`;
+    const requestBody = JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: 'image/jpeg', data: base64Image } }] }], generationConfig: { temperature: 0.1, maxOutputTokens: 512 } });
+    let response = null, lastError = '';
     for (const model of GEMINI_MODELS) {
-      setProgress(60, `AIが読み取り中...`);
-      const url = `${GEMINI_BASE}${model}:generateContent?key=${apiKey}`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: requestBody
-      });
+      setProgress(60, 'AIが読み取り中...');
+      const res = await fetch(`${GEMINI_BASE}${model}:generateContent?key=${apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: requestBody });
       if (res.ok) { response = res; break; }
       const err = await res.json().catch(() => ({}));
       const msg = (err?.error?.message || '').toLowerCase();
-      if (res.status === 404 || msg.includes('no longer available') || msg.includes('not found')) {
-        lastError = `[${res.status}] ${err?.error?.message || ''}`;
-        continue;
-      }
-      throw new Error(`[${res.status}] ${err?.error?.message || 'APIエラー'}`);
+      if (res.status === 404 || msg.includes('no longer available') || msg.includes('not found')) { lastError = `[${res.status}] ${err?.error?.message||''}`; continue; }
+      throw new Error(`[${res.status}] ${err?.error?.message||'APIエラー'}`);
     }
     if (!response) throw new Error('利用可能なモデルが見つかりませんでした。' + lastError);
-
     setProgress(90, '結果を解析中...');
-
     const data = await response.json();
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
     setProgress(100, '完了！');
-    await new Promise(r => setTimeout(r, 400)); // 100%を一瞬見せる
+    await new Promise(r => setTimeout(r, 400));
     progressWrap.style.display = 'none';
-    if (uploadBtn) uploadBtn.classList.remove('processing');
-
-    if (!text.trim()) {
-      throw new Error('Geminiから応答がありませんでした');
-    }
-
-    // テキストをパース
+    if (!text.trim()) throw new Error('Geminiから応答がありませんでした');
     const parsed = parseOCRRoster(text);
     const hasNames = parsed.some(p => p.name && p.name.trim().length > 0);
     if (parsed.length > 0 && hasNames) {
-      appendPlayersToTable(parsed);
+      _appendPlayersTo(ids.tableId, parsed);
       statusMsg.textContent = `✓ ${parsed.length} 名を自動取り込みしました。内容を確認してください。`;
     } else {
-      // 名前が取れなかった or パース失敗 → 生テキストを表示
-      document.getElementById('ocr-text-raw').value = text;
+      document.getElementById(ids.textRaw).value = text;
       resultSec.style.display = '';
-      statusMsg.textContent = parsed.length > 0
-        ? '⚠ 番号は読み取れましたが名前が取得できませんでした。下のAI出力を確認してください。'
-        : '⚠ 自動解析できませんでした。下のテキストを「番号 名前」形式に修正して取り込んでください。';
+      statusMsg.textContent = parsed.length > 0 ? '⚠ 番号は読み取れましたが名前が取得できませんでした。下のAI出力を確認してください。' : '⚠ 自動解析できませんでした。下のテキストを「番号 名前」形式に修正して取り込んでください。';
       resultSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-
   } catch(e) {
-    progressWrap.style.display = 'none';
     statusMsg.textContent = '⚠ エラー: ' + e.message;
-    if (e.message.includes('API_KEY') || e.message.includes('APIキー') || e.message.includes('leaked')) {
-      promptGeminiApiKey();
-    }
+    if (e.message.includes('leaked')) promptGeminiApiKey();
   } finally {
     progressWrap.style.display = 'none';
     if (uploadBtn) uploadBtn.classList.remove('processing');
@@ -3678,79 +3941,24 @@ async function handleOCRFile(input) {
   }
 }
 
-function importOCRResult() {
-  const raw    = document.getElementById('ocr-text-raw').value;
-  const parsed = parseOCRRoster(raw);
-  if (parsed.length === 0) {
-    document.getElementById('ocr-status-msg').textContent = '⚠「番号 名前」の形式が見つかりません。例: 4 山田太郎';
-    return;
-  }
-  appendPlayersToTable(parsed);
-  document.getElementById('ocr-result-section').style.display = 'none';
-  document.getElementById('ocr-status-msg').textContent = `✓ ${parsed.length} 名を取り込みました。`;
+function importOCRToTable(target) {
+  const tableId  = target === 'reg' ? 'reg-players-table' : 'roster-players-table';
+  const raw      = document.getElementById(`${target}-text-raw`).value;
+  const parsed   = parseOCRRoster(raw);
+  if (parsed.length === 0) { document.getElementById(`${target}-status-msg`).textContent = '⚠「番号 名前」の形式が見つかりません。'; return; }
+  _appendPlayersTo(tableId, parsed);
+  document.getElementById(`${target}-result-section`).style.display = 'none';
+  document.getElementById(`${target}-status-msg`).textContent = `✓ ${parsed.length} 名を取り込みました。`;
 }
 
-// =====================================================
-// 選手テーブルUI
-// =====================================================
-function addRosterPlayerRow(num = '', name = '') {
-  const table = document.getElementById('roster-players-table');
-  const row = document.createElement('div');
-  row.className = 'roster-player-row';
-
-  const numInput = document.createElement('input');
-  numInput.type = 'number';
-  numInput.className = 'roster-num-input';
-  numInput.placeholder = '番';
-  numInput.min = '0'; numInput.max = '99';
-  numInput.value = String(num);
-
-  const nameInput = document.createElement('input');
-  nameInput.type = 'text';
-  nameInput.className = 'roster-name-input';
-  nameInput.placeholder = '名前';
-  nameInput.value = String(name);
-
-  const delBtn = document.createElement('button');
-  delBtn.className = 'roster-row-del';
-  delBtn.title = '削除';
-  delBtn.textContent = '×';
-  delBtn.onclick = () => row.remove();
-
-  row.appendChild(numInput);
-  row.appendChild(nameInput);
-  row.appendChild(delBtn);
-  table.appendChild(row);
-  if (!num && !name) numInput.focus();
-}
+function addRosterPlayerRow(num = '', name = '') { _addPlayerRowTo('roster-players-table', num, name); }
 
 function renderPlayersTable(players) {
-  const table = document.getElementById('roster-players-table');
-  table.innerHTML = '';
+  document.getElementById('roster-players-table').innerHTML = '';
   (players || []).forEach(p => addRosterPlayerRow(p.num, p.name));
 }
-
-function getPlayersFromTable() {
-  const rows = document.querySelectorAll('#roster-players-table .roster-player-row');
-  const players = [];
-  const seen = new Set();
-  rows.forEach(row => {
-    const num  = row.querySelector('.roster-num-input').value.trim();
-    const name = row.querySelector('.roster-name-input').value.trim();
-    if (num && name && !seen.has(num)) {
-      players.push({ num, name });
-      seen.add(num);
-    }
-  });
-  return players;
-}
-
-function appendPlayersToTable(players) {
-  const existing = new Set(getPlayersFromTable().map(p => p.num));
-  (players || []).forEach(p => {
-    if (!existing.has(p.num)) addRosterPlayerRow(p.num, p.name);
-  });
-}
+function getPlayersFromTable() { return _getPlayersFrom('roster-players-table'); }
+function appendPlayersToTable(players) { _appendPlayersTo('roster-players-table', players); }
 
 async function checkGeminiModels() {
   const key = getGeminiApiKey();
@@ -4095,15 +4303,14 @@ function renderViewerScoresheet(data) {
 // 起動
 // =====================================================
 function initApp() {
-  // Gemini APIキーのデフォルト設定（古いキーを含め強制更新）
-  // APIキーはlocalStorageのみで管理（コードに埋め込まない）
-  // 未設定の場合は設定を促すのみ
   updateGeminiApiKeyStatus();
-
-  const params = new URLSearchParams(window.location.search);
-  const viewTournamentId = params.get('view');
-  if (viewTournamentId) {
-    openViewer(viewTournamentId);
+  const params      = new URLSearchParams(window.location.search);
+  const registerTid = params.get('register');
+  const viewTid     = params.get('view');
+  if (registerTid) {
+    initRegisterView(registerTid);
+  } else if (viewTid) {
+    openViewer(viewTid);
   } else {
     loadTournaments();
   }
