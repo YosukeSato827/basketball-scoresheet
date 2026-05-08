@@ -1531,6 +1531,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   <div class="page-body" style="max-width:560px">
     <div class="reg-tournament-badge" id="reg-tournament-badge">大会名</div>
     <div class="reg-page-title">チーム登録</div>
+    <div id="reg-debug-id" style="font-size:11px;color:#999;text-align:center;margin-top:-8px;margin-bottom:8px"></div>
 
     <!-- 登録済みチーム（このデバイス） -->
     <div id="reg-my-teams-section" style="display:none">
@@ -3718,13 +3719,19 @@ async function initRegisterView(tournamentId) {
   regTournamentId  = tournamentId;
   regEditingTeamId = null;
   regEditingToken  = null;
+  console.log('[DEBUG] initRegisterView called, tournamentId =', tournamentId);
   showView('register');
   updateAllApiKeyStatus();
+  // 大会IDをページ上に表示（デバッグ用）
+  document.getElementById('reg-debug-id').textContent = tournamentId ? `大会ID: ${tournamentId}` : '⚠ 大会IDが取得できていません';
   try {
     const doc = await db.collection('tournaments').doc(tournamentId).get();
-    const name = doc.exists ? (doc.data().name || '大会') : '大会';
+    const name = doc.exists ? (doc.data().name || '大会') : tournamentId ? '大会（名前取得失敗）' : '⚠ 大会IDなし';
     document.getElementById('reg-tournament-badge').textContent = name;
-  } catch(e) { /* ignore */ }
+  } catch(e) {
+    console.error('[DEBUG] tournament fetch error:', e);
+    document.getElementById('reg-tournament-badge').textContent = 'エラー: ' + e.message;
+  }
   renderMyRegTeams();
   setRegFormMode('new');
 }
