@@ -3531,11 +3531,21 @@ function openRecorder() {
   updatePBPFeed();
   updateRecTimerDisplay();
   updateRecTimerBtn();
+
+  // リロード対策：記録中セッションを保存
+  sessionStorage.setItem('recSession', JSON.stringify({
+    gameId: currentGameId,
+    tournamentId: currentTournamentId,
+    uniformA: recUniformsA,
+    uniformB: recUniformsB
+  }));
+
   showView('recorder');
   showLineupModal();
 }
 
 function backFromRecorder() {
+  sessionStorage.removeItem('recSession');
   clearInterval(recTimerIv);
   recTimerRunning = false;
   stopTimerSync();
@@ -5121,7 +5131,7 @@ function renderViewerScoresheet(data) {
 // =====================================================
 // 起動
 // =====================================================
-function initApp() {
+async function initApp() {
   updateGeminiApiKeyStatus();
   const params      = new URLSearchParams(window.location.search);
   const registerTid = params.get('register');
@@ -5131,6 +5141,32 @@ function initApp() {
   } else if (viewTid) {
     openViewer(viewTid);
   } else {
+    // リロード時のライブ記録セッション復元
+    const saved = sessionStorage.getItem('recSession');
+    if (saved) {
+      try {
+        const sess = JSON.parse(saved);
+        const doc  = await db.collection('games').doc(sess.gameId).get();
+        if (doc.exists) {
+          const d = doc.data();
+          currentTournamentId = sess.tournamentId;
+          currentGameId       = sess.gameId;
+          recUniformsA        = sess.uniformA || [];
+          recUniformsB        = sess.uniformB || [];
+          document.getElementById('teamAName').value = d.teamAName || '';
+          document.getElementById('teamBName').value = d.teamBName || '';
+          document.getElementById('gameNo').value    = d.gameNo    || '';
+          document.getElementById('gameDate').value  = d.gameDate  || '';
+          document.getElementById('venue').value     = d.venue     || '';
+          document.getElementById('pbpInput').value  = d.pbpData   || '';
+          document.getElementById('playersA').value  = playersToText(d.playersA);
+          document.getElementById('playersB').value  = playersToText(d.playersB);
+          openRecorder();
+          return;
+        }
+      } catch(e) { /* 復元失敗時は通常起動 */ }
+      sessionStorage.removeItem('recSession');
+    }
     loadTournaments();
   }
 }
