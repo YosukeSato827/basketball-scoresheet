@@ -1520,8 +1520,8 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 }
 .rec-act-btn {
   padding: 10px 2px; border: none; border-radius: var(--radius);
-  font-size: 12px; font-weight: 700; cursor: pointer; width: 100%;
-  transition: opacity .1s;
+  font-size: 15px; font-weight: 800; cursor: pointer; width: 100%;
+  transition: opacity .1s; letter-spacing: -.01em;
 }
 .rec-act-btn:active { opacity: .72; transform: scale(.97); }
 .rec-act-scoring { background: #e8f5e9; color: #2e7d32; }
@@ -1554,8 +1554,8 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 .rec-pbp-entry:active { background: rgba(0,0,0,.05); }
 .rec-pbp-entry.pbp-a { border-left-color: var(--blue); }
 .rec-pbp-entry.pbp-b { border-left-color: #E53935; }
-.rec-pbp-time { font-size: 9px; color: var(--text-light); font-family: 'Poppins', sans-serif; }
-.rec-pbp-text { font-size: 11px; font-weight: 600; color: var(--text); word-break: break-all; }
+.rec-pbp-time { font-size: 9px; color: var(--text-light); font-family: 'Poppins', sans-serif; white-space: nowrap; }
+.rec-pbp-text { font-size: 11px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rec-pbp-text.pbp-a { color: var(--blue); }
 .rec-pbp-text.pbp-b { color: #E53935; }
 .rec-pbp-empty {
@@ -1675,8 +1675,20 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   --uniform-b-text: #ffffff;
 }
 /* スコアにユニフォーム色を反映 */
-#rec-score-a { color: var(--uniform-a-bg); }
-#rec-score-b { color: var(--uniform-b-bg); }
+#rec-score-a {
+  color: var(--uniform-a-text);
+  background: var(--uniform-a-bg);
+  border-radius: 10px;
+  padding: 2px 18px;
+  display: inline-block;
+}
+#rec-score-b {
+  color: var(--uniform-b-text);
+  background: var(--uniform-b-bg);
+  border-radius: 10px;
+  padding: 2px 18px;
+  display: inline-block;
+}
 
 /* タイマー：白・大きく */
 #view-recorder .rec-timer-display {
@@ -1685,11 +1697,11 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   min-width: 110px;
 }
 
-/* アクションボタン：常時2列グリッド */
+/* アクションボタン：3列2段グリッド */
 .rec-act-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
   flex: 1;
   align-content: start;
 }
@@ -1730,8 +1742,8 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 #view-recorder .rec-pbp-entry.pbp-a .rec-pbp-time { color: var(--uniform-a-text); opacity: .7; }
 #view-recorder .rec-pbp-entry.pbp-b .rec-pbp-time { color: var(--uniform-b-text); opacity: .7; }
 
-/* PBP列：常時狭く固定 */
-.rec-pbp-col { flex: 0 0 90px !important; }
+/* PBP列：1行に収まる幅で固定 */
+.rec-pbp-col { flex: 0 0 115px !important; }
 .rec-team-col { flex: 1 1 0; }
 
 /* 選手選択ポップアップ：ユニフォーム色 */
