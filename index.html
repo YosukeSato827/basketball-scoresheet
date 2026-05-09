@@ -932,6 +932,19 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 }
 .rec-timer-sync-btn.active { background: #4CAF50; }
 .rec-timer-sync-btn:active { opacity: .7; }
+.rec-timer-sync-status {
+  font-size: 10px; font-weight: 700; letter-spacing: .04em;
+  padding: 2px 6px; border-radius: 10px; white-space: nowrap;
+}
+.rec-timer-sync-status.live {
+  background: #4CAF50; color: white;
+}
+.rec-timer-sync-status.stale {
+  background: #FF9800; color: white;
+}
+.rec-timer-sync-status.offline {
+  background: rgba(255,255,255,.2); color: rgba(255,255,255,.6);
+}
 
 /* クォーター選択バー */
 .rec-q-bar {
@@ -1858,6 +1871,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
           <button class="rec-timer-btn" id="rec-timer-btn" onclick="toggleRecTimer()">▶</button>
           <button class="rec-timer-reset" onclick="resetRecTimer()">⟳</button>
           <button class="rec-timer-sync-btn" id="timer-sync-btn" onclick="toggleTimerSync()" title="タイマー同期">🔗</button>
+          <span class="rec-timer-sync-status" id="timer-sync-status"></span>
         </div>
       </div>
       <div class="rec-score-team">
@@ -3862,7 +3876,20 @@ async function deletePBPEntry(idx) {
 // =====================================================
 let timerSyncMode = false;
 let timerSyncUnsubscribe = null;
+let timerSyncStatusIv = null;
 let recTimerSyncDisplay = '10:00';
+let timerLastUpdatedAt = null;
+
+function updateTimerSyncStatus() {
+  const el = document.getElementById('timer-sync-status');
+  if (!el) return;
+  if (!timerSyncMode) { el.textContent = ''; el.className = 'rec-timer-sync-status'; return; }
+  if (!timerLastUpdatedAt) { el.textContent = '待機中…'; el.className = 'rec-timer-sync-status offline'; return; }
+  const age = (Date.now() - timerLastUpdatedAt) / 1000;
+  if (age < 5)  { el.textContent = '● LIVE';    el.className = 'rec-timer-sync-status live'; }
+  else if (age < 30) { el.textContent = '● 遅延中'; el.className = 'rec-timer-sync-status stale'; }
+  else          { el.textContent = '● 未受信';   el.className = 'rec-timer-sync-status offline'; }
+}
 
 function toggleTimerSync() {
   timerSyncMode = !timerSyncMode;
@@ -3874,9 +3901,12 @@ function toggleTimerSync() {
     updateRecTimerBtn();
     document.getElementById('rec-timer-btn').disabled = true;
     document.getElementById('rec-timer-reset').disabled = true;
+    timerLastUpdatedAt = null;
+    updateTimerSyncStatus();
     timerSyncUnsubscribe = db.collection('timer_sync').doc('live').onSnapshot(doc => {
       if (!doc.exists) return;
       const data = doc.data();
+      timerLastUpdatedAt = Date.now();
       recTimerSyncDisplay = data.gameClock?.display || '00:00';
       document.getElementById('rec-timer-display').textContent = recTimerSyncDisplay;
       const shot = data.shotClock?.display || '24';
@@ -3884,10 +3914,15 @@ function toggleTimerSync() {
       shotEl.textContent = shot;
       const sec = parseInt(shot, 10);
       shotEl.className = 'rec-shot-display' + (sec <= 5 ? ' danger' : sec <= 10 ? ' warning' : '');
+      updateTimerSyncStatus();
     });
+    timerSyncStatusIv = setInterval(updateTimerSyncStatus, 2000);
     showToast('🔗 タイマー同期 ON');
   } else {
     if (timerSyncUnsubscribe) { timerSyncUnsubscribe(); timerSyncUnsubscribe = null; }
+    clearInterval(timerSyncStatusIv);
+    timerLastUpdatedAt = null;
+    updateTimerSyncStatus();
     document.getElementById('rec-timer-btn').disabled = false;
     document.getElementById('rec-timer-reset').disabled = false;
     showToast('タイマー同期 OFF');
@@ -3896,7 +3931,10 @@ function toggleTimerSync() {
 
 function stopTimerSync() {
   if (timerSyncUnsubscribe) { timerSyncUnsubscribe(); timerSyncUnsubscribe = null; }
+  clearInterval(timerSyncStatusIv);
   timerSyncMode = false;
+  timerLastUpdatedAt = null;
+  updateTimerSyncStatus();
 }
 
 // タイマー
