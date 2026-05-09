@@ -913,6 +913,25 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   display: flex; align-items: center; justify-content: center;
 }
 .rec-timer-reset:active { background: rgba(255,255,255,.28); }
+.rec-timer-clocks { display: flex; align-items: center; gap: 8px; }
+.rec-shot-clock-wrap {
+  display: flex; flex-direction: column; align-items: center;
+  background: rgba(255,255,255,.12); border-radius: 6px; padding: 2px 6px;
+}
+.rec-shot-label { font-size: 8px; color: rgba(255,255,255,.6); letter-spacing: .08em; }
+.rec-shot-display {
+  font-family: 'Poppins', sans-serif; font-size: 18px; font-weight: 700;
+  color: white; line-height: 1.1;
+}
+.rec-shot-display.warning { color: #FDD835; }
+.rec-shot-display.danger  { color: #EF5350; }
+.rec-timer-sync-btn {
+  background: rgba(255,255,255,.12); color: white; border: none;
+  border-radius: 50%; width: 32px; height: 32px; font-size: 14px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.rec-timer-sync-btn.active { background: #4CAF50; }
+.rec-timer-sync-btn:active { opacity: .7; }
 
 /* クォーター選択バー */
 .rec-q-bar {
@@ -1828,10 +1847,17 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
         <div class="rec-score-val" id="rec-score-a">0</div>
       </div>
       <div class="rec-timer-center">
-        <button class="rec-timer-display" id="rec-timer-display" onclick="editTimer()">10:00</button>
+        <div class="rec-timer-clocks">
+          <button class="rec-timer-display" id="rec-timer-display" onclick="editTimer()">10:00</button>
+          <div class="rec-shot-clock-wrap">
+            <span class="rec-shot-label">SHOT</span>
+            <span class="rec-shot-display" id="rec-shot-clock">24</span>
+          </div>
+        </div>
         <div class="rec-timer-btns">
           <button class="rec-timer-btn" id="rec-timer-btn" onclick="toggleRecTimer()">▶</button>
           <button class="rec-timer-reset" onclick="resetRecTimer()">⟳</button>
+          <button class="rec-timer-sync-btn" id="timer-sync-btn" onclick="toggleTimerSync()" title="タイマー同期">🔗</button>
         </div>
       </div>
       <div class="rec-score-team">
@@ -3320,6 +3346,7 @@ function openRecorder() {
 function backFromRecorder() {
   clearInterval(recTimerIv);
   recTimerRunning = false;
+  stopTimerSync();
   document.getElementById('pbpInput').value = recPbpData;
   document.getElementById('playersA').value = playersToText(recPlayersA);
   document.getElementById('playersB').value = playersToText(recPlayersB);
@@ -3830,8 +3857,51 @@ async function deletePBPEntry(idx) {
   } catch(e) { showToast('エラー: ' + e.message); }
 }
 
+// =====================================================
+// タイマー同期（Firestore ← Lambda ← IoT Core）
+// =====================================================
+let timerSyncMode = false;
+let timerSyncUnsubscribe = null;
+let recTimerSyncDisplay = '10:00';
+
+function toggleTimerSync() {
+  timerSyncMode = !timerSyncMode;
+  const btn = document.getElementById('timer-sync-btn');
+  btn.classList.toggle('active', timerSyncMode);
+  if (timerSyncMode) {
+    clearInterval(recTimerIv);
+    recTimerRunning = false;
+    updateRecTimerBtn();
+    document.getElementById('rec-timer-btn').disabled = true;
+    document.getElementById('rec-timer-reset').disabled = true;
+    timerSyncUnsubscribe = db.collection('timer_sync').doc('live').onSnapshot(doc => {
+      if (!doc.exists) return;
+      const data = doc.data();
+      recTimerSyncDisplay = data.gameClock?.display || '00:00';
+      document.getElementById('rec-timer-display').textContent = recTimerSyncDisplay;
+      const shot = data.shotClock?.display || '24';
+      const shotEl = document.getElementById('rec-shot-clock');
+      shotEl.textContent = shot;
+      const sec = parseInt(shot, 10);
+      shotEl.className = 'rec-shot-display' + (sec <= 5 ? ' danger' : sec <= 10 ? ' warning' : '');
+    });
+    showToast('🔗 タイマー同期 ON');
+  } else {
+    if (timerSyncUnsubscribe) { timerSyncUnsubscribe(); timerSyncUnsubscribe = null; }
+    document.getElementById('rec-timer-btn').disabled = false;
+    document.getElementById('rec-timer-reset').disabled = false;
+    showToast('タイマー同期 OFF');
+  }
+}
+
+function stopTimerSync() {
+  if (timerSyncUnsubscribe) { timerSyncUnsubscribe(); timerSyncUnsubscribe = null; }
+  timerSyncMode = false;
+}
+
 // タイマー
 function getRecTimerStr() {
+  if (timerSyncMode) return recTimerSyncDisplay;
   const m = Math.floor(recTimer / 60), s = recTimer % 60;
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
