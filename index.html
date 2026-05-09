@@ -1029,31 +1029,32 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   .rec-3col { flex: 1; min-height: 0; }
   .rec-team-col {
     flex: 1 1 0;
-    gap: 8px;
-    padding: 10px 8px;
+    gap: 6px;
+    padding: 8px 8px;
   }
-  .rec-pbp-col {
-    flex: 0 0 88px;
-    min-width: 0;
-  }
+  .rec-pbp-col { flex: 0 0 82px; min-width: 0; }
 
-  /* アクションボタンを大きく */
-  .rec-act-btn {
-    min-height: 68px;
-    font-size: 15px;
-    padding: 8px 4px;
-    border-radius: 12px;
+  /* ボタンを2列グリッドに */
+  .rec-act-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
   }
-  .rec-sub-btn {
-    min-height: 52px;
+  .rec-act-btn {
+    min-height: 64px;
     font-size: 14px;
-    padding: 8px 4px;
+    padding: 6px 2px;
     border-radius: 12px;
   }
   .rec-team-col-label { font-size: 11px; }
 
+  /* チーム列内の選手チップを表示 */
+  .rec-court-col { display: flex; }
+  /* 横向きでは下部コート表示を非表示 */
+  .rec-court-bottom { display: none; }
+
   /* PBPを小さく */
-  .rec-pbp-feed { max-height: none; font-size: 10px; }
+  .rec-pbp-feed { max-height: none; }
   .rec-pbp-text { font-size: 10px; }
   .rec-pbp-time { font-size: 8px; }
   .rec-pbp-entry { padding: 3px 5px; }
@@ -1649,6 +1650,53 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   border: none; border-radius: var(--radius); font-size: 13px; font-weight: 700;
   cursor: pointer;
 }
+/* ユニフォームカラー変数（JSから設定） */
+#view-recorder {
+  --uniform-a-bg: var(--blue);
+  --uniform-a-text: #ffffff;
+  --uniform-b-bg: #E53935;
+  --uniform-b-text: #ffffff;
+}
+/* スコアにユニフォーム色を反映 */
+#rec-score-a { color: var(--uniform-a-bg); }
+#rec-score-b { color: var(--uniform-b-bg); }
+
+/* タイマー：白・大きく */
+#view-recorder .rec-timer-display {
+  font-size: 34px; font-weight: 900; color: white !important;
+  background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.4);
+  min-width: 110px;
+}
+
+/* アクションボタングリッド */
+.rec-act-grid { display: flex; flex-direction: column; gap: 10px; flex: 1; }
+.rec-act-sub {
+  background: var(--bg); color: var(--text-mid);
+  border: 1px solid var(--border);
+}
+
+/* チーム列内の選手エリア（横向き時に表示） */
+.rec-court-col {
+  display: none;
+  flex-wrap: wrap; gap: 4px; padding: 4px 0 6px;
+  border-bottom: 1px solid rgba(255,255,255,.15);
+  margin-bottom: 2px;
+}
+.rec-court-col-player {
+  font-family: 'Poppins', sans-serif; font-size: 11px; font-weight: 700;
+  border-radius: 20px; padding: 2px 8px; white-space: nowrap;
+}
+.rec-court-col-player.player-a {
+  background: var(--uniform-a-bg); color: var(--uniform-a-text);
+}
+.rec-court-col-player.player-b {
+  background: var(--uniform-b-bg); color: var(--uniform-b-text);
+}
+
+/* PBP文字色にユニフォーム色を反映 */
+.rec-pbp-text.pbp-a { color: var(--uniform-a-bg); }
+.rec-pbp-text.pbp-b { color: var(--uniform-b-bg); }
+
 /* コート表示 */
 .rec-court {
   background: white; border-top: 1px solid var(--border);
@@ -1946,12 +1994,15 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   <div class="rec-3col">
     <div class="rec-team-col">
       <div class="rec-team-col-label" id="rec-col-label-a">チームA</div>
-      <button class="rec-act-btn rec-act-scoring" onclick="startAction('A','2P成功')">2P 成功</button>
-      <button class="rec-act-btn rec-act-scoring" onclick="startAction('A','3P成功')">3P 成功</button>
-      <button class="rec-act-btn rec-act-scoring" onclick="startAction('A','フリースロー成功')">FT 成功</button>
-      <button class="rec-act-btn rec-act-foul"    onclick="startAction('A','Pファウル')">ファウル</button>
-      <button class="rec-act-btn rec-act-timeout" onclick="startAction('A','タイムアウト')">T / O</button>
-      <button class="rec-sub-btn" onclick="showSubstitution('A')">⇄ 交代</button>
+      <div class="rec-court-col" id="rec-court-a-col"></div>
+      <div class="rec-act-grid">
+        <button class="rec-act-btn rec-act-scoring" onclick="startAction('A','2P成功')">2P 成功</button>
+        <button class="rec-act-btn rec-act-scoring" onclick="startAction('A','3P成功')">3P 成功</button>
+        <button class="rec-act-btn rec-act-scoring" onclick="startAction('A','フリースロー成功')">FT 成功</button>
+        <button class="rec-act-btn rec-act-foul"    onclick="startAction('A','Pファウル')">ファウル</button>
+        <button class="rec-act-btn rec-act-timeout" onclick="startAction('A','タイムアウト')">T / O</button>
+        <button class="rec-act-btn rec-act-sub"     onclick="showSubstitution('A')">⇄ 交代</button>
+      </div>
     </div>
     <div class="rec-pbp-col">
       <div class="rec-pbp-header">PLAY LOG</div>
@@ -1961,15 +2012,18 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
     </div>
     <div class="rec-team-col rec-team-col-b">
       <div class="rec-team-col-label" id="rec-col-label-b">チームB</div>
-      <button class="rec-act-btn rec-act-scoring" onclick="startAction('B','2P成功')">2P 成功</button>
-      <button class="rec-act-btn rec-act-scoring" onclick="startAction('B','3P成功')">3P 成功</button>
-      <button class="rec-act-btn rec-act-scoring" onclick="startAction('B','フリースロー成功')">FT 成功</button>
-      <button class="rec-act-btn rec-act-foul"    onclick="startAction('B','Pファウル')">ファウル</button>
-      <button class="rec-act-btn rec-act-timeout" onclick="startAction('B','タイムアウト')">T / O</button>
-      <button class="rec-sub-btn" onclick="showSubstitution('B')">⇄ 交代</button>
+      <div class="rec-court-col" id="rec-court-b-col"></div>
+      <div class="rec-act-grid">
+        <button class="rec-act-btn rec-act-scoring" onclick="startAction('B','2P成功')">2P 成功</button>
+        <button class="rec-act-btn rec-act-scoring" onclick="startAction('B','3P成功')">3P 成功</button>
+        <button class="rec-act-btn rec-act-scoring" onclick="startAction('B','フリースロー成功')">FT 成功</button>
+        <button class="rec-act-btn rec-act-foul"    onclick="startAction('B','Pファウル')">ファウル</button>
+        <button class="rec-act-btn rec-act-timeout" onclick="startAction('B','タイムアウト')">T / O</button>
+        <button class="rec-act-btn rec-act-sub"     onclick="showSubstitution('B')">⇄ 交代</button>
+      </div>
     </div>
   </div>
-  <div class="rec-court">
+  <div class="rec-court rec-court-bottom">
     <div class="rec-court-team" id="rec-court-a"></div>
     <div class="rec-court-team" id="rec-court-b"></div>
   </div>
@@ -3384,6 +3438,15 @@ function openRecorder() {
   recTimerRunning = false;
   recTimer = 600;
 
+  // ユニフォームカラーをCSS変数に反映
+  const vr = document.getElementById('view-recorder');
+  const uA = (recUniformsA && recUniformsA[0]) || { bg: '#1565C0', text: '#FFFFFF' };
+  const uB = (recUniformsB && recUniformsB[0]) || { bg: '#E53935', text: '#FFFFFF' };
+  vr.style.setProperty('--uniform-a-bg',   uA.bg);
+  vr.style.setProperty('--uniform-a-text', uA.text);
+  vr.style.setProperty('--uniform-b-bg',   uB.bg);
+  vr.style.setProperty('--uniform-b-text', uB.text);
+
   const gameNo = document.getElementById('gameNo').value;
   document.getElementById('rec-title').textContent       = gameNo ? `Game ${gameNo}` : '記録中';
   document.getElementById('rec-col-label-a').textContent = recTeamAName;
@@ -3439,6 +3502,15 @@ function updateCourtDisplay() {
   };
   document.getElementById('rec-court-a').innerHTML = render(recCourtA, 'var(--blue)', recTeamAName);
   document.getElementById('rec-court-b').innerHTML = render(recCourtB, '#E53935',    recTeamBName);
+
+  // チーム列内の選手チップ（横向き用）
+  const renderCol = (players, team) => players.map(p =>
+    `<span class="rec-court-col-player player-${team.toLowerCase()}">#${esc(p.num)} ${esc(p.name)}</span>`
+  ).join('');
+  const colA = document.getElementById('rec-court-a-col');
+  const colB = document.getElementById('rec-court-b-col');
+  if (colA) colA.innerHTML = recCourtA.length ? renderCol(recCourtA, 'A') : '';
+  if (colB) colB.innerHTML = recCourtB.length ? renderCol(recCourtB, 'B') : '';
 }
 
 // アクションボタン押下 → 選手選択モーダルを表示
