@@ -1034,22 +1034,14 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   }
   .rec-pbp-col { flex: 0 0 82px; min-width: 0; }
 
-  /* ボタンを2列グリッドに */
-  .rec-act-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
-  }
+  /* ボタンをさらに大きく */
   .rec-act-btn {
-    min-height: 64px;
-    font-size: 14px;
-    padding: 6px 2px;
-    border-radius: 12px;
+    min-height: 72px;
+    font-size: 15px;
+    padding: 8px 4px;
+    border-radius: 14px;
   }
   .rec-team-col-label { font-size: 11px; }
-
-  /* チーム列内の選手チップを表示 */
-  .rec-court-col { display: flex; }
   /* 横向きでは下部コート表示を非表示 */
   .rec-court-bottom { display: none; }
 
@@ -1199,6 +1191,31 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   white-space: nowrap;
 }
 .setup-manual-btn:hover { border-color: var(--blue); color: var(--blue); }
+/* ユニフォーム選択 */
+.setup-uniform-selector {
+  background: var(--bg); border-radius: var(--radius-sm);
+  padding: 10px 12px; margin: 8px 0;
+  border: 1px solid var(--border);
+}
+.setup-uniform-selector.hidden { display: none; }
+.setup-uniform-label {
+  font-size: 11px; font-weight: 700; color: var(--text-mid);
+  margin-bottom: 8px;
+}
+.setup-uniform-opts { display: flex; gap: 10px; flex-wrap: wrap; }
+.setup-uniform-opt {
+  width: 56px; height: 56px; border-radius: 10px;
+  border: 3px solid transparent; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; gap: 2px;
+  transition: transform .1s;
+}
+.setup-uniform-opt.selected {
+  outline: 3px solid var(--blue); outline-offset: 2px;
+  transform: scale(1.08);
+}
+.setup-uniform-opt-num { font-size: 16px; font-weight: 900; }
+.setup-uniform-opt-label { font-size: 9px; opacity: .8; }
 .setup-divider { height: 1px; background: var(--border); margin: 14px 0; }
 .setup-meta-grid {
   display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px;
@@ -1668,19 +1685,25 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   min-width: 110px;
 }
 
-/* アクションボタングリッド */
-.rec-act-grid { display: flex; flex-direction: column; gap: 10px; flex: 1; }
+/* アクションボタン：常時2列グリッド */
+.rec-act-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  flex: 1;
+  align-content: start;
+}
 .rec-act-sub {
   background: var(--bg); color: var(--text-mid);
   border: 1px solid var(--border);
 }
 
-/* チーム列内の選手エリア（横向き時に表示） */
+/* チーム列内の選手チップ（常時表示） */
 .rec-court-col {
-  display: none;
+  display: flex;
   flex-wrap: wrap; gap: 4px; padding: 4px 0 6px;
-  border-bottom: 1px solid rgba(255,255,255,.15);
-  margin-bottom: 2px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px; min-height: 0;
 }
 .rec-court-col-player {
   font-family: 'Poppins', sans-serif; font-size: 11px; font-weight: 700;
@@ -1693,9 +1716,9 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   background: var(--uniform-b-bg); color: var(--uniform-b-text);
 }
 
-/* PBP文字色にユニフォーム色を反映 */
-.rec-pbp-text.pbp-a { color: var(--uniform-a-bg); }
-.rec-pbp-text.pbp-b { color: var(--uniform-b-bg); }
+/* PBP文字色：ユニフォーム色（既存ルールを上書き） */
+#view-recorder .rec-pbp-text.pbp-a { color: var(--uniform-a-bg) !important; }
+#view-recorder .rec-pbp-text.pbp-b { color: var(--uniform-b-bg) !important; }
 
 /* コート表示 */
 .rec-court {
@@ -2199,6 +2222,10 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
         <span class="setup-selected-name" id="setup-a-selected">（未選択）</span>
       </div>
       <div class="setup-team-cards" id="setup-cards-a"></div>
+      <div class="setup-uniform-selector hidden" id="setup-uniform-a">
+        <div class="setup-uniform-label">👕 この試合で着用するユニフォーム</div>
+        <div class="setup-uniform-opts" id="setup-uniform-opts-a"></div>
+      </div>
       <div class="setup-manual-row" id="setup-manual-row-a" style="display:none">
         <input class="setup-manual-input" id="setup-manual-input-a" placeholder="チームA 名前を入力">
       </div>
@@ -2213,6 +2240,10 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
         <span class="setup-selected-name" id="setup-b-selected">（未選択）</span>
       </div>
       <div class="setup-team-cards" id="setup-cards-b"></div>
+      <div class="setup-uniform-selector hidden" id="setup-uniform-b">
+        <div class="setup-uniform-label">👕 この試合で着用するユニフォーム</div>
+        <div class="setup-uniform-opts" id="setup-uniform-opts-b"></div>
+      </div>
       <div class="setup-manual-row" id="setup-manual-row-b" style="display:none">
         <input class="setup-manual-input" id="setup-manual-input-b" placeholder="チームB 名前を入力">
       </div>
@@ -2822,17 +2853,41 @@ async function loadSetupTeamCards() {
 
 function selectSetupTeam(slot, teamId, teamData) {
   const isA = slot === 'a';
-  if (isA) setupTeamA = teamData; else setupTeamB = teamData;
+  if (isA) setupTeamA = { ...teamData, selectedUniformIdx: 0 };
+  else     setupTeamB = { ...teamData, selectedUniformIdx: 0 };
   // カードのハイライト更新
   document.querySelectorAll(`#setup-cards-${slot} .setup-team-card`).forEach(btn => {
     btn.classList.remove('selected-a','selected-b');
   });
   const card = document.getElementById(`setup-card-${slot}-${teamId}`);
   if (card) card.classList.add(isA ? 'selected-a' : 'selected-b');
-  // 選択名表示更新
   document.getElementById(`setup-${slot}-selected`).textContent = teamData.teamName;
-  // 手入力欄を隠す
   document.getElementById(`setup-manual-row-${slot}`).style.display = 'none';
+  // ユニフォーム選択を表示
+  showUniformSelector(slot, teamData.uniforms || []);
+}
+
+function showUniformSelector(slot, uniforms) {
+  const wrap = document.getElementById(`setup-uniform-${slot}`);
+  const opts  = document.getElementById(`setup-uniform-opts-${slot}`);
+  if (!uniforms || uniforms.length === 0) { wrap.classList.add('hidden'); return; }
+  wrap.classList.remove('hidden');
+  opts.innerHTML = uniforms.map((u, i) =>
+    `<button class="setup-uniform-opt${i === 0 ? ' selected' : ''}"
+      id="setup-uopt-${slot}-${i}"
+      style="background:${u.bg};color:${u.text}"
+      onclick="selectSetupUniform('${slot}',${i})">
+      <span class="setup-uniform-opt-num">#</span>
+      <span class="setup-uniform-opt-label">${i + 1}色目</span>
+    </button>`
+  ).join('');
+}
+
+function selectSetupUniform(slot, idx) {
+  if (slot === 'a' && setupTeamA) setupTeamA.selectedUniformIdx = idx;
+  if (slot === 'b' && setupTeamB) setupTeamB.selectedUniformIdx = idx;
+  document.querySelectorAll(`#setup-uniform-opts-${slot} .setup-uniform-opt`)
+    .forEach((btn, i) => btn.classList.toggle('selected', i === idx));
 }
 
 function toggleManualInput(slot) {
@@ -2883,12 +2938,18 @@ function confirmGameSetup(mode) {
   document.getElementById('output').innerHTML = '';
   updateToolbarTitle();
 
+  // 選択したユニフォームのみ渡す（1色に絞る）
+  const pickUniform = (data) => {
+    const uniforms = data?.uniforms || [];
+    if (uniforms.length === 0) return [];
+    const idx = data?.selectedUniformIdx ?? 0;
+    return [uniforms[idx]];
+  };
+
   if (mode === 'recorder') {
-    // ライブ記録：先に保存してから起動
     saveGame().then(() => {
-      // ユニフォーム情報をrecorderに渡す
-      recUniformsA = teamAData?.uniforms || [];
-      recUniformsB = teamBData?.uniforms || [];
+      recUniformsA = pickUniform(teamAData);
+      recUniformsB = pickUniform(teamBData);
       openRecorder();
     });
   } else {
