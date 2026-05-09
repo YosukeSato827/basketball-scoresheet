@@ -1008,6 +1008,58 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; margin-left: auto;
 }
 .rec-sheet-btn:active { border-color: var(--blue); color: var(--blue); }
+/* =====================================================
+   iPad 横向きレイアウト最適化
+   ===================================================== */
+@media (orientation: landscape) and (min-width: 768px) {
+  /* ヘッダーを細く */
+  .rec-header { height: 40px; }
+  /* スコアボードを締める */
+  .rec-scoreboard { padding: 6px 16px; }
+  .rec-score-val { font-size: 36px; }
+  .rec-score-name { font-size: 10px; }
+  .rec-timer-display { font-size: 20px; }
+  /* Qバーを細く */
+  .rec-q-bar { padding: 4px 6px; gap: 4px; }
+  .rec-q-btn { padding: 5px 10px; font-size: 12px; }
+  /* ユーティリティバーを細く */
+  .rec-util-bar { padding: 4px 10px; }
+
+  /* 3カラムレイアウト：チームボタンを大きく、PBPを小さく */
+  .rec-3col { flex: 1; min-height: 0; }
+  .rec-team-col {
+    flex: 1 1 0;
+    gap: 8px;
+    padding: 10px 8px;
+  }
+  .rec-pbp-col {
+    flex: 0 0 88px;
+    min-width: 0;
+  }
+
+  /* アクションボタンを大きく */
+  .rec-act-btn {
+    min-height: 68px;
+    font-size: 15px;
+    padding: 8px 4px;
+    border-radius: 12px;
+  }
+  .rec-sub-btn {
+    min-height: 52px;
+    font-size: 14px;
+    padding: 8px 4px;
+    border-radius: 12px;
+  }
+  .rec-team-col-label { font-size: 11px; }
+
+  /* PBPを小さく */
+  .rec-pbp-feed { max-height: none; font-size: 10px; }
+  .rec-pbp-text { font-size: 10px; }
+  .rec-pbp-time { font-size: 8px; }
+  .rec-pbp-entry { padding: 3px 5px; }
+  .rec-pbp-header { font-size: 8px; padding: 3px 5px; }
+}
+
 /* スコアシートプレビューオーバーレイ */
 .rec-sheet-preview {
   display: none; position: fixed; inset: 0; z-index: 200;
