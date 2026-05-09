@@ -1716,9 +1716,40 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   background: var(--uniform-b-bg); color: var(--uniform-b-text);
 }
 
-/* PBP文字色：ユニフォーム色（既存ルールを上書き） */
-#view-recorder .rec-pbp-text.pbp-a { color: var(--uniform-a-bg) !important; }
-#view-recorder .rec-pbp-text.pbp-b { color: var(--uniform-b-bg) !important; }
+/* PBP：ユニフォームの背景＋文字色 */
+#view-recorder .rec-pbp-entry.pbp-a {
+  background: var(--uniform-a-bg);
+  border-left-color: var(--uniform-a-bg);
+}
+#view-recorder .rec-pbp-entry.pbp-b {
+  background: var(--uniform-b-bg);
+  border-left-color: var(--uniform-b-bg);
+}
+#view-recorder .rec-pbp-text.pbp-a { color: var(--uniform-a-text) !important; }
+#view-recorder .rec-pbp-text.pbp-b { color: var(--uniform-b-text) !important; }
+#view-recorder .rec-pbp-entry.pbp-a .rec-pbp-time { color: var(--uniform-a-text); opacity: .7; }
+#view-recorder .rec-pbp-entry.pbp-b .rec-pbp-time { color: var(--uniform-b-text); opacity: .7; }
+
+/* PBP列：常時狭く固定 */
+.rec-pbp-col { flex: 0 0 90px !important; }
+.rec-team-col { flex: 1 1 0; }
+
+/* 選手選択ポップアップ：ユニフォーム色 */
+.rec-player-select-btn.team-a {
+  background: var(--uniform-a-bg);
+  border-color: var(--uniform-a-bg);
+}
+.rec-player-select-btn.team-a .rec-psel-num  { color: var(--uniform-a-text); }
+.rec-player-select-btn.team-a .rec-psel-name { color: var(--uniform-a-text); opacity: .8; }
+.rec-player-select-btn.team-b {
+  background: var(--uniform-b-bg);
+  border-color: var(--uniform-b-bg);
+}
+.rec-player-select-btn.team-b .rec-psel-num  { color: var(--uniform-b-text); }
+.rec-player-select-btn.team-b .rec-psel-name { color: var(--uniform-b-text); opacity: .8; }
+/* モーダルタイトル */
+.rec-action-player.team-a { color: var(--uniform-a-bg); }
+.rec-action-player.team-b { color: var(--uniform-b-bg); }
 
 /* コート表示 */
 .rec-court {
@@ -3583,19 +3614,22 @@ function startAction(team, evType) {
   }
   const court    = team === 'A' ? recCourtA : recCourtB;
   const teamName = team === 'A' ? recTeamAName : recTeamBName;
-  const color    = team === 'A' ? 'var(--blue)' : '#E53935';
+  const teamCls  = team === 'A' ? 'team-a' : 'team-b';
 
-  document.getElementById('rec-player-modal-title').textContent = `${teamName}：選手を選択`;
+  const title = document.getElementById('rec-player-modal-title');
+  title.textContent = `${teamName}：選手を選択`;
+  title.className = `rec-action-player ${teamCls}`;
+
   const unknownBtn = `<button class="rec-player-select-btn rec-psel-unknown"
      onclick="recordEvent('${evType}','${team}',null)">
      <span class="rec-psel-num" style="color:var(--text-light)">?</span>
      <span class="rec-psel-name">選手不明</span>
    </button>`;
   document.getElementById('rec-player-select-grid').innerHTML = court.map(p =>
-    `<button class="rec-player-select-btn"
+    `<button class="rec-player-select-btn ${teamCls}"
        onclick="recordEvent('${evType}','${team}',{num:'${p.num.replace(/'/g,"\\'")}',name:'${p.name.replace(/'/g,"\\'")}'})"
      >
-       <span class="rec-psel-num" style="color:${color}">#${esc(p.num)}</span>
+       <span class="rec-psel-num">#${esc(p.num)}</span>
        <span class="rec-psel-name">${esc(p.name)}</span>
      </button>`
   ).join('') + unknownBtn;
