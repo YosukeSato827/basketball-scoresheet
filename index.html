@@ -825,18 +825,18 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 
 /* スコアボード（タイマーを中央に配置） */
 .rec-scoreboard {
-  background: var(--blue-dark); color: white;
+  background: #f0f2f5; color: var(--text);
   display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 16px;
+  padding: 8px 10px;
 }
-.rec-score-team { display: flex; align-items: center; flex: 1; padding: 0 8px; }
+.rec-score-team { display: flex; align-items: center; flex: 1; padding: 0 4px; }
 .rec-team-box {
-  display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  border-radius: 14px; padding: 6px 22px; width: 100%;
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  border-radius: 14px; padding: 10px 18px; width: 100%;
 }
-.rec-score-name { font-size: 16px; font-weight: 700; letter-spacing: .04em; white-space: nowrap; }
+.rec-score-name { font-size: 18px; font-weight: 700; letter-spacing: .04em; white-space: nowrap; }
 .rec-score-val {
-  font-family: 'Poppins', sans-serif; font-size: 44px;
+  font-family: 'Poppins', sans-serif; font-size: 52px;
   font-weight: 900; line-height: 1;
 }
 /* タイマー（スコアボード中央） */
@@ -846,41 +846,41 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 }
 .rec-timer-display {
   font-family: 'Poppins', sans-serif; font-size: 22px; font-weight: 700;
-  color: white; background: rgba(255,255,255,.15);
-  border: 1px solid rgba(255,255,255,.4); border-radius: var(--radius-sm);
+  color: var(--text); background: rgba(0,0,0,.08);
+  border: 1px solid rgba(0,0,0,.18); border-radius: var(--radius-sm);
   padding: 2px 10px; cursor: pointer; min-width: 80px; text-align: center;
 }
 .rec-timer-btns { display: flex; gap: 8px; }
 .rec-timer-btn {
-  background: rgba(255,255,255,.25); color: white; border: none; border-radius: 50%;
+  background: rgba(0,0,0,.1); color: var(--text); border: none; border-radius: 50%;
   width: 32px; height: 32px; font-size: 13px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
 }
-.rec-timer-btn:active { background: rgba(255,255,255,.45); }
+.rec-timer-btn:active { background: rgba(0,0,0,.2); }
 .rec-timer-reset {
-  background: rgba(255,255,255,.12); color: rgba(255,255,255,.8); border: none;
+  background: rgba(0,0,0,.07); color: var(--text-mid); border: none;
   border-radius: 50%; width: 32px; height: 32px; font-size: 14px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
 }
-.rec-timer-reset:active { background: rgba(255,255,255,.28); }
+.rec-timer-reset:active { background: rgba(0,0,0,.15); }
 .rec-timer-clocks { display: flex; align-items: center; gap: 8px; }
 .rec-shot-clock-wrap {
   display: flex; flex-direction: column; align-items: center;
-  background: rgba(255,255,255,.12); border-radius: 6px; padding: 2px 6px;
+  background: rgba(0,0,0,.07); border-radius: 6px; padding: 2px 6px;
 }
-.rec-shot-label { font-size: 8px; color: rgba(255,255,255,.6); letter-spacing: .08em; }
+.rec-shot-label { font-size: 8px; color: var(--text-light); letter-spacing: .08em; }
 .rec-shot-display {
   font-family: 'Poppins', sans-serif; font-size: 18px; font-weight: 700;
-  color: white; line-height: 1.1;
+  color: var(--text); line-height: 1.1;
 }
-.rec-shot-display.warning { color: #FDD835; }
-.rec-shot-display.danger  { color: #EF5350; }
+.rec-shot-display.warning { color: #e65100; }
+.rec-shot-display.danger  { color: #c62828; }
 .rec-timer-sync-btn {
-  background: rgba(255,255,255,.12); color: white; border: none;
+  background: rgba(0,0,0,.07); color: var(--text-mid); border: none;
   border-radius: 50%; width: 32px; height: 32px; font-size: 14px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
 }
-.rec-timer-sync-btn.active { background: #4CAF50; }
+.rec-timer-sync-btn.active { background: #4CAF50; color: white; }
 .rec-timer-sync-btn:active { opacity: .7; }
 .rec-timer-sync-status {
   font-size: 10px; font-weight: 700; letter-spacing: .04em;
@@ -893,21 +893,22 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   background: #FF9800; color: white;
 }
 .rec-timer-sync-status.offline {
-  background: rgba(255,255,255,.2); color: rgba(255,255,255,.6);
+  background: rgba(0,0,0,.1); color: var(--text-light);
 }
 
 /* クォーター選択バー */
 .rec-q-bar {
-  display: flex; background: var(--blue-dark);
+  display: flex; background: #f0f2f5;
   padding: 6px 12px 8px; gap: 6px;
+  border-top: 1px solid rgba(0,0,0,.08);
 }
 .rec-q-btn {
-  flex: 1; background: rgba(255,255,255,.15); color: white;
+  flex: 1; background: rgba(0,0,0,.08); color: var(--text-mid);
   border: none; border-radius: var(--radius-sm); padding: 7px 0;
   font-size: 13px; font-weight: 700; cursor: pointer; transition: background .15s;
 }
-.rec-q-btn.active { background: white; color: var(--blue); }
-.rec-q-btn:hover:not(.active) { background: rgba(255,255,255,.28); }
+.rec-q-btn.active { background: var(--blue); color: white; }
+.rec-q-btn:hover:not(.active) { background: rgba(0,0,0,.14); }
 
 /* 選手グリッドエリア */
 .rec-players {
@@ -970,9 +971,9 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   .rec-header { height: 40px; }
   /* スコアボードを締める */
   .rec-scoreboard { padding: 6px 16px; }
-  .rec-score-val { font-size: 34px; }
-  .rec-score-name { font-size: 13px; }
-  .rec-team-box { padding: 5px 16px; gap: 12px; }
+  .rec-score-val { font-size: 38px; }
+  .rec-score-name { font-size: 14px; }
+  .rec-team-box { padding: 8px 14px; gap: 12px; }
   .rec-timer-display { font-size: 20px; }
   /* Qバーを細く */
   .rec-q-bar { padding: 4px 6px; gap: 4px; }
