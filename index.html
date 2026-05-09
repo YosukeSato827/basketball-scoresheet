@@ -976,6 +976,49 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; margin-left: auto;
 }
 .rec-sheet-btn:active { border-color: var(--blue); color: var(--blue); }
+.rec-sd-btn {
+  background: #1a1a2e; color: #a0c4ff; border: 1px solid #334;
+  border-radius: var(--radius-sm); padding: 7px 10px;
+  font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap;
+}
+.rec-sd-btn:active { background: #0d0d1a; }
+
+/* Stream Deckレイアウトパネル */
+.rec-sd-panel {
+  display: none; background: #1a1a2e; color: #e0e0e0;
+  padding: 12px 10px; border-bottom: 2px solid #334;
+}
+.rec-sd-panel.show { display: block; }
+.rec-sd-title {
+  font-size: 11px; color: #a0c4ff; font-weight: 700;
+  letter-spacing: .08em; margin-bottom: 10px; text-align: center;
+}
+.rec-sd-grid {
+  display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px;
+  max-width: 600px; margin: 0 auto;
+}
+.rec-sd-key {
+  background: #0d0d1a; border: 1px solid #445;
+  border-radius: 6px; padding: 5px 3px;
+  font-size: 9px; text-align: center; line-height: 1.4;
+  min-height: 44px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 2px;
+}
+.rec-sd-key.team-a { border-color: #4a90d9; background: #0d1a2e; }
+.rec-sd-key.team-b { border-color: #d94a4a; background: #2e0d0d; }
+.rec-sd-key.common { border-color: #4a7d4a; background: #0d1a0d; }
+.rec-sd-key.empty  { opacity: .25; }
+.rec-sd-key-action { font-size: 10px; font-weight: 700; }
+.rec-sd-key-shortcut { font-size: 8px; color: #888; }
+.rec-sd-quick-wrap {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 10px; justify-content: center;
+  font-size: 11px; color: #aaa;
+}
+.rec-sd-key.sd-player-queued {
+  outline: 2px solid #f9a825; outline-offset: -2px;
+  background: #2a2200 !important;
+}
 /* スコアシートプレビューオーバーレイ */
 .rec-sheet-preview {
   display: none; position: fixed; inset: 0; z-index: 200;
@@ -1849,7 +1892,16 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   </div>
   <div class="rec-util-bar">
     <button class="rec-undo-btn" onclick="undoLastEvent()">↩ 取り消し</button>
+    <button class="rec-sd-btn" onclick="toggleSdPanel()">🎮 Stream Deck</button>
     <button class="rec-sheet-btn" onclick="showSheetPreview()">📋 スコアシート確認</button>
+  </div>
+  <!-- Stream Deckレイアウトパネル -->
+  <div class="rec-sd-panel" id="rec-sd-panel">
+    <div class="rec-sd-title">⌨ STREAM DECK レイアウト（Ctrl+Shift+キー）</div>
+    <div class="rec-sd-grid" id="rec-sd-grid"></div>
+    <div class="rec-sd-quick-wrap">
+      <span>使い方: 先に選手キーを押してハイライト → アクションキーで即記録。選手キー未選択時はモーダル表示。</span>
+    </div>
   </div>
   <div class="rec-3col">
     <div class="rec-team-col">
@@ -3287,6 +3339,8 @@ function openRecorder() {
   recPlayersB  = parsePlayers(document.getElementById('playersB').value);
   recCourtA    = [];
   recCourtB    = [];
+  sdQueuedPlayerA = null;
+  sdQueuedPlayerB = null;
 
   clearInterval(recTimerIv);
   recTimerRunning = false;
@@ -3531,6 +3585,7 @@ async function confirmSubstitution() {
 
   closeSubstitution();
   updateCourtDisplay();
+  updateSdPanel();
 
   // 変更があった場合だけPBPに記録
   if (outPlayers.length === 0 && inPlayers.length === 0) return;
@@ -4605,6 +4660,157 @@ async function applyRosterToGame(teamId) {
     showToast(`${teamName} のロスターを読み込みました`);
   } catch(e) { showToast('エラー: ' + e.message); }
 }
+
+// =====================================================
+// Stream Deck キーボードショートカット連携
+// =====================================================
+// =====================================================
+// Stream Deck レイアウト定義
+// 32ボタン (4行×8列)
+// Row1: アクション (A左4 | B右4)
+// Row2: 選手 A1-4 | B1-4
+// Row3: 選手 A5-8 | B5-8
+// Row4: 予備
+// =====================================================
+
+// アクション行キー定義（固定）
+const SD_ACTION_MAP = [
+  { key:'1', team:'A', ev:'2P成功',          label:'A\n2P✓',  cls:'team-a' },
+  { key:'2', team:'A', ev:'3P成功',          label:'A\n3P✓',  cls:'team-a' },
+  { key:'3', team:'A', ev:'フリースロー成功', label:'A\nFT✓',  cls:'team-a' },
+  { key:'4', team:'A', ev:'Pファウル',        label:'A\nFoul', cls:'team-a' },
+  { key:'5', team:'B', ev:'2P成功',          label:'B\n2P✓',  cls:'team-b' },
+  { key:'6', team:'B', ev:'3P成功',          label:'B\n3P✓',  cls:'team-b' },
+  { key:'7', team:'B', ev:'フリースロー成功', label:'B\nFT✓',  cls:'team-b' },
+  { key:'8', team:'B', ev:'Pファウル',        label:'B\nFoul', cls:'team-b' },
+];
+
+// 選手スロットキー定義（Row2: A1-4|B1-4, Row3: A5-8|B5-8）
+const SD_PLAYER_KEYS = [
+  // Row2 (A slots 0-3, B slots 0-3)
+  { key:'Q', team:'A', slot:0 }, { key:'W', team:'A', slot:1 },
+  { key:'E', team:'A', slot:2 }, { key:'R', team:'A', slot:3 },
+  { key:'Y', team:'B', slot:0 }, { key:'U', team:'B', slot:1 },
+  { key:'I', team:'B', slot:2 }, { key:'O', team:'B', slot:3 },
+  // Row3 (A slots 4-7, B slots 4-7)
+  { key:'A', team:'A', slot:4 }, { key:'S', team:'A', slot:5 },
+  { key:'D', team:'A', slot:6 }, { key:'F', team:'A', slot:7 },
+  { key:'H', team:'B', slot:4 }, { key:'J', team:'B', slot:5 },
+  { key:'K', team:'B', slot:6 }, { key:'L', team:'B', slot:7 },
+];
+
+// 選手プリセレクション状態
+let sdQueuedPlayerA = null;  // { num, name } or null
+let sdQueuedPlayerB = null;
+
+function _getSdPlayerAtSlot(team, slot) {
+  const court = team === 'A' ? recCourtA : recCourtB;
+  return court[slot] || null;
+}
+
+function buildSdGrid() {
+  const grid = document.getElementById('rec-sd-grid');
+  if (!grid) return;
+
+  const rows = [];
+
+  // Row1: アクションボタン
+  const row1 = SD_ACTION_MAP.map(k =>
+    `<div class="rec-sd-key ${k.cls}" data-sd-key="${k.key}">
+      <span class="rec-sd-key-action">${k.label.replace(/\n/g,'<br>')}</span>
+      <span class="rec-sd-key-shortcut">Ctrl+Shift+${k.key}</span>
+    </div>`
+  ).join('');
+  rows.push(row1);
+
+  // Row2-3: 選手スロット（Row2: index 0-7, Row3: index 8-15）
+  const playerCells = SD_PLAYER_KEYS.map(k => {
+    const p = _getSdPlayerAtSlot(k.team, k.slot);
+    const cls = k.team === 'A' ? 'team-a' : 'team-b';
+    const queued = k.team === 'A' ? sdQueuedPlayerA : sdQueuedPlayerB;
+    const isQueued = p && queued && queued.num === p.num;
+    const label = p ? `#${p.num}\n${p.name}` : '－';
+    const queuedCls = isQueued ? ' sd-player-queued' : '';
+    return `<div class="rec-sd-key ${cls}${queuedCls}" data-sd-key="${k.key}" data-sd-team="${k.team}" data-sd-slot="${k.slot}">
+      <span class="rec-sd-key-action">${label.replace(/\n/g,'<br>')}</span>
+      <span class="rec-sd-key-shortcut">Ctrl+Shift+${k.key}</span>
+    </div>`;
+  });
+  rows.push(playerCells.slice(0, 8).join(''));
+  rows.push(playerCells.slice(8, 16).join(''));
+
+  // Row4: 空（予備）
+  rows.push(Array(8).fill('<div class="rec-sd-key empty"></div>').join(''));
+
+  grid.innerHTML = rows.join('');
+}
+
+function updateSdPanel() {
+  const panel = document.getElementById('rec-sd-panel');
+  if (panel && panel.classList.contains('show')) buildSdGrid();
+}
+
+function toggleSdPanel() {
+  const panel = document.getElementById('rec-sd-panel');
+  panel.classList.toggle('show');
+  if (panel.classList.contains('show')) buildSdGrid();
+}
+
+// キーボードショートカットハンドラー
+function handleRecorderShortcut(e) {
+  if (document.getElementById('view-recorder').style.display === 'none') return;
+  if (document.getElementById('rec-player-overlay').classList.contains('show')) return;
+  if (document.getElementById('rec-sub-overlay').classList.contains('show')) return;
+
+  if (!e.ctrlKey || !e.shiftKey) return;
+  const key = e.key.toUpperCase();
+
+  // アクションキー判定
+  const action = SD_ACTION_MAP.find(k => k.key.toUpperCase() === key);
+  if (action) {
+    e.preventDefault();
+    const queued = action.team === 'A' ? sdQueuedPlayerA : sdQueuedPlayerB;
+    if (queued) {
+      // プリセレクト済み → 即記録
+      recordEvent(action.ev, action.team, queued);
+      if (action.team === 'A') sdQueuedPlayerA = null;
+      else                     sdQueuedPlayerB = null;
+      updateSdPanel();
+    } else {
+      // 未選択 → 選手選択モーダル
+      startAction(action.team, action.ev);
+    }
+    flashSdKey(key);
+    return;
+  }
+
+  // 選手スロットキー判定
+  const pslot = SD_PLAYER_KEYS.find(k => k.key.toUpperCase() === key);
+  if (pslot) {
+    e.preventDefault();
+    const p = _getSdPlayerAtSlot(pslot.team, pslot.slot);
+    if (!p) return;
+    if (pslot.team === 'A') {
+      sdQueuedPlayerA = (sdQueuedPlayerA && sdQueuedPlayerA.num === p.num) ? null : p;
+    } else {
+      sdQueuedPlayerB = (sdQueuedPlayerB && sdQueuedPlayerB.num === p.num) ? null : p;
+    }
+    updateSdPanel();
+    flashSdKey(key);
+  }
+}
+
+function flashSdKey(key) {
+  const panel = document.getElementById('rec-sd-panel');
+  if (!panel || !panel.classList.contains('show')) return;
+  const cell = document.querySelector(`[data-sd-key="${key}"]`);
+  if (!cell) return;
+  cell.style.opacity = '0.3';
+  setTimeout(() => { cell.style.opacity = ''; }, 150);
+}
+
+// イベントリスナー登録（1度だけ）
+document.addEventListener('keydown', handleRecorderShortcut);
 
 // =====================================================
 // スマホプレビュートグル
