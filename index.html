@@ -799,7 +799,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 /* =====================================================
    ライブ記録ビュー
    ===================================================== */
-#view-recorder { display: none; min-height: 100vh; background: var(--bg); }
+#view-recorder { display: none; flex-direction: column; min-height: 100vh; background: var(--bg); }
 .btn-live {
   background: #E53935; color: white; border: none;
   border-radius: var(--radius-sm); padding: 6px 14px;
@@ -958,6 +958,10 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
    iPad 横向きレイアウト最適化
    ===================================================== */
 @media (orientation: landscape) and (min-width: 768px) {
+  /* ビュー全体を画面高さに固定 */
+  #view-recorder { height: 100dvh; min-height: unset; overflow: hidden; }
+  .rec-sticky-top { flex-shrink: 0; }
+  .rec-util-bar { flex-shrink: 0; }
   /* ヘッダーを細く */
   .rec-header { height: 40px; }
   /* スコアボードを締める */
@@ -2295,7 +2299,7 @@ function showView(name) {
   document.getElementById('view-tournaments').style.display = name === 'tournaments' ? 'block' : 'none';
   document.getElementById('view-detail').style.display      = name === 'detail'      ? 'block' : 'none';
   document.getElementById('view-editor').style.display      = name === 'editor'      ? 'block' : 'none';
-  document.getElementById('view-recorder').style.display    = name === 'recorder'    ? 'block' : 'none';
+  document.getElementById('view-recorder').style.display    = name === 'recorder'    ? 'flex' : 'none';
   document.getElementById('view-roster').style.display      = name === 'roster'      ? 'block' : 'none';
   document.getElementById('view-register').style.display    = name === 'register'    ? 'block' : 'none';
 }
