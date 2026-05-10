@@ -1695,7 +1695,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 #view-recorder .rec-pbp-entry.pbp-b .rec-pbp-time { color: var(--uniform-b-text); opacity: .7; }
 
 /* PBP列：1行に収まる幅で固定 */
-.rec-pbp-col { flex: 0 0 115px !important; }
+.rec-pbp-col { flex: 0 0 230px !important; }
 .rec-team-col { flex: 1 1 0; }
 
 /* 下部コート表示は常に非表示 */
@@ -3340,6 +3340,11 @@ function generate() {
   const venue      = document.getElementById('venue').value;
   const plays = parsePBP(document.getElementById('pbpInput').value);
   const st    = buildState(plays);
+  // 登録選手をスコアシートに反映（PBPに登場していない選手も表示）
+  const regA = parsePlayers(document.getElementById('playersA').value);
+  const regB = parsePlayers(document.getElementById('playersB').value);
+  regA.forEach(p => { if (p.num && !st.players.A[p.num]) st.players.A[p.num] = { num: p.num, name: p.name || '' }; });
+  regB.forEach(p => { if (p.num && !st.players.B[p.num]) st.players.B[p.num] = { num: p.num, name: p.name || '' }; });
   lastTotalA = st.qScore.A.reduce((a,b)=>a+b,0);
   lastTotalB = st.qScore.B.reduce((a,b)=>a+b,0);
   const winner = lastTotalA > lastTotalB ? esc(teamAName) : lastTotalB > lastTotalA ? esc(teamBName) : '引き分け';
@@ -3729,8 +3734,9 @@ function renderSubstitutionModal() {
   const team     = recSubTeam;
   const all      = team === 'A' ? recPlayersA : recPlayersB;
   const teamName = team === 'A' ? recTeamAName : recTeamBName;
-  const color    = team === 'A' ? 'var(--blue)' : '#E53935';
-  const bgColor  = team === 'A' ? 'var(--blue-dim)' : '#ffebee';
+  const uniform  = team === 'A' ? (recUniformsA && recUniformsA[0]) : (recUniformsB && recUniformsB[0]);
+  const uBg      = uniform?.bg   || (team === 'A' ? '#1565C0' : '#E53935');
+  const uText    = uniform?.text || '#FFFFFF';
 
   document.getElementById('rec-sub-title').textContent = `${teamName}：コートメンバー`;
 
@@ -3742,12 +3748,12 @@ function renderSubstitutionModal() {
 
   document.getElementById('rec-sub-grid').innerHTML = all.map(p => {
     const isActive = recSubAllSelected.has(p.num);
-    const style    = isActive ? `border-color:${color};background:${bgColor}` : '';
+    const style    = isActive ? `border-color:${uBg};background:${uBg};color:${uText};` : '';
     return `<button class="rec-player-select-btn${isActive ? ' rec-sub-active' : ''}"
       style="${style}"
       onclick="toggleSubPlayer('${p.num.replace(/'/g,"\\'")}','${p.name.replace(/'/g,"\\'")}')">
-      <span class="rec-psel-num" style="color:${isActive ? color : 'var(--text-light)'}">#${esc(p.num)}</span>
-      <span class="rec-psel-name">${esc(p.name)}</span>
+      <span class="rec-psel-num" style="color:${isActive ? uText : 'var(--text-light)'}">#${esc(p.num)}</span>
+      <span class="rec-psel-name" style="color:${isActive ? uText : 'inherit'}">${esc(p.name)}</span>
     </button>`;
   }).join('');
 }
@@ -3825,7 +3831,9 @@ function renderLineupModal() {
   const players  = team === 'A' ? recPlayersA : recPlayersB;
   const selected = team === 'A' ? recLineupTempA : recLineupTempB;
   const teamName = team === 'A' ? recTeamAName : recTeamBName;
-  const color    = team === 'A' ? 'var(--blue)' : '#E53935';
+  const uniform  = team === 'A' ? (recUniformsA && recUniformsA[0]) : (recUniformsB && recUniformsB[0]);
+  const uBg      = uniform?.bg   || (team === 'A' ? '#1565C0' : '#E53935');
+  const uText    = uniform?.text || '#FFFFFF';
   const isB      = team === 'B';
 
   document.getElementById('rec-lineup-title').textContent =
@@ -3841,10 +3849,15 @@ function renderLineupModal() {
   } else {
     chipsHTML = players.map(p => {
       const isSel = selected.find(s => s.num === p.num);
-      return `<button class="rec-lineup-chip${isSel ? ' selected' : ''}"
+      const selStyle = isSel
+        ? `background:${uBg};border-color:${uBg};color:${uText};`
+        : '';
+      const numColor  = isSel ? uText : 'var(--text-mid)';
+      const nameColor = isSel ? uText : 'inherit';
+      return `<button class="rec-lineup-chip${isSel ? ' selected' : ''}" style="${selStyle}"
         onclick="toggleLineupPlayer('${p.num.replace(/'/g,"\\'")}','${p.name.replace(/'/g,"\\'")}')">
-        <span class="rec-psel-num" style="color:${isSel ? color : 'var(--text-mid)'}">#${esc(p.num)}</span>
-        <span class="rec-psel-name">${esc(p.name)}</span>
+        <span class="rec-psel-num" style="color:${numColor}">#${esc(p.num)}</span>
+        <span class="rec-psel-name" style="color:${nameColor}">${esc(p.name)}</span>
       </button>`;
     }).join('');
   }
@@ -3945,8 +3958,10 @@ function clickPBPEntry(idx) {
   recPBPEditTeam = team;
   const qLabel   = q <= 4 ? `${q}Q` : 'OT';
   const teamName = team === 'A' ? recTeamAName : recTeamBName;
-  const color    = team === 'A' ? 'var(--blue)' : '#E53935';
-  const bgColor  = team === 'A' ? 'var(--blue-dim)' : '#ffebee';
+  const uniform  = team === 'A' ? (recUniformsA && recUniformsA[0]) : (recUniformsB && recUniformsB[0]);
+  const color    = uniform?.bg   || (team === 'A' ? '#1565C0' : '#E53935');
+  const bgColor  = uniform?.bg   || (team === 'A' ? '#1565C0' : '#E53935');
+  const txtColor = uniform?.text || '#FFFFFF';
   const cls      = team === 'A' ? 'pbp-a' : 'pbp-b';
 
   const infoEl = document.getElementById('rec-pbpedit-info');
@@ -3990,11 +4005,11 @@ function clickPBPEntry(idx) {
       gridEl.innerHTML = all.map(p => {
         const isCur = playerStr.includes('#' + p.num);
         return `<button class="rec-player-select-btn"
-          style="${isCur ? `border-color:${color};background:${bgColor}` : ''}"
+          style="${isCur ? `border-color:${color};background:${bgColor};color:${txtColor};` : ''}"
           onclick="updatePBPEntryPlayer(${idx},{num:'${p.num.replace(/'/g,"\\'")}',name:'${p.name.replace(/'/g,"\\'")}'})"
         >
-          <span class="rec-psel-num" style="color:${color}">#${esc(p.num)}</span>
-          <span class="rec-psel-name">${esc(p.name)}</span>
+          <span class="rec-psel-num" style="color:${isCur ? txtColor : color}">#${esc(p.num)}</span>
+          <span class="rec-psel-name" style="color:${isCur ? txtColor : 'inherit'}">${esc(p.name)}</span>
         </button>`;
       }).join('') + unknownBtn;
     }
@@ -5070,6 +5085,9 @@ function renderViewerScoresheet(data) {
   const teamBName = data.teamBName || 'チームB';
   const plays = parsePBP(data.pbpData || '');
   const st = buildState(plays);
+  // 登録選手をスコアシートに反映
+  (data.playersA || []).forEach(p => { if (p.num && !st.players.A[p.num]) st.players.A[p.num] = { num: p.num, name: p.name || '' }; });
+  (data.playersB || []).forEach(p => { if (p.num && !st.players.B[p.num]) st.players.B[p.num] = { num: p.num, name: p.name || '' }; });
   const totalA = st.qScore.A.reduce((a, b) => a + b, 0);
   const totalB = st.qScore.B.reduce((a, b) => a + b, 0);
   const winner = totalA > totalB ? esc(teamAName) : totalB > totalA ? esc(teamBName) : '引き分け';
