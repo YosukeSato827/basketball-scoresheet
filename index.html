@@ -3147,7 +3147,7 @@ function buildPlayerRows(team, st) {
     const p = list[i];
     const fc = p ? (st.fouls[team][p.num] || 0) : 0;
     html += `<div class="player-row">
-      <div class="col-no">${p ? esc(p.num) : ''}</div>
+      <div class="col-no">${i + 1}</div>
       <div class="col-lic"></div>
       <div class="col-name pr-name">${p ? esc(p.name) : ''}</div>
       <div class="col-hash">${p ? esc(p.num) : ''}</div>
