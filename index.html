@@ -621,11 +621,6 @@ td.qot span { color: #6a1b9a; }
 /* =====================================================
    スマホプレビューモード（PCからの確認用）
    ===================================================== */
-/* プレビューモード時は印刷ボタンを非表示（レガシー） */
-@media print {
-  .preview-toggle-btn { display: none; }
-}
-
 /* =====================================================
    閲覧専用ビュー（?view=GAME_ID）
    ===================================================== */
@@ -1997,7 +1992,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
         </div>
         <div class="rec-timer-btns">
           <button class="rec-timer-btn" id="rec-timer-btn" onclick="toggleRecTimer()">▶</button>
-          <button class="rec-timer-reset" onclick="resetRecTimer()">⟳</button>
+          <button class="rec-timer-reset" id="rec-timer-reset" onclick="resetRecTimer()">⟳</button>
           <button class="rec-timer-sync-btn" id="timer-sync-btn" onclick="toggleTimerSync()" title="タイマー同期">🔗</button>
           <span class="rec-timer-sync-status" id="timer-sync-status"></span>
         </div>
@@ -3533,12 +3528,7 @@ function openRecorder() {
   updateRecTimerBtn();
 
   // リロード対策：記録中セッションを保存
-  sessionStorage.setItem('recSession', JSON.stringify({
-    gameId: currentGameId,
-    tournamentId: currentTournamentId,
-    uniformA: recUniformsA,
-    uniformB: recUniformsB
-  }));
+  saveRecSession();
 
   showView('recorder');
   showLineupModal();
@@ -3562,6 +3552,20 @@ function setRecorderQ(q) {
     document.getElementById(`rec-q-${i}`).classList.toggle('active', i === q);
   }
   resetRecTimer();
+  saveRecSession();
+}
+
+function saveRecSession() {
+  if (!recGameId) return;
+  try {
+    sessionStorage.setItem('recSession', JSON.stringify({
+      gameId: recGameId,
+      tournamentId: currentTournamentId,
+      uniformA: recUniformsA,
+      uniformB: recUniformsB,
+      currentQ: recCurrentQ
+    }));
+  } catch(e) { /* sessionStorage 利用不可時は無視 */ }
 }
 
 function updateCourtDisplay() {
@@ -5162,6 +5166,8 @@ async function initApp() {
           document.getElementById('playersA').value  = playersToText(d.playersA);
           document.getElementById('playersB').value  = playersToText(d.playersB);
           openRecorder();
+          // Q番号を復元
+          if (sess.currentQ) setRecorderQ(sess.currentQ);
           return;
         }
       } catch(e) { /* 復元失敗時は通常起動 */ }
