@@ -1662,12 +1662,16 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   border: 1px solid var(--border);
 }
 
-/* チーム列内の選手チップ（常時表示） */
+/* チーム列内の選手チップ（アクションボタンの下、固定高さ） */
 .rec-court-col {
   display: flex;
-  flex-wrap: wrap; gap: 4px; padding: 4px 0 6px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 4px; min-height: 0;
+  flex-wrap: wrap; gap: 4px; padding: 6px 0 4px;
+  border-top: 1px solid var(--border);
+  margin-top: 6px;
+  height: 88px;
+  overflow-y: auto;
+  flex-shrink: 0;
+  align-content: flex-start;
 }
 .rec-court-col-player {
   font-family: 'Poppins', sans-serif; font-size: 11px; font-weight: 700;
@@ -2019,7 +2023,6 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   <div class="rec-3col">
     <div class="rec-team-col">
       <div class="rec-team-col-label" id="rec-col-label-a">チームA</div>
-      <div class="rec-court-col" id="rec-court-a-col"></div>
       <div class="rec-act-grid">
         <button class="rec-act-btn rec-act-scoring" onclick="startAction('A','2P成功')">2P 成功</button>
         <button class="rec-act-btn rec-act-scoring" onclick="startAction('A','3P成功')">3P 成功</button>
@@ -2028,6 +2031,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
         <button class="rec-act-btn rec-act-timeout" onclick="startAction('A','タイムアウト')">T / O</button>
         <button class="rec-act-btn rec-act-sub"     onclick="showSubstitution('A')">⇄ 交代</button>
       </div>
+      <div class="rec-court-col" id="rec-court-a-col"></div>
     </div>
     <div class="rec-pbp-col">
       <div class="rec-pbp-header">PLAY LOG</div>
@@ -2037,7 +2041,6 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
     </div>
     <div class="rec-team-col rec-team-col-b">
       <div class="rec-team-col-label" id="rec-col-label-b">チームB</div>
-      <div class="rec-court-col" id="rec-court-b-col"></div>
       <div class="rec-act-grid">
         <button class="rec-act-btn rec-act-scoring" onclick="startAction('B','2P成功')">2P 成功</button>
         <button class="rec-act-btn rec-act-scoring" onclick="startAction('B','3P成功')">3P 成功</button>
@@ -2046,6 +2049,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
         <button class="rec-act-btn rec-act-timeout" onclick="startAction('B','タイムアウト')">T / O</button>
         <button class="rec-act-btn rec-act-sub"     onclick="showSubstitution('B')">⇄ 交代</button>
       </div>
+      <div class="rec-court-col" id="rec-court-b-col"></div>
     </div>
   </div>
   <div class="rec-court rec-court-bottom">
