@@ -541,8 +541,8 @@ td.rs-num, td.rs-jersey {
   text-align: center;
 }
 td.rs-jersey { font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 6.5pt; }
-/* 得点時：連番セルにマーク */
-td.rs-num.scored { color: var(--mark-color, #c62828); font-weight: 800; }
+/* 連番自体は黒のまま（手書きしない部分）。マークだけ色をつける */
+td.rs-num.scored { color: #888; font-weight: 600; }
 td.rs-num.scored.mark-fg::after {
   /* 2P/3P：斜線 */
   content: ''; position: absolute; inset: 1px;
