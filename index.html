@@ -469,7 +469,7 @@ textarea#pbpInput:focus {
   position: relative; background: white; filter: url(#pencil);
 }
 .team-name-val, .info-cell, .pr-name, .coach-label { font-family: 'Klee One','Meiryo',cursive; }
-td.a-blank, td.b-blank { font-family: 'Caveat','Klee One',cursive; }
+td.rs-cell { font-family: 'Poppins','Klee One',sans-serif; }
 .pr-foul.foul-used { font-family: 'Caveat',cursive; }
 .q-box.used { font-family: 'Caveat',cursive; }
 .sheet-header { display: flex; border-bottom: 1.5px solid rgba(52,38,24,0.75); }
@@ -531,11 +531,38 @@ td.a-blank, td.b-blank { font-family: 'Caveat','Klee One',cursive; }
 .running-score-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .running-score-table th, .running-score-table td { border: 1px solid rgba(120,95,70,0.45); padding: 0; text-align: center; height: 17px; line-height: 17px; overflow: hidden; }
 .running-score-table th { background: white; font-size: 5.5pt; font-weight: bold; height: 11px; line-height: 11px; }
-.col-a-blank { width: 21px; } .col-num { width: 12px; font-size: 5.5pt; color: #666; background: white; } .col-b-blank { width: 21px; }
-td.a-blank, td.b-blank { font-size: 7pt; font-weight: 700; }
-td.q1 span, td.q3 span { color: #c62828; }
-td.q2 span, td.q4 span { color: #1565c0; }
-td.qot span { color: #6a1b9a; }
+.col-rs-a, .col-rs-b { width: 28px; }
+td.rs-cell {
+  font-size: 6.5pt; color: #888; font-weight: 600;
+  position: relative; background: white;
+  padding: 0; line-height: 17px; vertical-align: middle;
+}
+td.rs-cell.scored { color: var(--mark-color, #c62828); font-weight: 800; font-size: 8pt; }
+/* 得点時のマーク：2P/3P は斜線、FT は丸 */
+td.rs-cell.scored.mark-fg::after {
+  content: ''; position: absolute; inset: 1px;
+  background: linear-gradient(to top right, transparent 47%, var(--mark-color, #c62828) 47%, var(--mark-color, #c62828) 53%, transparent 53%);
+  pointer-events: none;
+}
+td.rs-cell.scored.mark-ft::after {
+  content: ''; position: absolute;
+  width: 7px; height: 7px; border-radius: 50%;
+  top: 50%; left: 50%; transform: translate(-50%, -50%);
+  background: var(--mark-color, #c62828); opacity: .35;
+  pointer-events: none;
+}
+/* 背番号を右上に小さく */
+.rs-jersey {
+  position: absolute; top: -1px; right: 1px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 4.5pt; font-weight: 800;
+  color: var(--mark-color, #c62828);
+  line-height: 1;
+}
+/* クォーター別色 */
+td.rs-cell.q-1, td.rs-cell.q-3 { --mark-color: #c62828; }
+td.rs-cell.q-2, td.rs-cell.q-4 { --mark-color: #1565c0; }
+td.rs-cell.q-5, td.rs-cell.q-6 { --mark-color: #6a1b9a; }
 .sheet-footer { display: flex; border-bottom: 1.5px solid rgba(52,38,24,0.75); }
 .qs-table { width: 100%; border-collapse: collapse; }
 .qs-table th, .qs-table td { border: 1px solid rgba(120,95,70,0.45); font-size: 6pt; text-align: center; padding: 1px 2px; height: 13px; line-height: 13px; }
@@ -3243,12 +3270,15 @@ function buildState(plays) {
 // =====================================================
 function scoreCell(cells, score, side) {
   const c = cells[score];
-  if (!c) return `<td class="${side}-blank"></td>`;
+  if (!c) return `<td class="rs-cell rs-${side}">${score}</td>`;
   const isFT = c.scoreType === 'FT';
-  const mark = isFT
-    ? (c.idx === 0 ? `${esc(c.playerNum)}●` : '●')
-    : (c.idx === 0 ? `${esc(c.playerNum)}/` : '/');
-  return `<td class="${side}-blank ${isFT?'ft-mark':'fg-mark'} ${qClass(c.quarter)}"><span>${mark}</span></td>`;
+  const markCls = isFT ? 'mark-ft' : 'mark-fg';
+  const qcls = `q-${c.quarter}`;
+  // シュート1点目のセルに背番号を表示
+  const jersey = c.idx === 0 && c.playerNum
+    ? `<span class="rs-jersey">${esc(c.playerNum)}</span>`
+    : '';
+  return `<td class="rs-cell rs-${side} scored ${markCls} ${qcls}">${score}${jersey}</td>`;
 }
 
 function buildRunningScore(st) {
@@ -3259,7 +3289,6 @@ function buildRunningScore(st) {
     for (let g = 0; g < 4; g++) {
       const n = r + g * 40;
       rows += scoreCell(st.cellsA, n, 'a');
-      rows += `<td class="col-num">${n}</td><td class="col-num">${n}</td>`;
       rows += scoreCell(st.cellsB, n, 'b');
     }
     rows += '</tr>';
@@ -3541,8 +3570,8 @@ function generate() {
     <div class="right-panel">
       <div class="running-label">ランニングスコア</div>
       <table class="running-score-table">
-        <colgroup>${Array(4).fill(0).map(()=>`<col class="col-a-blank"><col class="col-num"><col class="col-num"><col class="col-b-blank">`).join('')}</colgroup>
-        <thead><tr>${Array(4).fill(0).map(()=>`<th colspan="2" class="th-a">A</th><th colspan="2" class="th-b">B</th>`).join('')}</tr></thead>
+        <colgroup>${Array(4).fill(0).map(()=>`<col class="col-rs-a"><col class="col-rs-b">`).join('')}</colgroup>
+        <thead><tr>${Array(4).fill(0).map(()=>`<th class="th-a">A</th><th class="th-b">B</th>`).join('')}</tr></thead>
         <tbody>${buildRunningScore(st)}</tbody>
       </table>
     </div>
@@ -5418,8 +5447,8 @@ function renderViewerScoresheet(data) {
     <div class="right-panel">
       <div class="running-label">ランニングスコア</div>
       <table class="running-score-table">
-        <colgroup>${Array(4).fill(0).map(()=>`<col class="col-a-blank"><col class="col-num"><col class="col-num"><col class="col-b-blank">`).join('')}</colgroup>
-        <thead><tr>${Array(4).fill(0).map(()=>`<th colspan="2" class="th-a">A</th><th colspan="2" class="th-b">B</th>`).join('')}</tr></thead>
+        <colgroup>${Array(4).fill(0).map(()=>`<col class="col-rs-a"><col class="col-rs-b">`).join('')}</colgroup>
+        <thead><tr>${Array(4).fill(0).map(()=>`<th class="th-a">A</th><th class="th-b">B</th>`).join('')}</tr></thead>
         <tbody>${buildRunningScore(st)}</tbody>
       </table>
     </div>
