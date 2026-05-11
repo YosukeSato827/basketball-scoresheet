@@ -1766,8 +1766,13 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 .rec-court-player { font-family: 'Poppins', sans-serif; font-size: 11px; font-weight: 700; border: 1.5px solid; border-radius: 20px; padding: 1px 7px; white-space: nowrap; }
 /* 選手選択グリッド */
 .rec-player-select-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  gap: 8px; margin-bottom: 14px; max-height: 38vh; overflow-y: auto;
+}
+/* アクションモーダル：セクション分け表示 */
+.rec-player-select-grid.has-sections {
   display: block;
-  margin-bottom: 14px; max-height: 56vh; overflow-y: auto;
+  max-height: 56vh;
 }
 .rec-psel-section {
   font-size: 11px; font-weight: 700; color: var(--text-light);
@@ -3717,7 +3722,9 @@ function startAction(team, evType) {
     ? `<div class="rec-psel-section">ベンチ</div>` +
       `<div class="rec-psel-grid-inner">${bench.map(p => renderBtn(p, ' rec-psel-bench')).join('') + unknownBtn}</div>`
     : `<div class="rec-psel-grid-inner">${unknownBtn}</div>`;
-  document.getElementById('rec-player-select-grid').innerHTML = courtHTML + benchHTML;
+  const grid = document.getElementById('rec-player-select-grid');
+  grid.classList.add('has-sections');
+  grid.innerHTML = courtHTML + benchHTML;
   document.getElementById('rec-player-overlay').classList.add('show');
 }
 
