@@ -1524,6 +1524,24 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   padding: 5px 7px 4px; border-bottom: 1px solid var(--border);
   background: white; flex-shrink: 0;
 }
+.rec-pbp-filter {
+  display: flex; gap: 4px;
+  padding: 4px 6px;
+  background: white;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.rec-pbp-select {
+  flex: 1; min-width: 0;
+  font-size: 11px; font-family: inherit;
+  padding: 4px 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+}
+.rec-pbp-select:focus { outline: none; border-color: var(--blue); }
 .rec-pbp-feed {
   flex: 1; overflow-y: auto; max-height: 290px; min-height: 140px;
 }
@@ -2110,6 +2128,20 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
     </div>
     <div class="rec-pbp-col">
       <div class="rec-pbp-header">PLAY LOG</div>
+      <div class="rec-pbp-filter">
+        <select id="rec-pbp-filter-player" class="rec-pbp-select" onchange="updatePBPFeed()">
+          <option value="">全選手</option>
+        </select>
+        <select id="rec-pbp-filter-play" class="rec-pbp-select" onchange="updatePBPFeed()">
+          <option value="">全プレー</option>
+          <option value="2P成功">2P成功</option>
+          <option value="3P成功">3P成功</option>
+          <option value="フリースロー成功">FT成功</option>
+          <option value="Pファウル">ファウル</option>
+          <option value="タイムアウト">タイムアウト</option>
+          <option value="交代">交代</option>
+        </select>
+      </div>
       <div class="rec-pbp-feed" id="rec-pbp-feed">
         <div class="rec-pbp-empty">記録はまだ<br>ありません</div>
       </div>
@@ -4071,16 +4103,56 @@ function parsePBPLine(line) {
   return { q, timer, team, evStr, evType, playerStr };
 }
 
+function refreshPBPFilterPlayers() {
+  const sel = document.getElementById('rec-pbp-filter-player');
+  if (!sel) return;
+  const cur = sel.value;
+  const opts = ['<option value="">全選手</option>'];
+  const byNum = (a, b) => (parseInt(a.num, 10) || 0) - (parseInt(b.num, 10) || 0);
+  const addTeam = (label, arr) => {
+    if (!arr || arr.length === 0) return;
+    opts.push(`<optgroup label="${esc(label)}">`);
+    arr.slice().sort(byNum).forEach(p => {
+      opts.push(`<option value="${esc(p.num)}">#${esc(p.num)} ${esc(p.name)}</option>`);
+    });
+    opts.push('</optgroup>');
+  };
+  addTeam(recTeamAName || 'チームA', recPlayersA);
+  addTeam(recTeamBName || 'チームB', recPlayersB);
+  sel.innerHTML = opts.join('');
+  if (cur) sel.value = cur;
+}
+
 function updatePBPFeed() {
   const feed = document.getElementById('rec-pbp-feed');
   if (!feed) return;
+  refreshPBPFilterPlayers();
+  const filterPlayer = (document.getElementById('rec-pbp-filter-player')?.value || '').trim();
+  const filterPlay   = (document.getElementById('rec-pbp-filter-play')?.value || '').trim();
   const lines = recPbpData.trim().split('\n').filter(Boolean);
   if (lines.length === 0) {
     feed.innerHTML = '<div class="rec-pbp-empty">記録はまだ<br>ありません</div>';
     return;
   }
-  feed.innerHTML = lines.slice().reverse().map((line, revIdx) => {
-    const idx = lines.length - 1 - revIdx;
+  // フィルタ
+  const filtered = lines.map((line, idx) => ({ line, idx })).filter(({ line }) => {
+    const { evStr, evType, playerStr } = parsePBPLine(line);
+    if (filterPlay) {
+      if (filterPlay === '交代') {
+        if (!evStr.startsWith('交代')) return false;
+      } else if (evType !== filterPlay) return false;
+    }
+    if (filterPlayer) {
+      // 選手番号での絞り込み（交代の OUT/IN 両方を対象）
+      if (!evStr.includes(`#${filterPlayer}`)) return false;
+    }
+    return true;
+  });
+  if (filtered.length === 0) {
+    feed.innerHTML = '<div class="rec-pbp-empty">該当する<br>記録なし</div>';
+    return;
+  }
+  feed.innerHTML = filtered.slice().reverse().map(({ line, idx }) => {
     const { q, timer, team, evStr, evType, playerStr } = parsePBPLine(line);
     const qLabel = q <= 4 ? `${q}Q` : 'OT';
     const cls    = team === 'A' ? 'pbp-a' : 'pbp-b';
