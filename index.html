@@ -1538,9 +1538,18 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 .rec-pbp-entry.pbp-a { border-left-color: var(--blue); }
 .rec-pbp-entry.pbp-b { border-left-color: #E53935; }
 .rec-pbp-time { font-size: 9px; color: var(--text-light); font-family: 'Poppins', sans-serif; white-space: nowrap; }
-.rec-pbp-text { font-size: 11px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rec-pbp-text {
+  font-size: 11px; font-weight: 600; color: var(--text);
+  display: grid;
+  grid-template-columns: 30px 1fr auto;
+  gap: 6px; align-items: center;
+}
 .rec-pbp-text.pbp-a { color: var(--blue); }
 .rec-pbp-text.pbp-b { color: #E53935; }
+.rec-pbp-num  { font-family: 'Poppins', sans-serif; font-weight: 800; text-align: right; white-space: nowrap; }
+.rec-pbp-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.rec-pbp-act  { font-weight: 700; white-space: nowrap; opacity: .95; }
+.rec-pbp-full { grid-column: 1 / -1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rec-pbp-empty {
   text-align: center; color: var(--text-light); font-size: 11px;
   padding: 24px 8px; line-height: 1.6;
@@ -4045,12 +4054,26 @@ function updatePBPFeed() {
   }
   feed.innerHTML = lines.slice().reverse().map((line, revIdx) => {
     const idx = lines.length - 1 - revIdx;
-    const { q, timer, team, evStr } = parsePBPLine(line);
+    const { q, timer, team, evStr, evType, playerStr } = parsePBPLine(line);
     const qLabel = q <= 4 ? `${q}Q` : 'OT';
     const cls    = team === 'A' ? 'pbp-a' : 'pbp-b';
+    // 列分け：背番号 / 選手名 / アクション
+    let bodyHTML;
+    if (evType && REC_EVENT_TYPES.includes(evType)) {
+      const m   = playerStr.trim().match(/^#(\d+)\s*(.*)$/);
+      const num = m ? `#${m[1]}` : '';
+      const nm  = m ? m[2] : (playerStr.trim() || '');
+      bodyHTML = `
+        <div class="rec-pbp-num">${esc(num)}</div>
+        <div class="rec-pbp-name">${esc(nm)}</div>
+        <div class="rec-pbp-act">${esc(evType)}</div>`;
+    } else {
+      // 交代など、列に分けられないイベントはフルテキスト
+      bodyHTML = `<div class="rec-pbp-full">${esc(evStr)}</div>`;
+    }
     return `<div class="rec-pbp-entry ${cls}" onclick="clickPBPEntry(${idx})">
       <div class="rec-pbp-time">${qLabel} ${esc(timer)}</div>
-      <div class="rec-pbp-text ${cls}">${esc(evStr)}</div>
+      <div class="rec-pbp-text ${cls}">${bodyHTML}</div>
     </div>`;
   }).join('');
   feed.scrollTop = 0;
