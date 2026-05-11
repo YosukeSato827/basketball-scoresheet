@@ -511,7 +511,17 @@ td.a-blank, td.b-blank { font-family: 'Caveat','Klee One',cursive; }
 .player-row > div { font-size: 6pt; text-align: center; border-right: 1px solid rgba(120,95,70,0.35); padding: 0; line-height: 14px; height: 14px; overflow: hidden; }
 .player-row > div:last-child { border-right: none; }
 .player-row > div.pr-name { text-align: left; padding-left: 2px; font-size: 6pt; }
-.pr-foul.foul-used { font-weight: bold; text-decoration: line-through; }
+.pr-foul.foul-used {
+  font-weight: 900;
+  color: #c62828;
+  position: relative;
+}
+.pr-foul.foul-used::before {
+  content: ''; position: absolute; inset: 0;
+  background:
+    linear-gradient(to top right, transparent 42%, #c62828 42%, #c62828 58%, transparent 58%);
+  pointer-events: none;
+}
 .coach-rows { border-top: 1px solid rgba(52,38,24,0.75); font-size: 5.5pt; }
 .coach-row { display: flex; align-items: center; border-bottom: 1px solid rgba(120,95,70,0.35); height: 14px; padding: 0 3px; }
 .coach-row:last-child { border-bottom: none; }
@@ -1343,6 +1353,21 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 }
 .uniform-swatch-btn.light-color { border-color: #ccc; }
 .uniform-swatch-btn.light-color.selected { border-color: #1565c0; }
+/* カスタムカラーピッカーボタン */
+.uniform-custom-btn {
+  position: relative;
+  background: linear-gradient(135deg, #FF0080 0%, #FF8C00 25%, #FFD700 50%, #00C853 75%, #2962FF 100%);
+  display: flex; align-items: center; justify-content: center;
+  color: white; cursor: pointer;
+}
+.uniform-custom-input {
+  position: absolute; inset: 0;
+  opacity: 0; cursor: pointer; width: 100%; height: 100%;
+}
+.uniform-custom-icon {
+  font-size: 14px; pointer-events: none;
+  text-shadow: 0 1px 2px rgba(0,0,0,.4);
+}
 /* チームカード内スウォッチ */
 .uniform-swatch {
   display: inline-block;
@@ -1528,6 +1553,15 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 .rec-player-select-btn.rec-sub-active {
   border-width: 2.5px;
 }
+.rec-player-select-btn { position: relative; }
+.rec-sub-badge {
+  position: absolute; top: 2px; right: 2px;
+  font-size: 9px; font-weight: 900; letter-spacing: .04em;
+  padding: 2px 5px; border-radius: 4px;
+  font-family: 'Poppins', sans-serif;
+}
+.rec-sub-badge.in  { background: #2e7d32; color: white; }
+.rec-sub-badge.out { background: #c62828; color: white; }
 .rec-sub-instruction {
   font-size: 12px; color: var(--text-mid); text-align: center;
   margin-bottom: 12px; line-height: 1.5;
@@ -1732,9 +1766,23 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 .rec-court-player { font-family: 'Poppins', sans-serif; font-size: 11px; font-weight: 700; border: 1.5px solid; border-radius: 20px; padding: 1px 7px; white-space: nowrap; }
 /* 選手選択グリッド */
 .rec-player-select-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
-  gap: 8px; margin-bottom: 14px; max-height: 38vh; overflow-y: auto;
+  display: block;
+  margin-bottom: 14px; max-height: 56vh; overflow-y: auto;
 }
+.rec-psel-section {
+  font-size: 11px; font-weight: 700; color: var(--text-light);
+  letter-spacing: .08em; text-transform: uppercase;
+  margin: 6px 0 6px; padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+}
+.rec-psel-grid-inner {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  gap: 8px; margin-bottom: 4px;
+}
+.rec-player-select-btn.rec-psel-bench {
+  opacity: .55;
+}
+.rec-player-select-btn.rec-psel-bench:active { opacity: .9; }
 .rec-player-select-btn {
   background: var(--bg); border: 2px solid var(--border); border-radius: var(--radius);
   padding: 10px 4px; cursor: pointer; text-align: center;
@@ -2024,9 +2072,9 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
     <div class="rec-team-col">
       <div class="rec-team-col-label" id="rec-col-label-a">チームA</div>
       <div class="rec-act-grid">
+        <button class="rec-act-btn rec-act-scoring" onclick="startAction('A','フリースロー成功')">FT 成功</button>
         <button class="rec-act-btn rec-act-scoring" onclick="startAction('A','2P成功')">2P 成功</button>
         <button class="rec-act-btn rec-act-scoring" onclick="startAction('A','3P成功')">3P 成功</button>
-        <button class="rec-act-btn rec-act-scoring" onclick="startAction('A','フリースロー成功')">FT 成功</button>
         <button class="rec-act-btn rec-act-foul"    onclick="startAction('A','Pファウル')">ファウル</button>
         <button class="rec-act-btn rec-act-timeout" onclick="startAction('A','タイムアウト')">T / O</button>
         <button class="rec-act-btn rec-act-sub"     onclick="showSubstitution('A')">⇄ 交代</button>
@@ -2042,9 +2090,9 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
     <div class="rec-team-col rec-team-col-b">
       <div class="rec-team-col-label" id="rec-col-label-b">チームB</div>
       <div class="rec-act-grid">
+        <button class="rec-act-btn rec-act-scoring" onclick="startAction('B','フリースロー成功')">FT 成功</button>
         <button class="rec-act-btn rec-act-scoring" onclick="startAction('B','2P成功')">2P 成功</button>
         <button class="rec-act-btn rec-act-scoring" onclick="startAction('B','3P成功')">3P 成功</button>
-        <button class="rec-act-btn rec-act-scoring" onclick="startAction('B','フリースロー成功')">FT 成功</button>
         <button class="rec-act-btn rec-act-foul"    onclick="startAction('B','Pファウル')">ファウル</button>
         <button class="rec-act-btn rec-act-timeout" onclick="startAction('B','タイムアウト')">T / O</button>
         <button class="rec-act-btn rec-act-sub"     onclick="showSubstitution('B')">⇄ 交代</button>
@@ -2068,7 +2116,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   <div class="rec-action-overlay" id="rec-sub-overlay" onclick="closeSubstitution()">
     <div class="rec-action-sheet" onclick="event.stopPropagation()">
       <div class="rec-action-player" id="rec-sub-title">コートメンバー</div>
-      <div class="rec-sub-instruction">コートに出る選手をタップ（ハイライト = 出場中）</div>
+      <div class="rec-sub-instruction">交代後にコートにいる選手をタップ／ハイライト=出場　<span style="color:#2e7d32;font-weight:900">IN</span>=新規出場　<span style="color:#c62828;font-weight:900">OUT</span>=ベンチへ</div>
       <div class="rec-player-select-grid" id="rec-sub-grid"></div>
       <button class="rec-sub-confirm-btn" onclick="confirmSubstitution()">交代確定</button>
       <button class="rec-action-cancel" onclick="closeSubstitution()">キャンセル</button>
@@ -3313,16 +3361,41 @@ function buildScoreGraphSVG(plays, teamAName, teamBName) {
     xLabels += `<text x="${xOf(idx)}" y="${padT + gH + 16}" text-anchor="middle" font-size="9" fill="#5A6A7A">${q}Q終</text>`;
   });
 
-  // 凡例
+  // 凡例（文字幅を簡易計算してアイテム位置を動的に決定）
+  const estTextWidth = (s, fontSize = 9) => {
+    // 半角は ~0.55em、全角(日本語)は ~1em
+    let w = 0;
+    for (const ch of String(s)) {
+      const code = ch.charCodeAt(0);
+      const isFull = code > 0x7F; // 大雑把に半角/全角を判定
+      w += fontSize * (isFull ? 1 : 0.55);
+    }
+    return w;
+  };
   const legY = H - 6;
-  const legend = `
-    <rect x="${padL}" y="${legY - 7}" width="14" height="3" rx="1.5" fill="#005BAC"/>
-    <text x="${padL + 17}" y="${legY}" font-size="9" fill="#005BAC" font-weight="700">${esc(teamAName)}</text>
-    <rect x="${padL + 90}" y="${legY - 7}" width="14" height="3" rx="1.5" fill="#E53935"/>
-    <text x="${padL + 107}" y="${legY}" font-size="9" fill="#E53935" font-weight="700">${esc(teamBName)}</text>
-    <circle cx="${padL + 190}" cy="${legY - 4}" r="5" fill="#FF6F00" opacity="0.85"/>
-    <text x="${padL + 198}" y="${legY}" font-size="9" fill="#FF6F00">逆転</text>
-  `;
+  const itemGap = 14;
+  const swatchW = 14, swatchGap = 4;
+  const dotR = 5, dotGap = 6;
+  // 各アイテムの幅を計算
+  const wA = swatchW + swatchGap + estTextWidth(teamAName);
+  const wB = swatchW + swatchGap + estTextWidth(teamBName);
+  const wOver = dotR * 2 + dotGap + estTextWidth('逆転');
+  // 配置開始位置（足りない場合は左寄せ）
+  let lx = padL;
+  let legend = '';
+  // Team A
+  legend += `<rect x="${lx}" y="${legY - 7}" width="${swatchW}" height="3" rx="1.5" fill="#005BAC"/>`;
+  legend += `<text x="${lx + swatchW + swatchGap}" y="${legY}" font-size="9" fill="#005BAC" font-weight="700">${esc(teamAName)}</text>`;
+  lx += wA + itemGap;
+  // Team B
+  legend += `<rect x="${lx}" y="${legY - 7}" width="${swatchW}" height="3" rx="1.5" fill="#E53935"/>`;
+  legend += `<text x="${lx + swatchW + swatchGap}" y="${legY}" font-size="9" fill="#E53935" font-weight="700">${esc(teamBName)}</text>`;
+  lx += wB + itemGap;
+  // 逆転（収まる場合のみ）
+  if (lx + wOver <= W - padR) {
+    legend += `<circle cx="${lx + dotR}" cy="${legY - 4}" r="${dotR}" fill="#FF6F00" opacity="0.85"/>`;
+    legend += `<text x="${lx + dotR * 2 + dotGap}" y="${legY}" font-size="9" fill="#FF6F00">逆転</text>`;
+  }
 
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;overflow:visible" xmlns="http://www.w3.org/2000/svg">
   ${gridLines}
@@ -3481,6 +3554,7 @@ let recTimerRunning = false;
 let recTimerIv      = null;
 let recSubTeam         = null;
 let recSubAllSelected  = new Set();
+let recSubOldNums      = new Set();
 let recLineupTempA      = [];
 let recLineupTempB      = [];
 let recLineupCurrentTeam = 'A';
@@ -3496,8 +3570,9 @@ function openRecorder() {
   recTeamAName = document.getElementById('teamAName').value || 'チームA';
   recTeamBName = document.getElementById('teamBName').value || 'チームB';
   recPbpData   = document.getElementById('pbpInput').value;
-  recPlayersA  = parsePlayers(document.getElementById('playersA').value);
-  recPlayersB  = parsePlayers(document.getElementById('playersB').value);
+  const _byNum = (a, b) => (parseInt(a.num, 10) || 0) - (parseInt(b.num, 10) || 0);
+  recPlayersA  = parsePlayers(document.getElementById('playersA').value).sort(_byNum);
+  recPlayersB  = parsePlayers(document.getElementById('playersB').value).sort(_byNum);
   recCourtA    = [];
   recCourtB    = [];
 
@@ -3578,6 +3653,9 @@ function saveRecSession() {
 }
 
 function updateCourtDisplay() {
+  const byNum = (a, b) => (parseInt(a.num, 10) || 0) - (parseInt(b.num, 10) || 0);
+  const sortedA = recCourtA.slice().sort(byNum);
+  const sortedB = recCourtB.slice().sort(byNum);
   const render = (players, color, label) => {
     const chips = players.length === 0
       ? `<span style="color:var(--text-light);font-size:11px">未登録</span>`
@@ -3586,8 +3664,8 @@ function updateCourtDisplay() {
         ).join('');
     return `<span class="rec-court-label">${esc(label)}</span>${chips}`;
   };
-  document.getElementById('rec-court-a').innerHTML = render(recCourtA, 'var(--blue)', recTeamAName);
-  document.getElementById('rec-court-b').innerHTML = render(recCourtB, '#E53935',    recTeamBName);
+  document.getElementById('rec-court-a').innerHTML = render(sortedA, 'var(--blue)', recTeamAName);
+  document.getElementById('rec-court-b').innerHTML = render(sortedB, '#E53935',    recTeamBName);
 
   // チーム列内の選手チップ（横向き用）
   const renderCol = (players, team) => players.map(p =>
@@ -3595,8 +3673,8 @@ function updateCourtDisplay() {
   ).join('');
   const colA = document.getElementById('rec-court-a-col');
   const colB = document.getElementById('rec-court-b-col');
-  if (colA) colA.innerHTML = recCourtA.length ? renderCol(recCourtA, 'A') : '';
-  if (colB) colB.innerHTML = recCourtB.length ? renderCol(recCourtB, 'B') : '';
+  if (colA) colA.innerHTML = sortedA.length ? renderCol(sortedA, 'A') : '';
+  if (colB) colB.innerHTML = sortedB.length ? renderCol(sortedB, 'B') : '';
 }
 
 // アクションボタン押下 → 選手選択モーダルを表示
@@ -3606,7 +3684,12 @@ function startAction(team, evType) {
     recordEvent(evType, team, null);
     return;
   }
-  const court    = team === 'A' ? recCourtA : recCourtB;
+  const byNum = (a, b) => (parseInt(a.num, 10) || 0) - (parseInt(b.num, 10) || 0);
+  const courtSrc = team === 'A' ? recCourtA : recCourtB;
+  const allSrc   = team === 'A' ? recPlayersA : recPlayersB;
+  const courtNums = new Set(courtSrc.map(p => p.num));
+  const court  = courtSrc.slice().sort(byNum);
+  const bench  = allSrc.filter(p => !courtNums.has(p.num)).sort(byNum);
   const teamName = team === 'A' ? recTeamAName : recTeamBName;
   const teamCls  = team === 'A' ? 'team-a' : 'team-b';
 
@@ -3614,19 +3697,27 @@ function startAction(team, evType) {
   title.textContent = `${teamName}：選手を選択`;
   title.className = `rec-action-player ${teamCls}`;
 
+  const renderBtn = (p, extraCls = '') =>
+    `<button class="rec-player-select-btn ${teamCls}${extraCls}"
+       onclick="recordEvent('${evType}','${team}',{num:'${p.num.replace(/'/g,"\\'")}',name:'${p.name.replace(/'/g,"\\'")}'})"
+     >
+       <span class="rec-psel-num">#${esc(p.num)}</span>
+       <span class="rec-psel-name">${esc(p.name)}</span>
+     </button>`;
   const unknownBtn = `<button class="rec-player-select-btn rec-psel-unknown"
      onclick="recordEvent('${evType}','${team}',null)">
      <span class="rec-psel-num" style="color:var(--text-light)">?</span>
      <span class="rec-psel-name">選手不明</span>
    </button>`;
-  document.getElementById('rec-player-select-grid').innerHTML = court.map(p =>
-    `<button class="rec-player-select-btn ${teamCls}"
-       onclick="recordEvent('${evType}','${team}',{num:'${p.num.replace(/'/g,"\\'")}',name:'${p.name.replace(/'/g,"\\'")}'})"
-     >
-       <span class="rec-psel-num">#${esc(p.num)}</span>
-       <span class="rec-psel-name">${esc(p.name)}</span>
-     </button>`
-  ).join('') + unknownBtn;
+  const courtHTML = court.length
+    ? `<div class="rec-psel-section">出場中</div>` +
+      `<div class="rec-psel-grid-inner">${court.map(p => renderBtn(p)).join('')}</div>`
+    : '';
+  const benchHTML = bench.length
+    ? `<div class="rec-psel-section">ベンチ</div>` +
+      `<div class="rec-psel-grid-inner">${bench.map(p => renderBtn(p, ' rec-psel-bench')).join('') + unknownBtn}</div>`
+    : `<div class="rec-psel-grid-inner">${unknownBtn}</div>`;
+  document.getElementById('rec-player-select-grid').innerHTML = courtHTML + benchHTML;
   document.getElementById('rec-player-overlay').classList.add('show');
 }
 
@@ -3730,6 +3821,7 @@ function showSubstitution(team) {
   recSubTeam = team;
   const court = team === 'A' ? recCourtA : recCourtB;
   recSubAllSelected = new Set(court.map(p => p.num));
+  recSubOldNums     = new Set(court.map(p => p.num));
   renderSubstitutionModal();
   document.getElementById('rec-sub-overlay').classList.add('show');
 }
@@ -3752,12 +3844,18 @@ function renderSubstitutionModal() {
 
   document.getElementById('rec-sub-grid').innerHTML = all.map(p => {
     const isActive = recSubAllSelected.has(p.num);
-    const style    = isActive ? `border-color:${uBg};background:${uBg};color:${uText};` : '';
+    const wasOnCourt = recSubOldNums.has(p.num);
+    // 状態判定：IN（新規選択）／OUT（外された）／STAY（継続）／BENCH（控え）
+    let badge = '';
+    if (wasOnCourt && !isActive)        badge = '<span class="rec-sub-badge out">OUT</span>';
+    else if (!wasOnCourt && isActive)   badge = '<span class="rec-sub-badge in">IN</span>';
+    const style = isActive ? `border-color:${uBg};background:${uBg};color:${uText};` : '';
     return `<button class="rec-player-select-btn${isActive ? ' rec-sub-active' : ''}"
       style="${style}"
       onclick="toggleSubPlayer('${p.num.replace(/'/g,"\\'")}','${p.name.replace(/'/g,"\\'")}')">
       <span class="rec-psel-num" style="color:${isActive ? uText : 'var(--text-light)'}">#${esc(p.num)}</span>
       <span class="rec-psel-name" style="color:${isActive ? uText : 'inherit'}">${esc(p.name)}</span>
+      ${badge}
     </button>`;
   }).join('');
 }
@@ -4571,6 +4669,7 @@ function _isLightColor(hex) {
 function _makeColorPalette(colors, selected, onSelect) {
   const wrap = document.createElement('div');
   wrap.className = 'uniform-palette';
+  const isPreset = colors.includes(selected);
   colors.forEach(color => {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -4584,6 +4683,25 @@ function _makeColorPalette(colors, selected, onSelect) {
     };
     wrap.appendChild(btn);
   });
+  // カスタムカラー（ピッカー）ボタン
+  const customWrap = document.createElement('label');
+  customWrap.className = 'uniform-swatch-btn uniform-custom-btn' + (!isPreset ? ' selected' : '');
+  if (!isPreset) customWrap.style.background = selected;
+  customWrap.title = 'カスタムカラー';
+  customWrap.innerHTML = '<span class="uniform-custom-icon">🎨</span>';
+  const picker = document.createElement('input');
+  picker.type = 'color';
+  picker.value = selected && /^#[0-9A-Fa-f]{6}$/.test(selected) ? selected : '#000000';
+  picker.className = 'uniform-custom-input';
+  picker.oninput = (e) => {
+    const c = e.target.value.toUpperCase();
+    wrap.querySelectorAll('.uniform-swatch-btn').forEach(b => b.classList.remove('selected'));
+    customWrap.classList.add('selected');
+    customWrap.style.background = c;
+    onSelect(c);
+  };
+  customWrap.appendChild(picker);
+  wrap.appendChild(customWrap);
   return wrap;
 }
 
