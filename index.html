@@ -513,15 +513,14 @@ td.a-blank, td.b-blank { font-family: 'Caveat','Klee One',cursive; }
 .player-row > div.pr-name { text-align: left; padding-left: 2px; font-size: 6pt; }
 .pr-foul.foul-used {
   font-weight: 900;
-  color: #c62828;
-  position: relative;
+  font-size: 5.5pt;
 }
-.pr-foul.foul-used::before {
-  content: ''; position: absolute; inset: 0;
-  background:
-    linear-gradient(to top right, transparent 42%, #c62828 42%, #c62828 58%, transparent 58%);
-  pointer-events: none;
-}
+.pr-foul.foul-used.q-1,
+.pr-foul.foul-used.q-3 { color: #c62828; }
+.pr-foul.foul-used.q-2,
+.pr-foul.foul-used.q-4 { color: #1565c0; }
+.pr-foul.foul-used.q-5,
+.pr-foul.foul-used.q-6 { color: #6a1b9a; }
 .coach-rows { border-top: 1px solid rgba(52,38,24,0.75); font-size: 5.5pt; }
 .coach-row { display: flex; align-items: center; border-bottom: 1px solid rgba(120,95,70,0.35); height: 14px; padding: 0 3px; }
 .coach-row:last-child { border-bottom: none; }
@@ -1523,7 +1522,15 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   letter-spacing: .1em; text-transform: uppercase;
   padding: 5px 7px 4px; border-bottom: 1px solid var(--border);
   background: white; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: space-between;
 }
+.rec-pbp-filter-toggle {
+  background: transparent; border: none;
+  font-size: 13px; cursor: pointer;
+  padding: 0 2px; border-radius: 4px;
+  line-height: 1;
+}
+.rec-pbp-filter-toggle.active { background: var(--blue-dim); }
 .rec-pbp-filter {
   display: flex; gap: 4px;
   padding: 4px 6px;
@@ -2127,8 +2134,11 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <div class="rec-court-col" id="rec-court-a-col"></div>
     </div>
     <div class="rec-pbp-col">
-      <div class="rec-pbp-header">PLAY LOG</div>
-      <div class="rec-pbp-filter">
+      <div class="rec-pbp-header">
+        <span>PLAY LOG</span>
+        <button class="rec-pbp-filter-toggle" id="rec-pbp-filter-toggle" onclick="togglePBPFilter()" title="フィルター">🔍</button>
+      </div>
+      <div class="rec-pbp-filter" id="rec-pbp-filter" style="display:none">
         <select id="rec-pbp-filter-player" class="rec-pbp-select" onchange="updatePBPFeed()">
           <option value="">全選手</option>
         </select>
@@ -3190,6 +3200,7 @@ function buildState(plays) {
     cellsA: {}, cellsB: {},
     players:   { A: {}, B: {} },
     fouls:     { A: {}, B: {} },
+    foulsByPlayer: { A: {}, B: {} },
     teamFouls: { A: [0,0,0,0,0], B: [0,0,0,0,0] },
     timeouts:  { A: [[],[],[],[],[]], B: [[],[],[],[],[]] },
     qScore:    { A: [0,0,0,0,0], B: [0,0,0,0,0] }
@@ -3210,7 +3221,12 @@ function buildState(plays) {
       st.qScore[team][qi] += ev.points;
     }
     if (ev.type === 'PF' || ev.type === 'TF') {
-      if (ev.playerNum) st.fouls[team][ev.playerNum] = (st.fouls[team][ev.playerNum] || 0) + 1;
+      if (ev.playerNum) {
+        st.fouls[team][ev.playerNum] = (st.fouls[team][ev.playerNum] || 0) + 1;
+        // クォーター履歴も保存（スコアシート色分け用）
+        if (!st.foulsByPlayer[team][ev.playerNum]) st.foulsByPlayer[team][ev.playerNum] = [];
+        st.foulsByPlayer[team][ev.playerNum].push(q);
+      }
       st.teamFouls[team][qi]++;
     }
     if (ev.type === 'TO') st.timeouts[team][qi].push(timer || '');
@@ -3256,14 +3272,18 @@ function buildPlayerRows(team, st) {
   let html = '';
   for (let i = 0; i < 18; i++) {
     const p = list[i];
-    const fc = p ? (st.fouls[team][p.num] || 0) : 0;
+    const foulQs = p ? (st.foulsByPlayer[team][p.num] || []) : [];
     html += `<div class="player-row">
       <div class="col-no">${i + 1}</div>
       <div class="col-lic"></div>
       <div class="col-name pr-name">${p ? esc(p.name) : ''}</div>
       <div class="col-hash">${p ? esc(p.num) : ''}</div>
       <div class="col-in"></div>
-      ${[1,2,3,4,5].map(n=>`<div class="col-f pr-foul${n<=fc?' foul-used':''}">${n}</div>`).join('')}
+      ${[1,2,3,4,5].map(n=>{
+        const q = foulQs[n-1];
+        if (!q) return `<div class="col-f pr-foul"></div>`;
+        return `<div class="col-f pr-foul foul-used q-${q}">P${n}</div>`;
+      }).join('')}
     </div>`;
   }
   return html;
@@ -3766,7 +3786,7 @@ function startAction(team, evType) {
 
   const renderBtn = (p, extraCls = '') => {
     const fc = isFoul ? (foulCounts[p.num] || 0) : null;
-    const badge = isFoul
+    const badge = isFoul && fc > 0
       ? `<span class="rec-psel-foul${fc >= 4 ? ' danger' : fc >= 3 ? ' warn' : ''}">${fc}</span>`
       : '';
     return `<button class="rec-player-select-btn ${teamCls}${extraCls}"
@@ -4108,6 +4128,9 @@ function refreshPBPFilterPlayers() {
   if (!sel) return;
   const cur = sel.value;
   const opts = ['<option value="">全選手</option>'];
+  // チーム全体での絞り込み
+  opts.push(`<option value="team:A">${esc(recTeamAName || 'チームA')} 全選手</option>`);
+  opts.push(`<option value="team:B">${esc(recTeamBName || 'チームB')} 全選手</option>`);
   const byNum = (a, b) => (parseInt(a.num, 10) || 0) - (parseInt(b.num, 10) || 0);
   const addTeam = (label, arr) => {
     if (!arr || arr.length === 0) return;
@@ -4123,6 +4146,26 @@ function refreshPBPFilterPlayers() {
   if (cur) sel.value = cur;
 }
 
+function togglePBPFilter() {
+  const wrap = document.getElementById('rec-pbp-filter');
+  const btn  = document.getElementById('rec-pbp-filter-toggle');
+  if (!wrap) return;
+  const showing = wrap.style.display !== 'none';
+  if (showing) {
+    wrap.style.display = 'none';
+    btn?.classList.remove('active');
+    // 閉じる際にフィルターをクリアする
+    const ps = document.getElementById('rec-pbp-filter-player');
+    const pl = document.getElementById('rec-pbp-filter-play');
+    if (ps) ps.value = '';
+    if (pl) pl.value = '';
+    updatePBPFeed();
+  } else {
+    wrap.style.display = '';
+    btn?.classList.add('active');
+  }
+}
+
 function updatePBPFeed() {
   const feed = document.getElementById('rec-pbp-feed');
   if (!feed) return;
@@ -4136,15 +4179,21 @@ function updatePBPFeed() {
   }
   // フィルタ
   const filtered = lines.map((line, idx) => ({ line, idx })).filter(({ line }) => {
-    const { evStr, evType, playerStr } = parsePBPLine(line);
+    const { evStr, evType, playerStr, team } = parsePBPLine(line);
     if (filterPlay) {
       if (filterPlay === '交代') {
         if (!evStr.startsWith('交代')) return false;
       } else if (evType !== filterPlay) return false;
     }
     if (filterPlayer) {
-      // 選手番号での絞り込み（交代の OUT/IN 両方を対象）
-      if (!evStr.includes(`#${filterPlayer}`)) return false;
+      // "team:A" or "team:B" の場合はチームで絞り込み
+      if (filterPlayer.startsWith('team:')) {
+        const t = filterPlayer.slice(5);
+        if (team !== t) return false;
+      } else {
+        // 選手番号での絞り込み（交代の OUT/IN 両方を対象）
+        if (!evStr.includes(`#${filterPlayer}`)) return false;
+      }
     }
     return true;
   });
