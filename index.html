@@ -469,7 +469,7 @@ textarea#pbpInput:focus {
   position: relative; background: white; filter: url(#pencil);
 }
 .team-name-val, .info-cell, .pr-name, .coach-label { font-family: 'Klee One','Meiryo',cursive; }
-td.rs-cell { font-family: 'Poppins','Klee One',sans-serif; }
+td.rs-num { font-family: 'Poppins','Klee One',sans-serif; }
 .pr-foul.foul-used { font-family: 'Caveat',cursive; }
 .q-box.used { font-family: 'Caveat',cursive; }
 .sheet-header { display: flex; border-bottom: 1.5px solid rgba(52,38,24,0.75); }
@@ -531,38 +531,48 @@ td.rs-cell { font-family: 'Poppins','Klee One',sans-serif; }
 .running-score-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .running-score-table th, .running-score-table td { border: 1px solid rgba(120,95,70,0.45); padding: 0; text-align: center; height: 17px; line-height: 17px; overflow: hidden; }
 .running-score-table th { background: white; font-size: 5.5pt; font-weight: bold; height: 11px; line-height: 11px; }
-.col-rs-a, .col-rs-b { width: 28px; }
-td.rs-cell {
-  font-size: 6.5pt; color: #888; font-weight: 600;
+/* ランニングスコア：[A背番号 | A連番 | B連番 | B背番号] の4列構成 */
+.col-rs-jersey { width: 13px; }
+.col-rs-num    { width: 17px; }
+td.rs-num, td.rs-jersey {
+  font-size: 6pt; color: #888; font-weight: 600;
   position: relative; background: white;
   padding: 0; line-height: 17px; vertical-align: middle;
+  text-align: center;
 }
-td.rs-cell.scored { color: var(--mark-color, #c62828); font-weight: 800; font-size: 8pt; }
-/* 得点時のマーク：2P/3P は斜線、FT は丸 */
-td.rs-cell.scored.mark-fg::after {
+td.rs-jersey { font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 6.5pt; }
+/* 得点時：連番セルにマーク */
+td.rs-num.scored { color: var(--mark-color, #c62828); font-weight: 800; }
+td.rs-num.scored.mark-fg::after {
+  /* 2P/3P：斜線 */
   content: ''; position: absolute; inset: 1px;
-  background: linear-gradient(to top right, transparent 47%, var(--mark-color, #c62828) 47%, var(--mark-color, #c62828) 53%, transparent 53%);
+  background: linear-gradient(to top right, transparent 46%, var(--mark-color, #c62828) 46%, var(--mark-color, #c62828) 54%, transparent 54%);
   pointer-events: none;
 }
-td.rs-cell.scored.mark-ft::after {
+td.rs-num.scored.mark-ft::after {
+  /* FT：塗りつぶし丸 */
   content: ''; position: absolute;
-  width: 7px; height: 7px; border-radius: 50%;
+  width: 9px; height: 9px; border-radius: 50%;
   top: 50%; left: 50%; transform: translate(-50%, -50%);
-  background: var(--mark-color, #c62828); opacity: .35;
+  background: var(--mark-color, #c62828); opacity: .4;
   pointer-events: none;
 }
-/* 背番号を右上に小さく */
-.rs-jersey {
-  position: absolute; top: -1px; right: 1px;
-  font-family: 'Poppins', sans-serif;
-  font-size: 4.5pt; font-weight: 800;
-  color: var(--mark-color, #c62828);
-  line-height: 1;
+/* 得点時：背番号セル */
+td.rs-jersey.scored { color: var(--mark-color, #c62828); }
+td.rs-jersey.scored.is-3p > span {
+  display: inline-block;
+  border: 1.2px solid var(--mark-color, #c62828);
+  border-radius: 50%;
+  padding: 0 2px; line-height: 11px;
+  min-width: 11px;
 }
-/* クォーター別色 */
-td.rs-cell.q-1, td.rs-cell.q-3 { --mark-color: #c62828; }
-td.rs-cell.q-2, td.rs-cell.q-4 { --mark-color: #1565c0; }
-td.rs-cell.q-5, td.rs-cell.q-6 { --mark-color: #6a1b9a; }
+/* クォーター別色：Q1/Q3=赤、Q2/Q4/OT=濃色（青） */
+td.rs-num.q-1, td.rs-num.q-3,
+td.rs-jersey.q-1, td.rs-jersey.q-3 { --mark-color: #c62828; }
+td.rs-num.q-2, td.rs-num.q-4,
+td.rs-jersey.q-2, td.rs-jersey.q-4 { --mark-color: #1565c0; }
+td.rs-num.q-5, td.rs-num.q-6,
+td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
 .sheet-footer { display: flex; border-bottom: 1.5px solid rgba(52,38,24,0.75); }
 .qs-table { width: 100%; border-collapse: collapse; }
 .qs-table th, .qs-table td { border: 1px solid rgba(120,95,70,0.45); font-size: 6pt; text-align: center; padding: 1px 2px; height: 13px; line-height: 13px; }
@@ -3268,17 +3278,19 @@ function buildState(plays) {
 // =====================================================
 // スコアシート生成
 // =====================================================
-function scoreCell(cells, score, side) {
+// 連番セル：得点時はマーク(斜線/丸)を描画
+function rsNumCell(cells, score) {
   const c = cells[score];
-  if (!c) return `<td class="rs-cell rs-${side}">${score}</td>`;
-  const isFT = c.scoreType === 'FT';
-  const markCls = isFT ? 'mark-ft' : 'mark-fg';
-  const qcls = `q-${c.quarter}`;
-  // シュート1点目のセルに背番号を表示
-  const jersey = c.idx === 0 && c.playerNum
-    ? `<span class="rs-jersey">${esc(c.playerNum)}</span>`
-    : '';
-  return `<td class="rs-cell rs-${side} scored ${markCls} ${qcls}">${score}${jersey}</td>`;
+  if (!c) return `<td class="rs-num">${score}</td>`;
+  const markCls = c.scoreType === 'FT' ? 'mark-ft' : 'mark-fg';
+  return `<td class="rs-num scored ${markCls} q-${c.quarter}">${score}</td>`;
+}
+// 背番号セル：得点した最初のセル(idx=0)に背番号を表示、3Pは丸で囲む
+function rsJerseyCell(cells, score) {
+  const c = cells[score];
+  if (!c || c.idx !== 0 || !c.playerNum) return `<td class="rs-jersey"></td>`;
+  const is3P = c.scoreType === '3P';
+  return `<td class="rs-jersey scored q-${c.quarter}${is3P ? ' is-3p' : ''}"><span>${esc(c.playerNum)}</span></td>`;
 }
 
 function buildRunningScore(st) {
@@ -3288,8 +3300,11 @@ function buildRunningScore(st) {
     rows += `<tr${style}>`;
     for (let g = 0; g < 4; g++) {
       const n = r + g * 40;
-      rows += scoreCell(st.cellsA, n, 'a');
-      rows += scoreCell(st.cellsB, n, 'b');
+      // [A背番号 | A連番 | B連番 | B背番号]
+      rows += rsJerseyCell(st.cellsA, n);
+      rows += rsNumCell(st.cellsA, n);
+      rows += rsNumCell(st.cellsB, n);
+      rows += rsJerseyCell(st.cellsB, n);
     }
     rows += '</tr>';
   }
@@ -3570,8 +3585,8 @@ function generate() {
     <div class="right-panel">
       <div class="running-label">ランニングスコア</div>
       <table class="running-score-table">
-        <colgroup>${Array(4).fill(0).map(()=>`<col class="col-rs-a"><col class="col-rs-b">`).join('')}</colgroup>
-        <thead><tr>${Array(4).fill(0).map(()=>`<th class="th-a">A</th><th class="th-b">B</th>`).join('')}</tr></thead>
+        <colgroup>${Array(4).fill(0).map(()=>`<col class="col-rs-jersey"><col class="col-rs-num"><col class="col-rs-num"><col class="col-rs-jersey">`).join('')}</colgroup>
+        <thead><tr>${Array(4).fill(0).map(()=>`<th colspan="2" class="th-a">A</th><th colspan="2" class="th-b">B</th>`).join('')}</tr></thead>
         <tbody>${buildRunningScore(st)}</tbody>
       </table>
     </div>
@@ -5447,8 +5462,8 @@ function renderViewerScoresheet(data) {
     <div class="right-panel">
       <div class="running-label">ランニングスコア</div>
       <table class="running-score-table">
-        <colgroup>${Array(4).fill(0).map(()=>`<col class="col-rs-a"><col class="col-rs-b">`).join('')}</colgroup>
-        <thead><tr>${Array(4).fill(0).map(()=>`<th class="th-a">A</th><th class="th-b">B</th>`).join('')}</tr></thead>
+        <colgroup>${Array(4).fill(0).map(()=>`<col class="col-rs-jersey"><col class="col-rs-num"><col class="col-rs-num"><col class="col-rs-jersey">`).join('')}</colgroup>
+        <thead><tr>${Array(4).fill(0).map(()=>`<th colspan="2" class="th-a">A</th><th colspan="2" class="th-b">B</th>`).join('')}</tr></thead>
         <tbody>${buildRunningScore(st)}</tbody>
       </table>
     </div>
