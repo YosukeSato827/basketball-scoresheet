@@ -4429,9 +4429,14 @@ function updateTimerSyncStatus() {
   if (!timerSyncMode) { el.textContent = ''; el.className = 'rec-timer-sync-status'; return; }
   if (!timerLastUpdatedAt) { el.textContent = '待機中…'; el.className = 'rec-timer-sync-status offline'; return; }
   const age = (Date.now() - timerLastUpdatedAt) / 1000;
-  if (age < 5)  { el.textContent = '● LIVE';    el.className = 'rec-timer-sync-status live'; }
-  else if (age < 30) { el.textContent = '● 遅延中'; el.className = 'rec-timer-sync-status stale'; }
-  else          { el.textContent = '● 未受信';   el.className = 'rec-timer-sync-status offline'; }
+  if (age < 3)  { el.textContent = '● LIVE';    el.className = 'rec-timer-sync-status live'; }
+  else if (age < 10) { el.textContent = `● ${Math.floor(age)}秒前`; el.className = 'rec-timer-sync-status stale'; }
+  else if (age < 60) { el.textContent = `● ${Math.floor(age)}秒前`; el.className = 'rec-timer-sync-status offline'; }
+  else {
+    const m = Math.floor(age / 60);
+    el.textContent = `● ${m}分前`;
+    el.className = 'rec-timer-sync-status offline';
+  }
 }
 
 // 値を表示形式に整形（秒数 → MM:SS 形式、文字列はそのまま）
