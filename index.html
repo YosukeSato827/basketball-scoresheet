@@ -4520,12 +4520,20 @@ function toggleTimerSync() {
         '\n  updatedAt =', data.updatedAt);
 
       const dispEl = document.getElementById('rec-timer-display');
-      if (dispEl) dispEl.textContent = recTimerSyncDisplay;
+      if (dispEl) {
+        dispEl.textContent = recTimerSyncDisplay;
+        console.log('[timer_sync] DOM updated: rec-timer-display =', dispEl.textContent);
+      } else {
+        console.warn('[timer_sync] element rec-timer-display NOT FOUND');
+      }
       const shotEl = document.getElementById('rec-shot-clock');
       if (shotEl) {
         shotEl.textContent = shot;
         const sec = parseInt(shot, 10);
         shotEl.className = 'rec-shot-display' + (sec <= 5 ? ' danger' : sec <= 10 ? ' warning' : '');
+        console.log('[timer_sync] DOM updated: rec-shot-clock =', shotEl.textContent);
+      } else {
+        console.warn('[timer_sync] element rec-shot-clock NOT FOUND');
       }
       updateTimerSyncStatus();
     }, err => {
