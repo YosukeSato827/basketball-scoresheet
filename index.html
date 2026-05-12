@@ -4434,6 +4434,48 @@ function updateTimerSyncStatus() {
   else          { el.textContent = '● 未受信';   el.className = 'rec-timer-sync-status offline'; }
 }
 
+// 値を表示形式に整形（秒数 → MM:SS 形式、文字列はそのまま）
+function _formatClockValue(v, isGameClock) {
+  if (v == null) return null;
+  if (typeof v === 'string') {
+    // 既に "10:00" 等の形式ならそのまま
+    if (v.includes(':')) return v;
+    // 数字文字列の場合は数値化して処理
+    const n = parseFloat(v);
+    if (isNaN(n)) return v;
+    v = n;
+  }
+  if (typeof v === 'number') {
+    // ゲームクロックは秒数なら MM:SS、ショットクロックはそのまま秒
+    if (isGameClock && v >= 60) {
+      const m = Math.floor(v / 60);
+      const s = Math.floor(v % 60);
+      return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+    return String(Math.floor(v));
+  }
+  return null;
+}
+
+// 複数のデータ構造に対応してタイマー値を抽出
+function _extractClockDisplay(data, primaryKey, fallbackKey, defaultVal, isGameClock) {
+  if (!data) return defaultVal;
+  const v = data[primaryKey];
+  // { display: "10:00", running: true } 構造
+  if (v && typeof v === 'object' && v.display != null) {
+    return _formatClockValue(v.display, isGameClock) || defaultVal;
+  }
+  // 文字列 or 数値で直接保存
+  if (typeof v === 'string' || typeof v === 'number') {
+    return _formatClockValue(v, isGameClock) || defaultVal;
+  }
+  // フォールバック：旧フィールド名（gameTime / subTime）
+  if (fallbackKey && data[fallbackKey] != null) {
+    return _formatClockValue(data[fallbackKey], isGameClock) || defaultVal;
+  }
+  return defaultVal;
+}
+
 function toggleTimerSync() {
   timerSyncMode = !timerSyncMode;
   const btn = document.getElementById('timer-sync-btn');
@@ -4446,18 +4488,45 @@ function toggleTimerSync() {
     document.getElementById('rec-timer-reset').disabled = true;
     timerLastUpdatedAt = null;
     updateTimerSyncStatus();
+    // 接続テスト：まず1回読み込んでデータ状況を確認
+    db.collection('timer_sync').doc('live').get().then(snap => {
+      if (!snap.exists) {
+        showToast('⚠ timer_sync/live が存在しません');
+        console.warn('[timer_sync] document does not exist');
+      } else {
+        console.log('[timer_sync] initial doc:', snap.data());
+      }
+    }).catch(err => {
+      console.error('[timer_sync] permission/read error:', err);
+      showToast('⚠ 読み込みエラー: ' + err.message);
+    });
     timerSyncUnsubscribe = db.collection('timer_sync').doc('live').onSnapshot(doc => {
-      if (!doc.exists) return;
+      if (!doc.exists) {
+        console.warn('[timer_sync] doc does not exist');
+        return;
+      }
       const data = doc.data();
+      console.log('[timer_sync] received:', data);
       timerLastUpdatedAt = Date.now();
-      recTimerSyncDisplay = data.gameClock?.display || '00:00';
-      document.getElementById('rec-timer-display').textContent = recTimerSyncDisplay;
-      const shot = data.shotClock?.display || '24';
+      // updatedAt フィールドがあれば信頼性チェック
+      const updatedAt = data.updatedAt?.toDate ? data.updatedAt.toDate().getTime() : null;
+      if (updatedAt) timerLastUpdatedAt = updatedAt;
+
+      recTimerSyncDisplay = _extractClockDisplay(data, 'gameClock', 'gameTime', '00:00', true);
+      const shot          = _extractClockDisplay(data, 'shotClock', 'subTime',  '24',    false);
+
+      const dispEl = document.getElementById('rec-timer-display');
+      if (dispEl) dispEl.textContent = recTimerSyncDisplay;
       const shotEl = document.getElementById('rec-shot-clock');
-      shotEl.textContent = shot;
-      const sec = parseInt(shot, 10);
-      shotEl.className = 'rec-shot-display' + (sec <= 5 ? ' danger' : sec <= 10 ? ' warning' : '');
+      if (shotEl) {
+        shotEl.textContent = shot;
+        const sec = parseInt(shot, 10);
+        shotEl.className = 'rec-shot-display' + (sec <= 5 ? ' danger' : sec <= 10 ? ' warning' : '');
+      }
       updateTimerSyncStatus();
+    }, err => {
+      console.error('[timer_sync] error:', err);
+      showToast('同期エラー: ' + err.message);
     });
     timerSyncStatusIv = setInterval(updateTimerSyncStatus, 2000);
     showToast('🔗 タイマー同期 ON');
@@ -4467,7 +4536,8 @@ function toggleTimerSync() {
     timerLastUpdatedAt = null;
     updateTimerSyncStatus();
     document.getElementById('rec-timer-btn').disabled = false;
-    document.getElementById('rec-timer-reset').disabled = false;
+    const rstBtn = document.getElementById('rec-timer-reset');
+    if (rstBtn) rstBtn.disabled = false;
     showToast('タイマー同期 OFF');
   }
 }
@@ -4505,6 +4575,8 @@ function toggleRecTimer() {
   updateRecTimerBtn();
 }
 function resetRecTimer() {
+  // 同期モード中はローカルタイマーをリセットしない（表示が上書きされる）
+  if (timerSyncMode) return;
   clearInterval(recTimerIv); recTimerRunning = false; recTimer = 600;
   updateRecTimerDisplay(); updateRecTimerBtn();
 }
