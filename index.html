@@ -4506,14 +4506,18 @@ function toggleTimerSync() {
         return;
       }
       const data = doc.data();
-      console.log('[timer_sync] received:', data);
+      // 受信したスナップショット時刻を「最新」とする（doc 内の updatedAt は古い場合もある）
       timerLastUpdatedAt = Date.now();
-      // updatedAt フィールドがあれば信頼性チェック
-      const updatedAt = data.updatedAt?.toDate ? data.updatedAt.toDate().getTime() : null;
-      if (updatedAt) timerLastUpdatedAt = updatedAt;
 
       recTimerSyncDisplay = _extractClockDisplay(data, 'gameClock', 'gameTime', '00:00', true);
       const shot          = _extractClockDisplay(data, 'shotClock', 'subTime',  '24',    false);
+
+      console.log('[timer_sync] received:',
+        '\n  raw gameClock =', data.gameClock,
+        '\n  raw shotClock =', data.shotClock,
+        '\n  display gameClock =', recTimerSyncDisplay,
+        '\n  display shotClock =', shot,
+        '\n  updatedAt =', data.updatedAt);
 
       const dispEl = document.getElementById('rec-timer-display');
       if (dispEl) dispEl.textContent = recTimerSyncDisplay;
