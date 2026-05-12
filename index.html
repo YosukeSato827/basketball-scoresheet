@@ -4517,28 +4517,22 @@ function toggleTimerSync() {
       recTimerSyncDisplay = _extractClockDisplay(data, 'gameClock', 'gameTime', '00:00', true);
       const shot          = _extractClockDisplay(data, 'shotClock', 'subTime',  '24',    false);
 
-      console.log('[timer_sync] received:',
-        '\n  raw gameClock =', data.gameClock,
-        '\n  raw shotClock =', data.shotClock,
-        '\n  display gameClock =', recTimerSyncDisplay,
-        '\n  display shotClock =', shot,
-        '\n  updatedAt =', data.updatedAt);
+      // 受信間隔を計測
+      if (!window._timerSyncPrev) window._timerSyncPrev = Date.now();
+      const intervalMs = Date.now() - window._timerSyncPrev;
+      window._timerSyncPrev = Date.now();
+      console.log('[timer_sync]',
+        'gc=', recTimerSyncDisplay,
+        'sc=', shot,
+        '間隔=' + intervalMs + 'ms');
 
       const dispEl = document.getElementById('rec-timer-display');
-      if (dispEl) {
-        dispEl.textContent = recTimerSyncDisplay;
-        console.log('[timer_sync] DOM updated: rec-timer-display =', dispEl.textContent);
-      } else {
-        console.warn('[timer_sync] element rec-timer-display NOT FOUND');
-      }
+      if (dispEl) dispEl.textContent = recTimerSyncDisplay;
       const shotEl = document.getElementById('rec-shot-clock');
       if (shotEl) {
         shotEl.textContent = shot;
         const sec = parseInt(shot, 10);
         shotEl.className = 'rec-shot-display' + (sec <= 5 ? ' danger' : sec <= 10 ? ' warning' : '');
-        console.log('[timer_sync] DOM updated: rec-shot-clock =', shotEl.textContent);
-      } else {
-        console.warn('[timer_sync] element rec-shot-clock NOT FOUND');
       }
       updateTimerSyncStatus();
     }, err => {
