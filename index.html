@@ -2523,30 +2523,18 @@ async function loadTournaments() {
       const tb = b.data().createdAt || b.data().startDate || '';
       return ta < tb ? 1 : ta > tb ? -1 : 0;
     });
-    // 各大会の試合数・チーム数を取得
-    const cards = await Promise.all(sortedDocs.map(async doc => {
+    // まずカードを即時表示（試合数・チーム数は後から非同期で更新）
+    cont.innerHTML = sortedDocs.map(doc => {
       const d = doc.data();
-      const [gSnap, rSnap] = await Promise.all([
-        db.collection('games').where('tournamentId', '==', doc.id).get(),
-        db.collection('roster_teams').where('tournamentId', '==', doc.id).get()
-      ]);
-      const gameCount = gSnap.size;
-      // ロスター登録チーム ＋ 試合に登場したチームを合算
-      const teams = new Set();
-      rSnap.docs.forEach(r => { if (r.data().teamName) teams.add(r.data().teamName); });
-      gSnap.docs.forEach(g => {
-        if (g.data().teamAName) teams.add(g.data().teamAName);
-        if (g.data().teamBName) teams.add(g.data().teamBName);
-      });
       const period = [d.startDate, d.endDate].filter(Boolean).join(' 〜 ') || '日程未定';
       return `
         <div class="tournament-card" onclick="openTournament('${doc.id}')">
           <div class="tc-info">
             <div class="tc-name">${esc(d.name)}</div>
             <div class="tc-meta">${esc(period)}${d.venue ? '　' + esc(d.venue) : ''}</div>
-            <div class="tc-badges">
-              <span class="tc-badge">試合数: ${gameCount}</span>
-              <span class="tc-badge">チーム数: ${teams.size}</span>
+            <div class="tc-badges" id="tc-badges-${doc.id}">
+              <span class="tc-badge">試合数: …</span>
+              <span class="tc-badge">チーム数: …</span>
               ${d.note ? `<span class="tc-badge">${esc(d.note.slice(0,20))}</span>` : ''}
             </div>
           </div>
@@ -2556,11 +2544,37 @@ async function loadTournaments() {
             <button class="btn-card btn-delete" onclick="deleteTournament('${doc.id}')">削除</button>
           </div>
         </div>`;
-    }));
-    cont.innerHTML = cards.join('');
+    }).join('');
+
+    // 試合数・チーム数を非同期で取得して更新（個別失敗で全体は停止しない）
+    sortedDocs.forEach(async doc => {
+      const d = doc.data();
+      try {
+        const [gSnap, rSnap] = await Promise.all([
+          withTimeout(db.collection('games').where('tournamentId', '==', doc.id).get(), 8000),
+          withTimeout(db.collection('roster_teams').where('tournamentId', '==', doc.id).get(), 8000)
+        ]);
+        const teams = new Set();
+        rSnap.docs.forEach(r => { if (r.data().teamName) teams.add(r.data().teamName); });
+        gSnap.docs.forEach(g => {
+          if (g.data().teamAName) teams.add(g.data().teamAName);
+          if (g.data().teamBName) teams.add(g.data().teamBName);
+        });
+        const badgesEl = document.getElementById(`tc-badges-${doc.id}`);
+        if (badgesEl) {
+          badgesEl.innerHTML = `
+            <span class="tc-badge">試合数: ${gSnap.size}</span>
+            <span class="tc-badge">チーム数: ${teams.size}</span>
+            ${d.note ? `<span class="tc-badge">${esc(d.note.slice(0,20))}</span>` : ''}
+          `;
+        }
+      } catch(e) {
+        console.warn('カウント取得失敗:', doc.id, e);
+      }
+    });
   } catch(e) {
-    console.error(e);
-    cont.innerHTML = `<div class="loading-msg" style="color:red">読み込みエラー: ${e.message}</div>`;
+    console.error('大会一覧の読み込みエラー:', e);
+    cont.innerHTML = `<div class="loading-msg" style="color:red">読み込みエラー: ${e.message}<br><button onclick="loadTournaments()" style="margin-top:8px;padding:4px 10px;cursor:pointer">再試行</button></div>`;
   }
 }
 
@@ -2994,6 +3008,8 @@ async function loadSetupTeamCards() {
     const snap = await db.collection('roster_teams')
       .where('tournamentId', '==', currentTournamentId).get();
     const teams = snap.docs.map(d => ({ teamId: d.id, ...d.data() }));
+    // チーム名で文字列順ソート（日本語含む自然順）
+    teams.sort((a, b) => (a.teamName || '').localeCompare(b.teamName || '', 'ja'));
     if (teams.length === 0) {
       const msg = '<div class="setup-no-roster">登録チームなし<br><small>手入力でご入力ください</small></div>';
       cardsA.innerHTML = msg;
