@@ -5467,20 +5467,22 @@ function renderTournamentViewer(tData, gameDocs) {
     [...document.querySelectorAll('.vt-game-detail[open]')].map(el => el.dataset.gameId)
   );
 
-  // 日付 → Game No. 順にソート
+  // 追加順（createdAt 降順）。古いデータは gameDate, gameNo でフォールバック
   const sorted = [...gameDocs].sort((a, b) => {
     const da = a.data(), db2 = b.data();
+    const ta = da.createdAt || '', tb = db2.createdAt || '';
+    if (ta && tb) return ta < tb ? 1 : ta > tb ? -1 : 0;
     const dateA = da.gameDate || '', dateB = db2.gameDate || '';
-    if (dateA !== dateB) return dateA < dateB ? -1 : 1;
-    return (parseInt(da.gameNo) || 0) - (parseInt(db2.gameNo) || 0);
+    if (dateA !== dateB) return dateA < dateB ? 1 : -1;
+    return (parseInt(db2.gameNo) || 0) - (parseInt(da.gameNo) || 0);
   });
 
   const now = Date.now();
 
-  // LIVE判定：2時間以内に更新された試合があるか
+  // LIVE判定：2時間以内に更新 かつ 試合終了していない（status !== 'finished'）
   const hasLive = sorted.some(doc => {
-    const u = doc.data().updatedAt;
-    return u && (now - new Date(u).getTime()) < 7200000;
+    const dd = doc.data();
+    return dd.updatedAt && (now - new Date(dd.updatedAt).getTime()) < 7200000 && dd.status !== 'finished';
   });
   document.getElementById('viewer-live-badge').style.display = hasLive ? 'flex' : 'none';
 
@@ -5519,7 +5521,7 @@ function renderTournamentViewer(tData, gameDocs) {
     const qLabel = maxQ > 4 ? `延長${maxQ - 4}` : maxQ > 0 ? `${maxQ}Q` : '';
     const label = [d.gameDate, d.gameNo ? `Game ${d.gameNo}` : ''].filter(Boolean).join('　');
     const winner = totalA > totalB ? 'A' : totalB > totalA ? 'B' : null;
-    const isGameLive = d.updatedAt && (now - new Date(d.updatedAt).getTime()) < 7200000 && plays.length > 0;
+    const isGameLive = d.updatedAt && (now - new Date(d.updatedAt).getTime()) < 7200000 && plays.length > 0 && d.status !== 'finished';
     const graphSVG = plays.length > 1 ? buildScoreGraphSVG(plays, teamA, teamB) : '';
     const isOpen = expanded.has(gameId);
 
