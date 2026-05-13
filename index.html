@@ -533,9 +533,9 @@ td.rs-num { font-family: 'Poppins','Klee One',sans-serif; }
 .running-score-table th { background: white; font-size: 5.5pt; font-weight: bold; height: 11px; line-height: 11px; }
 /* ランニングスコア：[A背番号 | A連番 | B連番 | B背番号] の4列構成 */
 .col-rs-jersey { width: 13px; }
-.col-rs-num    { width: 17px; }
+.col-rs-num    { width: 19px; }
 td.rs-num, td.rs-jersey {
-  font-size: 6pt; color: #888; font-weight: 600;
+  font-size: 5.5pt; color: #888; font-weight: 600;
   position: relative; background: white;
   padding: 0; line-height: 17px; vertical-align: middle;
   text-align: center;
@@ -2490,15 +2490,19 @@ async function loadTournaments() {
   const cont = document.getElementById('tournament-list-container');
   cont.innerHTML = '<div class="loading-msg">読み込み中...</div>';
   try {
-    const snap = await withTimeout(
-      db.collection('tournaments').orderBy('startDate', 'desc').get()
-    );
+    const snap = await withTimeout(db.collection('tournaments').get());
     if (snap.empty) {
       cont.innerHTML = `<div class="empty-state">大会が登録されていません<br>「大会を登録」から追加してください</div>`;
       return;
     }
+    // 追加順（createdAt 降順）。古いデータで createdAt が無い場合は startDate でフォールバック
+    const sortedDocs = snap.docs.slice().sort((a, b) => {
+      const ta = a.data().createdAt || a.data().startDate || '';
+      const tb = b.data().createdAt || b.data().startDate || '';
+      return ta < tb ? 1 : ta > tb ? -1 : 0;
+    });
     // 各大会の試合数・チーム数を取得
-    const cards = await Promise.all(snap.docs.map(async doc => {
+    const cards = await Promise.all(sortedDocs.map(async doc => {
       const d = doc.data();
       const [gSnap, rSnap] = await Promise.all([
         db.collection('games').where('tournamentId', '==', doc.id).get(),
@@ -2590,12 +2594,14 @@ async function loadGames() {
       cont.innerHTML = `<div class="empty-state">この大会の試合がありません<br>「試合を追加」から入力してください</div>`;
       return;
     }
-    // gameDate → gameNo の順でソート
+    // 追加順（createdAt 降順）。古いデータは gameDate, gameNo でフォールバック
     const sortedDocs = snap.docs.slice().sort((a, b) => {
       const da = a.data(), db2 = b.data();
+      const ta = da.createdAt || '', tb = db2.createdAt || '';
+      if (ta && tb) return ta < tb ? 1 : ta > tb ? -1 : 0;
       const dateA = da.gameDate || '', dateB = db2.gameDate || '';
-      if (dateA !== dateB) return dateA < dateB ? -1 : 1;
-      return (parseInt(da.gameNo) || 0) - (parseInt(db2.gameNo) || 0);
+      if (dateA !== dateB) return dateA < dateB ? 1 : -1;
+      return (parseInt(db2.gameNo) || 0) - (parseInt(da.gameNo) || 0);
     });
     cont.innerHTML = sortedDocs.map(doc => {
       const d = doc.data();
