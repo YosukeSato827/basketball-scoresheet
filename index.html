@@ -1521,20 +1521,6 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   border: 1px solid rgba(255,255,255,.45); border-radius: var(--radius-sm);
   padding: 5px 10px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;
 }
-/* 5x5 / 3x3 モード切替トグル */
-.rec-mode-toggle {
-  display: inline-flex; gap: 0; background: rgba(255,255,255,.15);
-  border-radius: var(--radius-sm); padding: 2px;
-}
-.rec-mode-btn {
-  background: transparent; color: rgba(255,255,255,.7);
-  border: none; border-radius: 4px;
-  padding: 3px 10px; font-size: 11px; font-weight: 700; cursor: pointer;
-  font-family: 'Poppins', sans-serif;
-}
-.rec-mode-btn.active {
-  background: white; color: var(--blue);
-}
 /* アクションボタンエリア（3カラム） */
 .rec-3col { display: flex; border-top: 1px solid var(--border); }
 .rec-team-col {
@@ -2128,10 +2114,6 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <button class="rec-back" onclick="backFromRecorder()">← 戻る</button>
       <span class="rec-title" id="rec-title">記録中</span>
       <span class="rec-status" id="rec-status"></span>
-      <div class="rec-mode-toggle">
-        <button class="rec-mode-btn active" id="rec-mode-5x5" onclick="setGameMode('5x5')">5x5</button>
-        <button class="rec-mode-btn" id="rec-mode-3x3" onclick="setGameMode('3x3')">3x3</button>
-      </div>
       <button class="rec-end-btn" onclick="endGame()">試合終了</button>
     </div>
     <div class="rec-scoreboard">
@@ -3667,7 +3649,6 @@ function tapFeedback(type = 'light') {
 // =====================================================
 // ライブ記録
 // =====================================================
-let recGameMode     = '5x5';  // '5x5' or '3x3'
 let recGameId       = null;
 let recCurrentQ     = 1;
 let recPbpData      = '';
@@ -3736,9 +3717,6 @@ function openRecorder() {
 
   setRecorderQ(1);
   renderActionGrids();
-  // モードトグルボタンの表示更新
-  document.getElementById('rec-mode-5x5')?.classList.toggle('active', recGameMode === '5x5');
-  document.getElementById('rec-mode-3x3')?.classList.toggle('active', recGameMode === '3x3');
   updateCourtDisplay();
   updateRecScore();
   updatePBPFeed();
@@ -3781,55 +3759,54 @@ function saveRecSession() {
       tournamentId: currentTournamentId,
       uniformA: recUniformsA,
       uniformB: recUniformsB,
-      currentQ: recCurrentQ,
-      gameMode: recGameMode
+      currentQ: recCurrentQ
     }));
   } catch(e) { /* sessionStorage 利用不可時は無視 */ }
 }
 
-// ゲームモード切替（5x5 / 3x3）
-function setGameMode(mode) {
-  if (mode !== '5x5' && mode !== '3x3') return;
-  recGameMode = mode;
-  document.getElementById('rec-mode-5x5')?.classList.toggle('active', mode === '5x5');
-  document.getElementById('rec-mode-3x3')?.classList.toggle('active', mode === '3x3');
-  renderActionGrids();
-  saveRecSession();
-  // Firestore にも保存
-  if (recGameId) {
-    db.collection('games').doc(recGameId).update({ gameMode: mode }).catch(() => {});
-  }
-}
-
-// アクションボタンを動的レンダリング（モード別）
+// アクションボタンを動的レンダリング
 function renderActionGrids() {
-  const buttons5x5 = [
-    { ev: 'フリースロー成功', label: 'FT 成功',    cls: 'rec-act-scoring' },
-    { ev: '2P成功',         label: '2P 成功',    cls: 'rec-act-scoring' },
-    { ev: '3P成功',         label: '3P 成功',    cls: 'rec-act-scoring' },
-    { ev: 'Pファウル',      label: 'ファウル',   cls: 'rec-act-foul' },
-    { ev: 'タイムアウト',    label: 'T / O',     cls: 'rec-act-timeout' },
-    { ev: '__sub__',        label: '⇄ 交代',    cls: 'rec-act-sub' },
+  const buttons = [
+    { ev: '__1pft__',       label: '1P / FT\n成功', cls: 'rec-act-scoring' },
+    { ev: '2P成功',         label: '2P 成功',       cls: 'rec-act-scoring' },
+    { ev: '3P成功',         label: '3P 成功',       cls: 'rec-act-scoring' },
+    { ev: 'Pファウル',      label: 'ファウル',      cls: 'rec-act-foul' },
+    { ev: 'タイムアウト',    label: 'T / O',        cls: 'rec-act-timeout' },
+    { ev: '__sub__',        label: '⇄ 交代',       cls: 'rec-act-sub' },
   ];
-  const buttons3x3 = [
-    { ev: '1P成功',         label: '1P 成功',    cls: 'rec-act-scoring' },
-    { ev: '2P成功',         label: '2P 成功',    cls: 'rec-act-scoring' },
-    { ev: '3P成功',         label: '3P 成功',    cls: 'rec-act-scoring' },
-    { ev: 'Pファウル',      label: 'ファウル',   cls: 'rec-act-foul' },
-    { ev: 'タイムアウト',    label: 'T / O',     cls: 'rec-act-timeout' },
-    { ev: '__sub__',        label: '⇄ 交代',    cls: 'rec-act-sub' },
-  ];
-  const buttons = recGameMode === '3x3' ? buttons3x3 : buttons5x5;
   ['A', 'B'].forEach(team => {
     const grid = document.getElementById(`rec-act-grid-${team.toLowerCase()}`);
     if (!grid) return;
     grid.innerHTML = buttons.map(b => {
-      const onclick = b.ev === '__sub__'
-        ? `showSubstitution('${team}')`
-        : `startAction('${team}','${b.ev}')`;
-      return `<button class="rec-act-btn ${b.cls}" onclick="${onclick}">${b.label}</button>`;
+      let onclick;
+      if (b.ev === '__sub__')         onclick = `showSubstitution('${team}')`;
+      else if (b.ev === '__1pft__')   onclick = `startAction1PorFT('${team}')`;
+      else                            onclick = `startAction('${team}','${b.ev}')`;
+      return `<button class="rec-act-btn ${b.cls}" onclick="${onclick}">${b.label.replace('\n','<br>')}</button>`;
     }).join('');
   });
+}
+
+// 1P / FT 選択用の小ポップアップ
+function startAction1PorFT(team) {
+  tapFeedback('light');
+  const teamName = team === 'A' ? recTeamAName : recTeamBName;
+  const teamCls  = team === 'A' ? 'team-a' : 'team-b';
+  const title = document.getElementById('rec-player-modal-title');
+  title.textContent = `${teamName}：種別を選択`;
+  title.className = `rec-action-player ${teamCls}`;
+  const grid = document.getElementById('rec-player-select-grid');
+  grid.classList.remove('has-sections');
+  grid.innerHTML = `
+    <button class="rec-player-select-btn ${teamCls}" onclick="closePlayerSelect();startAction('${team}','1P成功')">
+      <span class="rec-psel-num">1P</span>
+      <span class="rec-psel-name">3x3 / フィールドゴール</span>
+    </button>
+    <button class="rec-player-select-btn ${teamCls}" onclick="closePlayerSelect();startAction('${team}','フリースロー成功')">
+      <span class="rec-psel-num">FT</span>
+      <span class="rec-psel-name">フリースロー</span>
+    </button>`;
+  document.getElementById('rec-player-overlay').classList.add('show');
 }
 
 function updateCourtDisplay() {
@@ -5659,7 +5636,6 @@ async function initApp() {
           currentGameId       = sess.gameId;
           recUniformsA        = sess.uniformA || [];
           recUniformsB        = sess.uniformB || [];
-          recGameMode         = sess.gameMode || d.gameMode || '5x5';
           document.getElementById('teamAName').value = d.teamAName || '';
           document.getElementById('teamBName').value = d.teamBName || '';
           document.getElementById('gameNo').value    = d.gameNo    || '';
