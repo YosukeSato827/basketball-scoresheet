@@ -1154,9 +1154,11 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   margin-bottom: 8px;
 }
 .setup-badge {
-  width: 24px; height: 24px; border-radius: 6px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 900; color: white; flex-shrink: 0;
+  min-width: 52px; height: 24px; border-radius: 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 900; color: white; flex-shrink: 0;
+  padding: 0 8px; letter-spacing: .04em;
+  font-family: 'Poppins', sans-serif;
 }
 .setup-badge-a { background: var(--blue); }
 .setup-badge-b { background: #e53935; }
@@ -2174,10 +2176,9 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
         </select>
         <select id="rec-pbp-filter-play" class="rec-pbp-select" onchange="updatePBPFeed()">
           <option value="">全プレー</option>
-          <option value="1P成功">1P成功</option>
+          <option value="フリースロー成功">1P / FT成功</option>
           <option value="2P成功">2P成功</option>
           <option value="3P成功">3P成功</option>
-          <option value="フリースロー成功">FT成功</option>
           <option value="Pファウル">ファウル</option>
           <option value="タイムアウト">タイムアウト</option>
           <option value="交代">交代</option>
@@ -2361,11 +2362,10 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   <div class="setup-sheet" onclick="event.stopPropagation()">
     <div class="setup-title">⚙️ 試合セットアップ</div>
 
-    <!-- チームA -->
+    <!-- HOME（チームA） -->
     <div class="setup-team-section">
       <div class="setup-team-label">
-        <span class="setup-badge setup-badge-a">A</span>
-        チームA
+        <span class="setup-badge setup-badge-a">HOME</span>
         <span class="setup-selected-name" id="setup-a-selected">（未選択）</span>
       </div>
       <div class="setup-team-cards" id="setup-cards-a"></div>
@@ -2374,16 +2374,15 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
         <div class="setup-uniform-opts" id="setup-uniform-opts-a"></div>
       </div>
       <div class="setup-manual-row" id="setup-manual-row-a" style="display:none">
-        <input class="setup-manual-input" id="setup-manual-input-a" placeholder="チームA 名前を入力">
+        <input class="setup-manual-input" id="setup-manual-input-a" placeholder="HOME チーム名を入力">
       </div>
       <button class="setup-manual-btn" onclick="toggleManualInput('a')">✏️ 手入力する</button>
     </div>
 
-    <!-- チームB -->
+    <!-- AWAY（チームB） -->
     <div class="setup-team-section">
       <div class="setup-team-label">
-        <span class="setup-badge setup-badge-b">B</span>
-        チームB
+        <span class="setup-badge setup-badge-b">AWAY</span>
         <span class="setup-selected-name" id="setup-b-selected">（未選択）</span>
       </div>
       <div class="setup-team-cards" id="setup-cards-b"></div>
@@ -2392,7 +2391,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
         <div class="setup-uniform-opts" id="setup-uniform-opts-b"></div>
       </div>
       <div class="setup-manual-row" id="setup-manual-row-b" style="display:none">
-        <input class="setup-manual-input" id="setup-manual-input-b" placeholder="チームB 名前を入力">
+        <input class="setup-manual-input" id="setup-manual-input-b" placeholder="AWAY チーム名を入力">
       </div>
       <button class="setup-manual-btn" onclick="toggleManualInput('b')">✏️ 手入力する</button>
     </div>
@@ -3767,46 +3766,23 @@ function saveRecSession() {
 // アクションボタンを動的レンダリング
 function renderActionGrids() {
   const buttons = [
-    { ev: '__1pft__',       label: '1P / FT\n成功', cls: 'rec-act-scoring' },
-    { ev: '2P成功',         label: '2P 成功',       cls: 'rec-act-scoring' },
-    { ev: '3P成功',         label: '3P 成功',       cls: 'rec-act-scoring' },
-    { ev: 'Pファウル',      label: 'ファウル',      cls: 'rec-act-foul' },
-    { ev: 'タイムアウト',    label: 'T / O',        cls: 'rec-act-timeout' },
-    { ev: '__sub__',        label: '⇄ 交代',       cls: 'rec-act-sub' },
+    { ev: 'フリースロー成功', label: '1P / FT\n成功', cls: 'rec-act-scoring' },
+    { ev: '2P成功',         label: '2P 成功',        cls: 'rec-act-scoring' },
+    { ev: '3P成功',         label: '3P 成功',        cls: 'rec-act-scoring' },
+    { ev: 'Pファウル',      label: 'ファウル',       cls: 'rec-act-foul' },
+    { ev: 'タイムアウト',    label: 'T / O',         cls: 'rec-act-timeout' },
+    { ev: '__sub__',        label: '⇄ 交代',        cls: 'rec-act-sub' },
   ];
   ['A', 'B'].forEach(team => {
     const grid = document.getElementById(`rec-act-grid-${team.toLowerCase()}`);
     if (!grid) return;
     grid.innerHTML = buttons.map(b => {
-      let onclick;
-      if (b.ev === '__sub__')         onclick = `showSubstitution('${team}')`;
-      else if (b.ev === '__1pft__')   onclick = `startAction1PorFT('${team}')`;
-      else                            onclick = `startAction('${team}','${b.ev}')`;
+      const onclick = b.ev === '__sub__'
+        ? `showSubstitution('${team}')`
+        : `startAction('${team}','${b.ev}')`;
       return `<button class="rec-act-btn ${b.cls}" onclick="${onclick}">${b.label.replace('\n','<br>')}</button>`;
     }).join('');
   });
-}
-
-// 1P / FT 選択用の小ポップアップ
-function startAction1PorFT(team) {
-  tapFeedback('light');
-  const teamName = team === 'A' ? recTeamAName : recTeamBName;
-  const teamCls  = team === 'A' ? 'team-a' : 'team-b';
-  const title = document.getElementById('rec-player-modal-title');
-  title.textContent = `${teamName}：種別を選択`;
-  title.className = `rec-action-player ${teamCls}`;
-  const grid = document.getElementById('rec-player-select-grid');
-  grid.classList.remove('has-sections');
-  grid.innerHTML = `
-    <button class="rec-player-select-btn ${teamCls}" onclick="closePlayerSelect();startAction('${team}','1P成功')">
-      <span class="rec-psel-num">1P</span>
-      <span class="rec-psel-name">3x3 / フィールドゴール</span>
-    </button>
-    <button class="rec-player-select-btn ${teamCls}" onclick="closePlayerSelect();startAction('${team}','フリースロー成功')">
-      <span class="rec-psel-num">FT</span>
-      <span class="rec-psel-name">フリースロー</span>
-    </button>`;
-  document.getElementById('rec-player-overlay').classList.add('show');
 }
 
 function updateCourtDisplay() {
@@ -4181,6 +4157,12 @@ function skipLineup() {
 // =====================================================
 const REC_EVENT_TYPES = ['フリースロー成功','1P成功','2P成功','3P成功','Pファウル','タイムアウト'];
 
+// 表示用のイベント名（記録は「フリースロー成功」、表示は「1P / FT 成功」）
+function eventDisplayLabel(evType) {
+  if (evType === 'フリースロー成功') return '1P / FT 成功';
+  return evType;
+}
+
 function parseEventStr(evStr) {
   for (const ev of REC_EVENT_TYPES) {
     if (evStr === ev) return { evType: ev, playerStr: '' };
@@ -4292,7 +4274,7 @@ function updatePBPFeed() {
       bodyHTML = `
         <div class="rec-pbp-num">${esc(num)}</div>
         <div class="rec-pbp-name">${esc(nm)}</div>
-        <div class="rec-pbp-act">${esc(evType)}</div>`;
+        <div class="rec-pbp-act">${esc(eventDisplayLabel(evType))}</div>`;
     } else {
       // 交代など、列に分けられないイベントはフルテキスト
       bodyHTML = `<div class="rec-pbp-full">${esc(evStr)}</div>`;
@@ -4340,8 +4322,8 @@ function clickPBPEntry(idx) {
   } else {
     evTypeSec.style.display = '';
     const LABELS = {
-      '2P成功': '2P 成功', '3P成功': '3P 成功',
-      'フリースロー成功': 'FT 成功', 'Pファウル': 'ファウル', 'タイムアウト': 'T / O'
+      '1P成功': '1P / FT 成功', '2P成功': '2P 成功', '3P成功': '3P 成功',
+      'フリースロー成功': '1P / FT 成功', 'Pファウル': 'ファウル', 'タイムアウト': 'T / O'
     };
     evTypeGrid.innerHTML = REC_EVENT_TYPES.map(ev => {
       const isActive = ev === evType;
