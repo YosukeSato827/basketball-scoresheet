@@ -851,6 +851,24 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;
 }
 .players-grid textarea { height: 110px; resize: vertical; font-size: 12px; font-family: monospace; }
+/* エディタ最下部：他アプリからのコピペ用セクション */
+.editor-advanced {
+  margin: 16px 20px 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.editor-advanced > summary {
+  cursor: pointer; padding: 10px 14px;
+  font-size: 13px; font-weight: 700; color: var(--text-mid);
+  user-select: none;
+}
+.editor-advanced > summary:hover { color: var(--text); }
+.editor-advanced[open] > summary { border-bottom: 1px solid var(--border); }
+.editor-advanced > .players-grid,
+.editor-advanced > div { padding: 0 14px; }
+.editor-advanced > .players-grid { padding-top: 12px; }
+.editor-advanced > div:last-child { padding-bottom: 14px; }
 
 /* レコーダー ヘッダー */
 /* スティッキーヘッダー（ヘッダー＋スコアボード＋Qバー） */
@@ -2083,6 +2101,15 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <div><label>日付</label><input type="text" id="gameDate" placeholder="例: 2025/4/28"></div>
       <div><label>会場</label><input type="text" id="venue" placeholder="例: ○○体育館"></div>
     </div>
+    <div class="btn-row">
+      <button class="btn btn-gen" onclick="generate()">スコアシート生成</button>
+      <span class="hint">※ 印刷はA4縦・余白8mmを推奨</span>
+    </div>
+  </div>
+  <div id="output"></div>
+  <!-- 他アプリからのコピペ用：ロスター・PBP テキスト入力（最下部） -->
+  <details class="editor-advanced">
+    <summary>📋 ロスター・PBP テキスト（他アプリからのコピペ用）</summary>
     <div class="players-grid">
       <div>
         <label class="pbp-label">チームA 選手（番号 名前、1行ずつ）</label>
@@ -2099,12 +2126,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <label class="pbp-label">プレイバイプレイ（タブ区切り: Q・タイマー・Aイベント・スコア・Bイベント）</label>
       <textarea id="pbpInput" placeholder="1&#9;5:10&#9;#10岡田2P成功&#9;2 - 0&#9;&#10;1&#9;4:54&#9;&#9;2 - 2&#9;#5高尾2P成功"></textarea>
     </div>
-    <div class="btn-row">
-      <button class="btn btn-gen" onclick="generate()">スコアシート生成</button>
-      <span class="hint">※ 印刷はA4縦・余白8mmを推奨</span>
-    </div>
-  </div>
-  <div id="output"></div>
+  </details>
 </div>
 
 <!-- =====================================================
