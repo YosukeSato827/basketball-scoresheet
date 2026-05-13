@@ -2508,80 +2508,94 @@ function withTimeout(promise, ms = 10000) {
 // =====================================================
 // 大会一覧
 // =====================================================
-async function loadTournaments() {
+// リアルタイム購読の解除関数を保持
+let tournamentsUnsubscribe = null;
+
+function loadTournaments() {
   const cont = document.getElementById('tournament-list-container');
   cont.innerHTML = '<div class="loading-msg">読み込み中...</div>';
+  // 既存購読を解除
+  if (tournamentsUnsubscribe) { tournamentsUnsubscribe(); tournamentsUnsubscribe = null; }
   try {
-    const snap = await withTimeout(db.collection('tournaments').get());
-    if (snap.empty) {
-      cont.innerHTML = `<div class="empty-state">大会が登録されていません<br>「大会を登録」から追加してください</div>`;
-      return;
-    }
-    // 追加順（createdAt 降順）。古いデータで createdAt が無い場合は startDate でフォールバック
-    const sortedDocs = snap.docs.slice().sort((a, b) => {
-      const ta = a.data().createdAt || a.data().startDate || '';
-      const tb = b.data().createdAt || b.data().startDate || '';
-      return ta < tb ? 1 : ta > tb ? -1 : 0;
-    });
-    // まずカードを即時表示（試合数・チーム数は後から非同期で更新）
-    cont.innerHTML = sortedDocs.map(doc => {
-      const d = doc.data();
-      const period = [d.startDate, d.endDate].filter(Boolean).join(' 〜 ') || '日程未定';
-      return `
-        <div class="tournament-card" onclick="openTournament('${doc.id}')">
-          <div class="tc-info">
-            <div class="tc-name">${esc(d.name)}</div>
-            <div class="tc-meta">${esc(period)}${d.venue ? '　' + esc(d.venue) : ''}</div>
-            <div class="tc-badges" id="tc-badges-${doc.id}">
-              <span class="tc-badge">試合数: …</span>
-              <span class="tc-badge">チーム数: …</span>
-              ${d.note ? `<span class="tc-badge">${esc(d.note.slice(0,20))}</span>` : ''}
-            </div>
-          </div>
-          <div class="tc-actions" onclick="event.stopPropagation()">
-            <button class="btn-card btn-open" onclick="openTournament('${doc.id}')">開く</button>
-            <button class="btn-card btn-edit" onclick="openTournamentModal('${doc.id}')">編集</button>
-            <button class="btn-card btn-delete" onclick="deleteTournament('${doc.id}')">削除</button>
-          </div>
-        </div>`;
-    }).join('');
-
-    // 試合数・チーム数を非同期で取得して更新（個別失敗で全体は停止しない）
-    sortedDocs.forEach(async doc => {
-      const d = doc.data();
-      try {
-        const [gSnap, rSnap] = await Promise.all([
-          withTimeout(db.collection('games').where('tournamentId', '==', doc.id).get(), 8000),
-          withTimeout(db.collection('roster_teams').where('tournamentId', '==', doc.id).get(), 8000)
-        ]);
-        const teams = new Set();
-        rSnap.docs.forEach(r => { if (r.data().teamName) teams.add(r.data().teamName); });
-        gSnap.docs.forEach(g => {
-          if (g.data().teamAName) teams.add(g.data().teamAName);
-          if (g.data().teamBName) teams.add(g.data().teamBName);
-        });
-        const badgesEl = document.getElementById(`tc-badges-${doc.id}`);
-        if (badgesEl) {
-          badgesEl.innerHTML = `
-            <span class="tc-badge">試合数: ${gSnap.size}</span>
-            <span class="tc-badge">チーム数: ${teams.size}</span>
-            ${d.note ? `<span class="tc-badge">${esc(d.note.slice(0,20))}</span>` : ''}
-          `;
-        }
-      } catch(e) {
-        console.warn('カウント取得失敗:', doc.id, e);
+    tournamentsUnsubscribe = db.collection('tournaments').onSnapshot(snap => {
+      if (snap.empty) {
+        cont.innerHTML = `<div class="empty-state">大会が登録されていません<br>「大会を登録」から追加してください</div>`;
+        return;
       }
+      // 追加順（createdAt 降順）。古いデータで createdAt が無い場合は startDate でフォールバック
+      const sortedDocs = snap.docs.slice().sort((a, b) => {
+        const ta = a.data().createdAt || a.data().startDate || '';
+        const tb = b.data().createdAt || b.data().startDate || '';
+        return ta < tb ? 1 : ta > tb ? -1 : 0;
+      });
+      cont.innerHTML = sortedDocs.map(doc => {
+        const d = doc.data();
+        const period = [d.startDate, d.endDate].filter(Boolean).join(' 〜 ') || '日程未定';
+        return `
+          <div class="tournament-card" onclick="openTournament('${doc.id}')">
+            <div class="tc-info">
+              <div class="tc-name">${esc(d.name)}</div>
+              <div class="tc-meta">${esc(period)}${d.venue ? '　' + esc(d.venue) : ''}</div>
+              <div class="tc-badges" id="tc-badges-${doc.id}">
+                <span class="tc-badge">試合数: …</span>
+                <span class="tc-badge">チーム数: …</span>
+                ${d.note ? `<span class="tc-badge">${esc(d.note.slice(0,20))}</span>` : ''}
+              </div>
+            </div>
+            <div class="tc-actions" onclick="event.stopPropagation()">
+              <button class="btn-card btn-open" onclick="openTournament('${doc.id}')">開く</button>
+              <button class="btn-card btn-edit" onclick="openTournamentModal('${doc.id}')">編集</button>
+              <button class="btn-card btn-delete" onclick="deleteTournament('${doc.id}')">削除</button>
+            </div>
+          </div>`;
+      }).join('');
+
+      // 試合数・チーム数を非同期で取得して更新
+      sortedDocs.forEach(async doc => {
+        const d = doc.data();
+        try {
+          const [gSnap, rSnap] = await Promise.all([
+            withTimeout(db.collection('games').where('tournamentId', '==', doc.id).get(), 8000),
+            withTimeout(db.collection('roster_teams').where('tournamentId', '==', doc.id).get(), 8000)
+          ]);
+          const teams = new Set();
+          rSnap.docs.forEach(r => { if (r.data().teamName) teams.add(r.data().teamName); });
+          gSnap.docs.forEach(g => {
+            if (g.data().teamAName) teams.add(g.data().teamAName);
+            if (g.data().teamBName) teams.add(g.data().teamBName);
+          });
+          const badgesEl = document.getElementById(`tc-badges-${doc.id}`);
+          if (badgesEl) {
+            badgesEl.innerHTML = `
+              <span class="tc-badge">試合数: ${gSnap.size}</span>
+              <span class="tc-badge">チーム数: ${teams.size}</span>
+              ${d.note ? `<span class="tc-badge">${esc(d.note.slice(0,20))}</span>` : ''}
+            `;
+          }
+        } catch(e) {
+          console.warn('カウント取得失敗:', doc.id, e);
+        }
+      });
+    }, err => {
+      console.error('大会一覧の読み込みエラー:', err);
+      cont.innerHTML = `<div class="loading-msg" style="color:red">読み込みエラー: ${err.message}<br><button onclick="loadTournaments()" style="margin-top:8px;padding:4px 10px;cursor:pointer">再試行</button></div>`;
     });
   } catch(e) {
-    console.error('大会一覧の読み込みエラー:', e);
-    cont.innerHTML = `<div class="loading-msg" style="color:red">読み込みエラー: ${e.message}<br><button onclick="loadTournaments()" style="margin-top:8px;padding:4px 10px;cursor:pointer">再試行</button></div>`;
+    console.error('大会一覧の購読開始エラー:', e);
+    cont.innerHTML = `<div class="loading-msg" style="color:red">読み込みエラー: ${e.message}</div>`;
   }
+}
+
+function stopTournamentsSubscription() {
+  if (tournamentsUnsubscribe) { tournamentsUnsubscribe(); tournamentsUnsubscribe = null; }
 }
 
 // =====================================================
 // 大会を開く
 // =====================================================
 async function openTournament(id) {
+  // 大会一覧の購読を解除（詳細画面に移動するため）
+  stopTournamentsSubscription();
   currentTournamentId = id;
   showView('detail');
   try {
@@ -2596,6 +2610,8 @@ async function openTournament(id) {
 }
 
 function backToTournaments() {
+  // 試合一覧の購読を解除
+  stopGamesSubscription();
   showView('tournaments');
   loadTournaments();
 }
@@ -2610,58 +2626,72 @@ function switchTab(tab) {
   document.getElementById('tab-games-btn').className = 'tab-btn' + (tab === 'games' ? ' active' : '');
   document.getElementById('tab-stats-btn').className = 'tab-btn' + (tab === 'stats' ? ' active' : '');
   if (tab === 'games') loadGames();
-  else                 loadStats();
+  else                 { stopGamesSubscription(); loadStats(); }
 }
 
 // =====================================================
 // 試合一覧（大会内）
 // =====================================================
-async function loadGames() {
+// 試合一覧：リアルタイム購読の解除関数
+let gamesUnsubscribe = null;
+
+function loadGames() {
   const cont = document.getElementById('game-list-container');
   cont.innerHTML = '<div class="loading-msg">読み込み中...</div>';
+  // 既存購読を解除
+  if (gamesUnsubscribe) { gamesUnsubscribe(); gamesUnsubscribe = null; }
+  // 大会IDが変わる前のスナップショットを captured
+  const tid = currentTournamentId;
   try {
-    // orderBy + where の複合インデックスを避けるため JS でソート
-    const snap = await withTimeout(
-      db.collection('games')
-        .where('tournamentId', '==', currentTournamentId)
-        .get()
-    );
-    if (snap.empty) {
-      cont.innerHTML = `<div class="empty-state">この大会の試合がありません<br>「試合を追加」から入力してください</div>`;
-      return;
-    }
-    // 追加順（createdAt 降順）。古いデータは gameDate, gameNo でフォールバック
-    const sortedDocs = snap.docs.slice().sort((a, b) => {
-      const da = a.data(), db2 = b.data();
-      const ta = da.createdAt || '', tb = db2.createdAt || '';
-      if (ta && tb) return ta < tb ? 1 : ta > tb ? -1 : 0;
-      const dateA = da.gameDate || '', dateB = db2.gameDate || '';
-      if (dateA !== dateB) return dateA < dateB ? 1 : -1;
-      return (parseInt(db2.gameNo) || 0) - (parseInt(da.gameNo) || 0);
-    });
-    cont.innerHTML = sortedDocs.map(doc => {
-      const d = doc.data();
-      const teamA = d.teamAName || 'チームA';
-      const teamB = d.teamBName || 'チームB';
-      const score = (d.totalA != null) ? `${d.totalA} - ${d.totalB}` : '- - -';
-      const label = [d.gameDate, d.gameNo ? `Game ${d.gameNo}` : ''].filter(Boolean).join('　');
-      return `
-        <div class="game-card" onclick="openGame('${doc.id}')">
-          <div class="gc-info">
-            <div class="gc-title">${esc(label) || '試合'}</div>
-            <div class="gc-teams">${esc(teamA)} <span style="color:#999;font-weight:normal">vs</span> ${esc(teamB)}</div>
-          </div>
-          <div class="gc-score">${esc(score)}</div>
-          <div class="gc-actions" onclick="event.stopPropagation()">
-            <button class="btn-card btn-open" onclick="openGame('${doc.id}')">開く</button>
-            <button class="btn-card btn-delete" onclick="deleteGame('${doc.id}')">削除</button>
-          </div>
-        </div>`;
-    }).join('');
+    gamesUnsubscribe = db.collection('games')
+      .where('tournamentId', '==', tid)
+      .onSnapshot(snap => {
+        // 別の大会に切り替わった後の遅延スナップショットは無視
+        if (tid !== currentTournamentId) return;
+        if (snap.empty) {
+          cont.innerHTML = `<div class="empty-state">この大会の試合がありません<br>「試合を追加」から入力してください</div>`;
+          return;
+        }
+        // 追加順（createdAt 降順）。古いデータは gameDate, gameNo でフォールバック
+        const sortedDocs = snap.docs.slice().sort((a, b) => {
+          const da = a.data(), db2 = b.data();
+          const ta = da.createdAt || '', tb = db2.createdAt || '';
+          if (ta && tb) return ta < tb ? 1 : ta > tb ? -1 : 0;
+          const dateA = da.gameDate || '', dateB = db2.gameDate || '';
+          if (dateA !== dateB) return dateA < dateB ? 1 : -1;
+          return (parseInt(db2.gameNo) || 0) - (parseInt(da.gameNo) || 0);
+        });
+        cont.innerHTML = sortedDocs.map(doc => {
+          const d = doc.data();
+          const teamA = d.teamAName || 'チームA';
+          const teamB = d.teamBName || 'チームB';
+          const score = (d.totalA != null) ? `${d.totalA} - ${d.totalB}` : '- - -';
+          const label = [d.gameDate, d.gameNo ? `Game ${d.gameNo}` : ''].filter(Boolean).join('　');
+          return `
+            <div class="game-card" onclick="openGame('${doc.id}')">
+              <div class="gc-info">
+                <div class="gc-title">${esc(label) || '試合'}</div>
+                <div class="gc-teams">${esc(teamA)} <span style="color:#999;font-weight:normal">vs</span> ${esc(teamB)}</div>
+              </div>
+              <div class="gc-score">${esc(score)}</div>
+              <div class="gc-actions" onclick="event.stopPropagation()">
+                <button class="btn-card btn-open" onclick="openGame('${doc.id}')">開く</button>
+                <button class="btn-card btn-delete" onclick="deleteGame('${doc.id}')">削除</button>
+              </div>
+            </div>`;
+        }).join('');
+      }, err => {
+        console.error('試合一覧の読み込みエラー:', err);
+        cont.innerHTML = `<div class="loading-msg" style="color:red">読み込みエラー: ${err.message}</div>`;
+      });
   } catch(e) {
-    console.error(e);
+    console.error('試合一覧の購読開始エラー:', e);
     cont.innerHTML = `<div class="loading-msg" style="color:red">読み込みエラー: ${e.message}</div>`;
   }
+}
+
+function stopGamesSubscription() {
+  if (gamesUnsubscribe) { gamesUnsubscribe(); gamesUnsubscribe = null; }
 }
 
 // =====================================================
