@@ -370,14 +370,15 @@ body {
    トースト
    ===================================================== */
 #toast {
-  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
-  background: #1A1A2E; color: white; padding: 11px 26px;
+  position: fixed; top: 20px; right: 20px;
+  background: #1A1A2E; color: white; padding: 11px 22px;
   border-radius: 8px; font-size: 13px; z-index: 9999;
-  opacity: 0; transition: opacity .3s; pointer-events: none;
+  opacity: 0; transition: opacity .3s, transform .3s;
+  transform: translateY(-10px); pointer-events: none;
   box-shadow: 0 4px 20px rgba(0,0,0,.25);
   white-space: nowrap;
 }
-#toast.show { opacity: 1; }
+#toast.show { opacity: 1; transform: translateY(0); }
 
 /* =====================================================
    エディター
@@ -2301,6 +2302,24 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   </div>
 </div>
 
+<style>
+.viewer-tabs {
+  display: flex; gap: 4px; margin: 16px 0 14px;
+  border-bottom: 2px solid var(--border);
+}
+.viewer-tab {
+  background: transparent; border: none;
+  padding: 10px 18px; font-size: 14px; font-weight: 700;
+  color: var(--text-mid); cursor: pointer;
+  border-bottom: 3px solid transparent; margin-bottom: -2px;
+  font-family: inherit;
+}
+.viewer-tab.active {
+  color: var(--blue); border-bottom-color: var(--blue);
+}
+.viewer-tab:hover:not(.active) { color: var(--text); }
+</style>
+
 <!-- =====================================================
      画面⑤: ロスター管理
      ===================================================== -->
@@ -2734,58 +2753,57 @@ async function loadStats() {
       cont.innerHTML = '<div class="dash-no-data">試合データがありません。</div>';
       return;
     }
-
-    const playerMap = {};
-    const teamMap   = {};
-    const gameList  = [];
-
-    for (const doc of snap.docs) {
-      const d = doc.data();
-      if (!d.pbpData) continue;
-      const plays = parsePBP(d.pbpData);
-      const st    = buildState(plays);
-      const totalA = st.qScore.A.reduce((a,b)=>a+b,0);
-      const totalB = st.qScore.B.reduce((a,b)=>a+b,0);
-      const teamA  = d.teamAName || 'チームA';
-      const teamB  = d.teamBName || 'チームB';
-
-      gameList.push({ id: doc.id, teamA, teamB, totalA, totalB, gameDate: d.gameDate || '', gameNo: d.gameNo || '' });
-
-      for (const [tName, pf, pa] of [[teamA, totalA, totalB],[teamB, totalB, totalA]]) {
-        if (!teamMap[tName]) teamMap[tName] = {name:tName,wins:0,losses:0,draws:0,pf:0,pa:0,games:0};
-        teamMap[tName].games++;
-        teamMap[tName].pf += pf; teamMap[tName].pa += pa;
-        if (pf > pa) teamMap[tName].wins++;
-        else if (pf < pa) teamMap[tName].losses++;
-        else teamMap[tName].draws++;
-      }
-
-      for (const team of ['A','B']) {
-        const tName = team === 'A' ? teamA : teamB;
-        const cells = team === 'A' ? st.cellsA : st.cellsB;
-        const playerPts = {};
-        for (const cell of Object.values(cells)) {
-          if (cell.idx !== 0) continue;
-          const pts = cell.scoreType === '3P' ? 3 : cell.scoreType === '2P' ? 2 : 1;
-          playerPts[cell.playerNum] = (playerPts[cell.playerNum] || 0) + pts;
-        }
-        for (const p of Object.values(st.players[team])) {
-          const key = `${tName}|${p.num}`;
-          if (!playerMap[key]) playerMap[key] = { name: p.name || `#${p.num}`, num: p.num, team: tName, pts: 0, games: 0, fouls: 0 };
-          playerMap[key].pts   += (playerPts[p.num] || 0);
-          playerMap[key].fouls += (st.fouls[team][p.num] || 0);
-          playerMap[key].games++;
-          if (!playerMap[key].name && p.name) playerMap[key].name = p.name;
-        }
-      }
-    }
-
-    statsData = { playerMap, teamMap, gameList, totalGames: snap.size };
+    statsData = computeStatsFromDocs(snap.docs);
     renderStatsContent();
   } catch(e) {
     console.error(e);
     cont.innerHTML = `<div class="dash-no-data" style="color:red">集計エラー: ${e.message}</div>`;
   }
+}
+
+// 試合ドキュメント配列から成績データを集計（閲覧URLと共通利用）
+function computeStatsFromDocs(docs) {
+  const playerMap = {};
+  const teamMap   = {};
+  const gameList  = [];
+  for (const doc of docs) {
+    const d = doc.data();
+    if (!d.pbpData) continue;
+    const plays = parsePBP(d.pbpData);
+    const st    = buildState(plays);
+    const totalA = st.qScore.A.reduce((a,b)=>a+b,0);
+    const totalB = st.qScore.B.reduce((a,b)=>a+b,0);
+    const teamA  = d.teamAName || 'チームA';
+    const teamB  = d.teamBName || 'チームB';
+    gameList.push({ id: doc.id, teamA, teamB, totalA, totalB, gameDate: d.gameDate || '', gameNo: d.gameNo || '' });
+    for (const [tName, pf, pa] of [[teamA, totalA, totalB],[teamB, totalB, totalA]]) {
+      if (!teamMap[tName]) teamMap[tName] = {name:tName,wins:0,losses:0,draws:0,pf:0,pa:0,games:0};
+      teamMap[tName].games++;
+      teamMap[tName].pf += pf; teamMap[tName].pa += pa;
+      if (pf > pa) teamMap[tName].wins++;
+      else if (pf < pa) teamMap[tName].losses++;
+      else teamMap[tName].draws++;
+    }
+    for (const team of ['A','B']) {
+      const tName = team === 'A' ? teamA : teamB;
+      const cells = team === 'A' ? st.cellsA : st.cellsB;
+      const playerPts = {};
+      for (const cell of Object.values(cells)) {
+        if (cell.idx !== 0) continue;
+        const pts = cell.scoreType === '3P' ? 3 : cell.scoreType === '2P' ? 2 : 1;
+        playerPts[cell.playerNum] = (playerPts[cell.playerNum] || 0) + pts;
+      }
+      for (const p of Object.values(st.players[team])) {
+        const key = `${tName}|${p.num}`;
+        if (!playerMap[key]) playerMap[key] = { name: p.name || `#${p.num}`, num: p.num, team: tName, pts: 0, games: 0, fouls: 0 };
+        playerMap[key].pts   += (playerPts[p.num] || 0);
+        playerMap[key].fouls += (st.fouls[team][p.num] || 0);
+        playerMap[key].games++;
+        if (!playerMap[key].name && p.name) playerMap[key].name = p.name;
+      }
+    }
+  }
+  return { playerMap, teamMap, gameList, totalGames: docs.length };
 }
 
 // =====================================================
@@ -5491,7 +5509,19 @@ function openViewer(tournamentId) {
   });
 }
 
+// 閲覧URL：タブ状態
+let viewerActiveTab = 'games'; // 'games' or 'stats'
+let viewerLastGameDocs = [];
+let viewerLastTData = null;
+
+function setViewerTab(tab) {
+  viewerActiveTab = tab;
+  if (viewerLastTData) renderTournamentViewer(viewerLastTData, viewerLastGameDocs);
+}
+
 function renderTournamentViewer(tData, gameDocs) {
+  viewerLastTData = tData;
+  viewerLastGameDocs = gameDocs;
   // 展開中の試合IDを記憶してから再描画
   const expanded = new Set(
     [...document.querySelectorAll('.vt-game-detail[open]')].map(el => el.dataset.gameId)
@@ -5595,10 +5625,126 @@ function renderTournamentViewer(tData, gameDocs) {
     </details>`;
   }).join('');
 
+  const tabsHTML = `
+    <div class="viewer-tabs">
+      <button class="viewer-tab ${viewerActiveTab==='games'?'active':''}" onclick="setViewerTab('games')">🏀 試合</button>
+      <button class="viewer-tab ${viewerActiveTab==='stats'?'active':''}" onclick="setViewerTab('stats')">📊 成績</button>
+    </div>`;
+
+  let bodyHTML;
+  if (viewerActiveTab === 'stats') {
+    bodyHTML = renderViewerStats(gameDocs);
+  } else {
+    bodyHTML = `<div class="vt-game-list">${cards}</div>`;
+  }
+
   document.getElementById('viewer-content').innerHTML = `
     <div class="viewer-tournament-name">${esc(tData.name || '大会')}</div>
     ${metaLine ? `<div class="viewer-game-info">${esc(metaLine)}</div>` : ''}
-    <div class="vt-game-list">${cards}</div>`;
+    ${tabsHTML}
+    ${bodyHTML}`;
+}
+
+// 閲覧URL：成績タブのレンダリング（管理画面の renderStatsContent をベースに簡素化）
+function renderViewerStats(gameDocs) {
+  const data = computeStatsFromDocs(gameDocs);
+  const { playerMap, teamMap, gameList, totalGames } = data;
+  const rankMetric = viewerRankMetric || 'pts';
+
+  const getVal = p => rankMetric === 'avg'
+    ? (p.games > 0 ? p.pts / p.games : 0)
+    : p.pts;
+  const allSorted = Object.values(playerMap).sort((a, b) => getVal(b) - getVal(a));
+  let curRank = 1;
+  for (let i = 0; i < allSorted.length; i++) {
+    if (i > 0 && getVal(allSorted[i]) < getVal(allSorted[i - 1])) curRank = i + 1;
+    allSorted[i].rank = curRank;
+  }
+  const scorers = allSorted.slice(0, 15);
+  const teams   = Object.values(teamMap).sort((a,b) => b.wins - a.wins || (b.pf-b.pa) - (a.pf-a.pa));
+  const rankLabel = rankMetric === 'avg' ? '平均得点' : '総得点';
+
+  if (totalGames === 0 || Object.keys(playerMap).length === 0) {
+    return '<div class="dash-no-data" style="padding:32px 0">まだ集計データがありません</div>';
+  }
+
+  return `
+    <div class="dash-summary">
+      <div class="dash-kpi"><div class="dash-kpi-val">${totalGames}</div><div class="dash-kpi-label">試合数</div></div>
+      <div class="dash-kpi"><div class="dash-kpi-val">${Object.keys(teamMap).length}</div><div class="dash-kpi-label">チーム数</div></div>
+      <div class="dash-kpi"><div class="dash-kpi-val">${Object.keys(playerMap).length}</div><div class="dash-kpi-label">選手数</div></div>
+    </div>
+
+    <div class="dash-section">
+      <div class="dash-section-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <span>得点ランキング（${rankLabel}順）</span>
+        <div class="rank-switch">
+          <button class="rank-switch-btn ${rankMetric==='pts'?'active':''}" onclick="setViewerRankMetric('pts')">総得点</button>
+          <button class="rank-switch-btn ${rankMetric==='avg'?'active':''}" onclick="setViewerRankMetric('avg')">平均得点</button>
+        </div>
+      </div>
+      <div class="dash-table-wrap">
+        ${scorers.length === 0 ? '<div class="dash-no-data">データなし</div>' : `
+        <table class="dash-table"><thead><tr>
+          <th class="num" style="width:42px">順位</th>
+          <th>選手名</th><th>チーム</th>
+          <th class="num">試合</th>
+          <th class="num" style="${rankMetric==='pts'?'color:var(--blue);font-weight:800':''}">総得点</th>
+          <th class="num" style="${rankMetric==='avg'?'color:var(--blue);font-weight:800':''}">平均</th>
+          <th class="num">反則</th>
+        </tr></thead><tbody>
+          ${scorers.map((p) => {
+            const avg = p.games > 0 ? (p.pts/p.games).toFixed(1) : '0.0';
+            return `<tr>
+              <td class="num"><span class="rank-badge rank-${p.rank}">${p.rank}</span></td>
+              <td><strong>#${esc(p.num)}</strong> ${esc(p.name)}</td>
+              <td><span class="team-badge">${esc(p.team)}</span></td>
+              <td class="num">${p.games}</td>
+              <td class="num" style="${rankMetric==='pts'?'font-weight:700;color:var(--blue)':''}"><strong>${p.pts}</strong></td>
+              <td class="num" style="${rankMetric==='avg'?'font-weight:700;color:var(--blue)':''}">${avg}</td>
+              <td class="num">${p.fouls}</td>
+            </tr>`;
+          }).join('')}
+        </tbody></table>`}
+      </div>
+    </div>
+
+    <div class="dash-section">
+      <div class="dash-section-title">チーム成績</div>
+      <div class="dash-table-wrap">
+        ${teams.length === 0 ? '<div class="dash-no-data">データなし</div>' : `
+        <table class="dash-table"><thead><tr>
+          <th>チーム名</th>
+          <th class="num">試合</th><th class="num">勝</th><th class="num">負</th><th class="num">分</th>
+          <th class="num">得点</th><th class="num">失点</th><th class="num">±</th>
+          <th style="min-width:100px">勝率</th>
+        </tr></thead><tbody>
+          ${teams.map(t => {
+            const rate = t.games > 0 ? Math.round(t.wins/t.games*100) : 0;
+            const diff = t.pf - t.pa;
+            return `<tr>
+              <td><strong>${esc(t.name)}</strong></td>
+              <td class="num">${t.games}</td>
+              <td class="num result-win">${t.wins}</td>
+              <td class="num result-lose">${t.losses}</td>
+              <td class="num result-draw">${t.draws}</td>
+              <td class="num">${t.pf}</td><td class="num">${t.pa}</td>
+              <td class="num ${diff>=0?'result-win':'result-lose'}">${diff>=0?'+':''}${diff}</td>
+              <td><div class="win-rate-bar">
+                <div class="win-rate-track"><div class="win-rate-fill" style="width:${rate}%"></div></div>
+                <span style="font-size:11px">${rate}%</span>
+              </div></td>
+            </tr>`;
+          }).join('')}
+        </tbody></table>`}
+      </div>
+    </div>`;
+}
+
+let viewerRankMetric = 'pts';
+function setViewerRankMetric(metric) {
+  viewerRankMetric = metric;
+  if (viewerLastTData) renderTournamentViewer(viewerLastTData, viewerLastGameDocs);
 }
 
 function renderViewerScoresheet(data) {
