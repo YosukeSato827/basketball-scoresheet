@@ -4687,6 +4687,8 @@ async function loadAndRenderRosterTeams() {
     const snap = await db.collection('roster_teams')
       .where('tournamentId', '==', rosterTournamentId).get();
     const teams = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // チーム名であいうえお順ソート（日本語ロケール）
+    teams.sort((a, b) => (a.teamName || '').localeCompare(b.teamName || '', 'ja'));
     if (teams.length === 0) {
       container.innerHTML = '<div class="roster-empty">チームが登録されていません<br><br>「+ チーム追加」からロスターを登録できます</div>';
       return;
