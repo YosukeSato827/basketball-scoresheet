@@ -2512,7 +2512,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.05.13-2';
+const APP_VERSION = '2026.05.13-3';
 
 // =====================================================
 // Firebase 初期化
@@ -3103,6 +3103,11 @@ async function openGameSetupModal() {
   document.getElementById('setup-manual-row-b').style.display = 'none';
   document.getElementById('setup-manual-input-a').value = '';
   document.getElementById('setup-manual-input-b').value = '';
+  // ユニフォーム選択欄を非表示にリセット（前回試合の情報が残らないように）
+  document.getElementById('setup-uniform-a').classList.add('hidden');
+  document.getElementById('setup-uniform-b').classList.add('hidden');
+  document.getElementById('setup-uniform-opts-a').innerHTML = '';
+  document.getElementById('setup-uniform-opts-b').innerHTML = '';
   // チーム一覧は折りたたんだ状態にリセット
   ['a','b'].forEach(slot => {
     const cards = document.getElementById(`setup-cards-${slot}`);
@@ -3202,7 +3207,7 @@ function showUniformSelector(slot, uniforms) {
       style="background:${u.bg};color:${u.text}"
       onclick="selectSetupUniform('${slot}',${i})">
       <span class="setup-uniform-opt-num">#</span>
-      <span class="setup-uniform-opt-label">${i + 1}色目</span>
+      <span class="setup-uniform-opt-label">${esc(u.label || (i + 1) + '色目')}</span>
     </button>`
   ).join('');
 }
@@ -3240,7 +3245,11 @@ function useGuestTeam(slot) {
     teamId: '__guest__',
     teamName: 'ゲストチーム',
     players: guestPlayers,
-    uniforms: [],
+    // ゲストチームは青・赤から選択
+    uniforms: [
+      { bg: '#1565C0', text: '#FFFFFF', label: '青' },
+      { bg: '#E53935', text: '#FFFFFF', label: '赤' }
+    ],
     isGuest: true,
     selectedUniformIdx: null
   };
@@ -3261,9 +3270,8 @@ function useGuestTeam(slot) {
   manualRow.style.display = 'flex';
   manualInput.value = 'ゲストチーム';
   manualInput.placeholder = 'ゲストチーム名（編集可）';
-  // ユニフォームなし → 確認不要
-  setupUniformDone[slot] = true;
-  document.getElementById(`setup-uniform-${slot}`).classList.add('hidden');
+  // 青・赤のユニフォーム選択を表示（選択が必要）
+  showUniformSelector(slot, guestData.uniforms);
   showToast('ゲストチーム（背番号0〜99）を割り当てました');
 }
 
