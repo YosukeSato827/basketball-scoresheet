@@ -895,6 +895,16 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   border-radius: 14px; padding: 10px 18px; width: 100%;
 }
 .rec-score-name { font-size: 18px; font-weight: 700; letter-spacing: .04em; white-space: nowrap; }
+.rec-team-foul {
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px; font-weight: 800;
+  padding: 3px 8px; border-radius: 6px;
+  background: rgba(255,255,255,.22);
+  white-space: nowrap; line-height: 1;
+}
+.rec-team-foul.foul-bonus {
+  background: #FFD600; color: #3a3a3a;
+}
 .rec-score-val {
   font-family: 'Poppins', sans-serif; font-size: 52px;
   font-weight: 900; line-height: 1;
@@ -1033,7 +1043,8 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   .rec-scoreboard { padding: 6px 16px; }
   .rec-score-val { font-size: 38px; }
   .rec-score-name { font-size: 14px; }
-  .rec-team-box { padding: 8px 14px; gap: 12px; }
+  .rec-team-box { padding: 8px 14px; gap: 10px; }
+  .rec-team-foul { font-size: 11px; padding: 2px 6px; }
   .rec-timer-display { font-size: 20px; }
   /* Qバーを細く */
   .rec-q-bar { padding: 4px 6px; gap: 4px; }
@@ -2145,6 +2156,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <div class="rec-score-team">
         <div class="rec-team-box" id="rec-team-a-box">
           <span class="rec-score-name" id="rec-name-a">チームA</span>
+          <span class="rec-team-foul" id="rec-foul-a">P0</span>
           <span class="rec-score-val" id="rec-score-a">0</span>
         </div>
       </div>
@@ -2166,6 +2178,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <div class="rec-score-team">
         <div class="rec-team-box" id="rec-team-b-box">
           <span class="rec-score-name" id="rec-name-b">チームB</span>
+          <span class="rec-team-foul" id="rec-foul-b">P0</span>
           <span class="rec-score-val" id="rec-score-b">0</span>
         </div>
       </div>
@@ -3839,6 +3852,7 @@ function setRecorderQ(q) {
     document.getElementById(`rec-q-${i}`).classList.toggle('active', i === q);
   }
   resetRecTimer();
+  updateRecScore();  // クォーター切替時にチームファウル表示も更新
   saveRecSession();
 }
 
@@ -3862,7 +3876,7 @@ function renderActionGrids() {
     { ev: '2P成功',         label: '2P 成功',        cls: 'rec-act-scoring' },
     { ev: '3P成功',         label: '3P 成功',        cls: 'rec-act-scoring' },
     { ev: 'Pファウル',      label: 'ファウル',       cls: 'rec-act-foul' },
-    { ev: 'タイムアウト',    label: 'T / O',         cls: 'rec-act-timeout' },
+    { ev: 'タイムアウト',    label: 'タイムアウト',   cls: 'rec-act-timeout' },
     { ev: '__sub__',        label: '⇄ 交代',        cls: 'rec-act-sub' },
   ];
   ['A', 'B'].forEach(team => {
@@ -4023,6 +4037,20 @@ function updateRecScore() {
   const st = buildState(parsePBP(recPbpData));
   document.getElementById('rec-score-a').textContent = st.qScore.A.reduce((a, b) => a + b, 0);
   document.getElementById('rec-score-b').textContent = st.qScore.B.reduce((a, b) => a + b, 0);
+  // 現在クォーターのチームファウル数
+  const qi = Math.min(recCurrentQ, 5) - 1;
+  const fa = (st.teamFouls.A[qi] || 0);
+  const fb = (st.teamFouls.B[qi] || 0);
+  const foulA = document.getElementById('rec-foul-a');
+  const foulB = document.getElementById('rec-foul-b');
+  if (foulA) {
+    foulA.textContent = `${recCurrentQ <= 4 ? recCurrentQ + 'Q' : 'OT'} P${fa}`;
+    foulA.classList.toggle('foul-bonus', fa >= 5);
+  }
+  if (foulB) {
+    foulB.textContent = `${recCurrentQ <= 4 ? recCurrentQ + 'Q' : 'OT'} P${fb}`;
+    foulB.classList.toggle('foul-bonus', fb >= 5);
+  }
 }
 
 function setRecStatus(msg) {
@@ -4415,7 +4443,7 @@ function clickPBPEntry(idx) {
     evTypeSec.style.display = '';
     const LABELS = {
       '1P成功': '1P / FT 成功', '2P成功': '2P 成功', '3P成功': '3P 成功',
-      'フリースロー成功': '1P / FT 成功', 'Pファウル': 'ファウル', 'タイムアウト': 'T / O'
+      'フリースロー成功': '1P / FT 成功', 'Pファウル': 'ファウル', 'タイムアウト': 'タイムアウト'
     };
     evTypeGrid.innerHTML = REC_EVENT_TYPES.map(ev => {
       const isActive = ev === evType;
