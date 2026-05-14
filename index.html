@@ -1243,6 +1243,8 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   white-space: nowrap;
 }
 .setup-manual-btn:hover { border-color: var(--blue); color: var(--blue); }
+.setup-sub-btns { display: flex; gap: 8px; }
+.setup-sub-btns .setup-manual-btn { flex: 1; text-align: center; }
 /* チームを選択トグルボタン */
 .setup-team-toggle-btn {
   width: 100%; background: var(--bg);
@@ -2461,7 +2463,10 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <div class="setup-manual-row" id="setup-manual-row-a" style="display:none">
         <input class="setup-manual-input" id="setup-manual-input-a" placeholder="HOME チーム名を入力">
       </div>
-      <button class="setup-manual-btn" onclick="toggleManualInput('a')">✏️ 手入力する</button>
+      <div class="setup-sub-btns">
+        <button class="setup-manual-btn" onclick="toggleManualInput('a')">✏️ 手入力する</button>
+        <button class="setup-manual-btn" onclick="useGuestTeam('a')">👤 ゲストチーム</button>
+      </div>
     </div>
 
     <!-- AWAY（チームB） -->
@@ -2479,7 +2484,10 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <div class="setup-manual-row" id="setup-manual-row-b" style="display:none">
         <input class="setup-manual-input" id="setup-manual-input-b" placeholder="AWAY チーム名を入力">
       </div>
-      <button class="setup-manual-btn" onclick="toggleManualInput('b')">✏️ 手入力する</button>
+      <div class="setup-sub-btns">
+        <button class="setup-manual-btn" onclick="toggleManualInput('b')">✏️ 手入力する</button>
+        <button class="setup-manual-btn" onclick="useGuestTeam('b')">👤 ゲストチーム</button>
+      </div>
     </div>
 
     <div class="setup-divider"></div>
@@ -2504,7 +2512,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.05.13-1';
+const APP_VERSION = '2026.05.13-2';
 
 // =====================================================
 // Firebase 初期化
@@ -3220,7 +3228,43 @@ function toggleManualInput(slot) {
     });
     if (slot === 'a') setupTeamA = null; else setupTeamB = null;
     document.getElementById(`setup-${slot}-selected`).textContent = '（手入力）';
+    setupUniformDone[slot] = true;  // 手入力はユニフォーム確認不要
+    document.getElementById(`setup-uniform-${slot}`).classList.add('hidden');
   }
+}
+
+// ゲストチーム：背番号0〜99を持つ汎用チームを割り当て
+function useGuestTeam(slot) {
+  const guestPlayers = Array.from({ length: 100 }, (_, i) => ({ num: String(i), name: '' }));
+  const guestData = {
+    teamId: '__guest__',
+    teamName: 'ゲストチーム',
+    players: guestPlayers,
+    uniforms: [],
+    isGuest: true,
+    selectedUniformIdx: null
+  };
+  if (slot === 'a') setupTeamA = guestData; else setupTeamB = guestData;
+  // カードの選択解除
+  document.querySelectorAll(`#setup-cards-${slot} .setup-team-card`).forEach(btn => {
+    btn.classList.remove('selected-a','selected-b');
+  });
+  // 選択名表示・トグルボタン更新
+  document.getElementById(`setup-${slot}-selected`).textContent = 'ゲストチーム（背番号0〜99）';
+  const cards = document.getElementById(`setup-cards-${slot}`);
+  const tbtn  = document.getElementById(`setup-toggle-${slot}`);
+  if (cards) cards.style.display = 'none';
+  if (tbtn)  tbtn.textContent = '▼ ゲストチーム（変更）';
+  // 手入力欄でリネーム可能にする（プレフィル）
+  const manualRow = document.getElementById(`setup-manual-row-${slot}`);
+  const manualInput = document.getElementById(`setup-manual-input-${slot}`);
+  manualRow.style.display = 'flex';
+  manualInput.value = 'ゲストチーム';
+  manualInput.placeholder = 'ゲストチーム名（編集可）';
+  // ユニフォームなし → 確認不要
+  setupUniformDone[slot] = true;
+  document.getElementById(`setup-uniform-${slot}`).classList.add('hidden');
+  showToast('ゲストチーム（背番号0〜99）を割り当てました');
 }
 
 function closeGameSetupModal(event) {
@@ -3234,6 +3278,9 @@ function confirmGameSetup(mode) {
   const manualB = document.getElementById('setup-manual-input-b').value.trim();
   const teamAData = setupTeamA || (manualA ? { teamName: manualA, players: [], uniforms: [] } : null);
   const teamBData = setupTeamB || (manualB ? { teamName: manualB, players: [], uniforms: [] } : null);
+  // ゲストチームは手入力欄の値をチーム名として反映（リネーム対応）
+  if (teamAData && teamAData.isGuest && manualA) teamAData.teamName = manualA;
+  if (teamBData && teamBData.isGuest && manualB) teamBData.teamName = manualB;
   if (!teamAData && !teamBData) {
     showToast('チームAまたはチームBを選択してください');
     return;
