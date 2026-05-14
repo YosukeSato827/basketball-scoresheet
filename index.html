@@ -1237,6 +1237,16 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   white-space: nowrap;
 }
 .setup-manual-btn:hover { border-color: var(--blue); color: var(--blue); }
+/* チームを選択トグルボタン */
+.setup-team-toggle-btn {
+  width: 100%; background: var(--bg);
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  padding: 11px 14px; margin: 6px 0;
+  font-size: 14px; font-weight: 700; color: var(--text);
+  cursor: pointer; text-align: left;
+  font-family: inherit;
+}
+.setup-team-toggle-btn:hover { border-color: var(--blue); color: var(--blue); }
 /* ユニフォーム選択 */
 .setup-uniform-selector {
   background: var(--bg); border-radius: var(--radius-sm);
@@ -2435,7 +2445,8 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
         <span class="setup-badge setup-badge-a">HOME</span>
         <span class="setup-selected-name" id="setup-a-selected">（未選択）</span>
       </div>
-      <div class="setup-team-cards" id="setup-cards-a"></div>
+      <button class="setup-team-toggle-btn" id="setup-toggle-a" onclick="toggleSetupTeamList('a')">▼ チームを選択</button>
+      <div class="setup-team-cards" id="setup-cards-a" style="display:none"></div>
       <div class="setup-uniform-selector hidden" id="setup-uniform-a">
         <div class="setup-uniform-label">👕 この試合で着用するユニフォーム</div>
         <div class="setup-uniform-opts" id="setup-uniform-opts-a"></div>
@@ -2452,7 +2463,8 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
         <span class="setup-badge setup-badge-b">AWAY</span>
         <span class="setup-selected-name" id="setup-b-selected">（未選択）</span>
       </div>
-      <div class="setup-team-cards" id="setup-cards-b"></div>
+      <button class="setup-team-toggle-btn" id="setup-toggle-b" onclick="toggleSetupTeamList('b')">▼ チームを選択</button>
+      <div class="setup-team-cards" id="setup-cards-b" style="display:none"></div>
       <div class="setup-uniform-selector hidden" id="setup-uniform-b">
         <div class="setup-uniform-label">👕 この試合で着用するユニフォーム</div>
         <div class="setup-uniform-opts" id="setup-uniform-opts-b"></div>
@@ -3068,6 +3080,13 @@ async function openGameSetupModal() {
   document.getElementById('setup-manual-row-b').style.display = 'none';
   document.getElementById('setup-manual-input-a').value = '';
   document.getElementById('setup-manual-input-b').value = '';
+  // チーム一覧は折りたたんだ状態にリセット
+  ['a','b'].forEach(slot => {
+    const cards = document.getElementById(`setup-cards-${slot}`);
+    const btn   = document.getElementById(`setup-toggle-${slot}`);
+    if (cards) cards.style.display = 'none';
+    if (btn)   btn.textContent = '▼ チームを選択';
+  });
   document.getElementById('modal-game-setup').classList.remove('hidden');
   await loadSetupTeamCards();
 }
@@ -3110,6 +3129,16 @@ async function loadSetupTeamCards() {
   }
 }
 
+// チーム一覧の表示/非表示トグル
+function toggleSetupTeamList(slot) {
+  const cards = document.getElementById(`setup-cards-${slot}`);
+  const btn   = document.getElementById(`setup-toggle-${slot}`);
+  if (!cards || !btn) return;
+  const showing = cards.style.display !== 'none';
+  cards.style.display = showing ? 'none' : 'grid';
+  btn.textContent = showing ? '▼ チームを選択' : '▲ 閉じる';
+}
+
 function selectSetupTeam(slot, teamId, teamData) {
   const isA = slot === 'a';
   if (isA) setupTeamA = { ...teamData, selectedUniformIdx: 0 };
@@ -3122,6 +3151,11 @@ function selectSetupTeam(slot, teamId, teamData) {
   if (card) card.classList.add(isA ? 'selected-a' : 'selected-b');
   document.getElementById(`setup-${slot}-selected`).textContent = teamData.teamName;
   document.getElementById(`setup-manual-row-${slot}`).style.display = 'none';
+  // チーム一覧を折りたたみ、トグルボタンに選択中チーム名を表示
+  const cards = document.getElementById(`setup-cards-${slot}`);
+  const btn   = document.getElementById(`setup-toggle-${slot}`);
+  if (cards) cards.style.display = 'none';
+  if (btn)   btn.textContent = `▼ ${teamData.teamName}（変更）`;
   // ユニフォーム選択を表示
   showUniformSelector(slot, teamData.uniforms || []);
 }
