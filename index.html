@@ -54,6 +54,12 @@ body {
   box-shadow: 0 2px 8px rgba(0,0,0,.18);
 }
 .app-header h1 { display: none; } /* ロゴブロックで代替 */
+.app-version {
+  font-family: 'Poppins', sans-serif;
+  font-size: 10px; color: rgba(255,255,255,.45);
+  letter-spacing: .03em; align-self: flex-end;
+  margin-bottom: 8px; white-space: nowrap;
+}
 
 /* Molten logo + ScoreLink */
 .logo-block {
@@ -1272,18 +1278,6 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 }
 .setup-uniform-opt-num { font-size: 16px; font-weight: 900; }
 .setup-uniform-opt-label { font-size: 9px; opacity: .8; }
-/* ユニフォーム選択「完了」ボタン */
-.setup-uniform-done-btn {
-  margin-top: 10px; width: 100%;
-  background: var(--blue); color: white;
-  border: none; border-radius: var(--radius-sm);
-  padding: 10px; font-size: 14px; font-weight: 700;
-  cursor: pointer; font-family: inherit;
-}
-.setup-uniform-done-btn:hover { background: var(--blue-dark); }
-.setup-uniform-done-btn.done {
-  background: #2e7d32;
-}
 .setup-divider { height: 1px; background: var(--border); margin: 14px 0; }
 .setup-meta-grid {
   display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px;
@@ -2009,6 +2003,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <div class="logo-wordmark">molten</div>
       <div class="logo-product">ScoreLink</div>
     </div>
+    <span class="app-version" id="app-version"></span>
     <div class="logo-divider"></div>
     <button class="btn-hdr-primary" onclick="openTournamentModal()">+ 大会を登録</button>
   </div>
@@ -2460,9 +2455,8 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <button class="setup-team-toggle-btn" id="setup-toggle-a" onclick="toggleSetupTeamList('a')">▼ チームを選択</button>
       <div class="setup-team-cards" id="setup-cards-a" style="display:none"></div>
       <div class="setup-uniform-selector hidden" id="setup-uniform-a">
-        <div class="setup-uniform-label">👕 この試合で着用するユニフォーム</div>
+        <div class="setup-uniform-label">👕 この試合で着用するユニフォームを選択</div>
         <div class="setup-uniform-opts" id="setup-uniform-opts-a"></div>
-        <button class="setup-uniform-done-btn" id="setup-uniform-done-a" onclick="confirmSetupUniform('a')">✓ 完了</button>
       </div>
       <div class="setup-manual-row" id="setup-manual-row-a" style="display:none">
         <input class="setup-manual-input" id="setup-manual-input-a" placeholder="HOME チーム名を入力">
@@ -2479,9 +2473,8 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <button class="setup-team-toggle-btn" id="setup-toggle-b" onclick="toggleSetupTeamList('b')">▼ チームを選択</button>
       <div class="setup-team-cards" id="setup-cards-b" style="display:none"></div>
       <div class="setup-uniform-selector hidden" id="setup-uniform-b">
-        <div class="setup-uniform-label">👕 この試合で着用するユニフォーム</div>
+        <div class="setup-uniform-label">👕 この試合で着用するユニフォームを選択</div>
         <div class="setup-uniform-opts" id="setup-uniform-opts-b"></div>
-        <button class="setup-uniform-done-btn" id="setup-uniform-done-b" onclick="confirmSetupUniform('b')">✓ 完了</button>
       </div>
       <div class="setup-manual-row" id="setup-manual-row-b" style="display:none">
         <input class="setup-manual-input" id="setup-manual-input-b" placeholder="AWAY チーム名を入力">
@@ -2508,6 +2501,11 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 
 
 <script>
+// =====================================================
+// アプリバージョン（プッシュのたびに更新）
+// =====================================================
+const APP_VERSION = '2026.05.13-1';
+
 // =====================================================
 // Firebase 初期化
 // =====================================================
@@ -3158,8 +3156,8 @@ function toggleSetupTeamList(slot) {
 
 function selectSetupTeam(slot, teamId, teamData) {
   const isA = slot === 'a';
-  if (isA) setupTeamA = { ...teamData, selectedUniformIdx: 0 };
-  else     setupTeamB = { ...teamData, selectedUniformIdx: 0 };
+  if (isA) setupTeamA = { ...teamData, selectedUniformIdx: null };
+  else     setupTeamB = { ...teamData, selectedUniformIdx: null };
   // カードのハイライト更新
   document.querySelectorAll(`#setup-cards-${slot} .setup-team-card`).forEach(btn => {
     btn.classList.remove('selected-a','selected-b');
@@ -3182,13 +3180,16 @@ function showUniformSelector(slot, uniforms) {
   const opts  = document.getElementById(`setup-uniform-opts-${slot}`);
   if (!uniforms || uniforms.length === 0) {
     wrap.classList.add('hidden');
-    setupUniformDone[slot] = true;  // ユニフォームなし → 確認不要
+    setupUniformDone[slot] = true;  // ユニフォーム未登録 → 自動選択（確認不要）
     return;
   }
   wrap.classList.remove('hidden');
-  setupUniformDone[slot] = false;   // 選択 → 完了ボタンを押す必要あり
+  setupUniformDone[slot] = false;   // 最初は未選択 → 選択が必要
+  // selectedUniformIdx を未選択にリセット
+  if (slot === 'a' && setupTeamA) setupTeamA.selectedUniformIdx = null;
+  if (slot === 'b' && setupTeamB) setupTeamB.selectedUniformIdx = null;
   opts.innerHTML = uniforms.map((u, i) =>
-    `<button class="setup-uniform-opt${i === 0 ? ' selected' : ''}"
+    `<button class="setup-uniform-opt"
       id="setup-uopt-${slot}-${i}"
       style="background:${u.bg};color:${u.text}"
       onclick="selectSetupUniform('${slot}',${i})">
@@ -3196,7 +3197,6 @@ function showUniformSelector(slot, uniforms) {
       <span class="setup-uniform-opt-label">${i + 1}色目</span>
     </button>`
   ).join('');
-  updateUniformDoneBtn(slot);
 }
 
 function selectSetupUniform(slot, idx) {
@@ -3204,29 +3204,8 @@ function selectSetupUniform(slot, idx) {
   if (slot === 'b' && setupTeamB) setupTeamB.selectedUniformIdx = idx;
   document.querySelectorAll(`#setup-uniform-opts-${slot} .setup-uniform-opt`)
     .forEach((btn, i) => btn.classList.toggle('selected', i === idx));
-  // 色を選び直したら再度「完了」が必要
-  setupUniformDone[slot] = false;
-  updateUniformDoneBtn(slot);
-}
-
-// 「完了」ボタンの表示状態を更新
-function updateUniformDoneBtn(slot) {
-  const btn = document.getElementById(`setup-uniform-done-${slot}`);
-  if (!btn) return;
-  if (setupUniformDone[slot]) {
-    btn.textContent = '✓ 完了済み';
-    btn.classList.add('done');
-  } else {
-    btn.textContent = '✓ 完了';
-    btn.classList.remove('done');
-  }
-}
-
-// ユニフォーム選択を確定
-function confirmSetupUniform(slot) {
+  // 選択されたら完了扱い
   setupUniformDone[slot] = true;
-  updateUniformDoneBtn(slot);
-  showToast('ユニフォームを確定しました');
 }
 
 function toggleManualInput(slot) {
@@ -3259,13 +3238,13 @@ function confirmGameSetup(mode) {
     showToast('チームAまたはチームBを選択してください');
     return;
   }
-  // ユニフォーム選択が未完了なら開始させない
+  // ユニフォーム未選択なら開始させない
   if (!setupUniformDone.a) {
-    showToast('HOME チームのユニフォームを「完了」してください');
+    showToast('HOME チームのユニフォームを選択してください');
     return;
   }
   if (!setupUniformDone.b) {
-    showToast('AWAY チームのユニフォームを「完了」してください');
+    showToast('AWAY チームのユニフォームを選択してください');
     return;
   }
   const gameNo = document.getElementById('setup-game-no').value.trim();
@@ -5952,6 +5931,8 @@ function renderViewerScoresheet(data) {
 // =====================================================
 async function initApp() {
   updateGeminiApiKeyStatus();
+  const verEl = document.getElementById('app-version');
+  if (verEl) verEl.textContent = 'ver ' + APP_VERSION;
   const params      = new URLSearchParams(window.location.search);
   const registerTid = params.get('register');
   const viewTid     = params.get('view');
