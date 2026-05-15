@@ -2541,7 +2541,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.05.13-5';
+const APP_VERSION = '2026.05.13-6';
 
 // =====================================================
 // Firebase 初期化
@@ -5973,20 +5973,19 @@ function renderViewerBoxScore(plays, teamAName, teamBName, regPlayersA, regPlaye
   const box = buildGameBoxScore(plays, regPlayersA, regPlayersB);
 
   const boxTable = (label, rows) => {
-    const scored = rows.filter(p => p.pts > 0 || p.fouls > 0);
-    if (scored.length === 0) return `
+    if (rows.length === 0) return `
       <div class="vt-box-team">
         <div class="vt-box-team-name">${esc(label)}</div>
-        <div class="vt-box-empty">記録なし</div>
+        <div class="vt-box-empty">選手未登録</div>
       </div>`;
-    const totalPts = scored.reduce((s, p) => s + p.pts, 0);
+    const totalPts = rows.reduce((s, p) => s + p.pts, 0);
     return `
       <div class="vt-box-team">
         <div class="vt-box-team-name">${esc(label)}</div>
         <table class="vt-box-table">
           <thead><tr><th>#</th><th>選手名</th><th class="num">得点</th><th class="num">ファウル</th></tr></thead>
           <tbody>
-            ${scored.map(p => `<tr>
+            ${rows.map(p => `<tr>
               <td><strong>${esc(p.num)}</strong></td>
               <td>${esc(p.name) || '—'}</td>
               <td class="num"${p.pts > 0 ? ' style="font-weight:800;color:var(--blue)"' : ''}>${p.pts}</td>
