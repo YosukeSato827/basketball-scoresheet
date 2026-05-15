@@ -837,11 +837,64 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   border-top: 1px solid var(--border);
   padding: 16px 20px;
 }
+/* スコアリーダー / ボックススコア */
+.vt-box-section { margin-bottom: 18px; }
+.vt-box-title {
+  font-size: 13px; font-weight: 800; color: var(--text);
+  margin-bottom: 8px; letter-spacing: .03em;
+}
+.vt-leaders { display: flex; gap: 8px; flex-wrap: wrap; }
+.vt-leader {
+  flex: 1; min-width: 150px;
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 8px 10px;
+}
+.vt-leader-rank {
+  font-family: 'Poppins', sans-serif; font-weight: 900;
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; color: white; flex-shrink: 0;
+}
+.vt-leader-rank.rank-1 { background: #FFB300; }
+.vt-leader-rank.rank-2 { background: #90A4AE; }
+.vt-leader-rank.rank-3 { background: #A1887F; }
+.vt-leader-info { flex: 1; min-width: 0; }
+.vt-leader-name { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vt-leader-team { font-size: 10px; color: var(--text-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vt-leader-pts {
+  font-family: 'Poppins', sans-serif; font-size: 20px; font-weight: 900;
+  color: var(--blue); flex-shrink: 0;
+}
+.vt-leader-pts small { font-size: 10px; font-weight: 700; }
+.vt-box-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.vt-box-team {
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.vt-box-team-name {
+  font-size: 12px; font-weight: 800; padding: 6px 10px;
+  background: var(--bg); border-bottom: 1px solid var(--border);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.vt-box-empty { padding: 14px 10px; font-size: 11px; color: var(--text-light); text-align: center; }
+.vt-box-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.vt-box-table th, .vt-box-table td {
+  padding: 4px 8px; border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.vt-box-table th { font-size: 10px; color: var(--text-light); font-weight: 700; background: #fafafa; }
+.vt-box-table td.num, .vt-box-table th.num { text-align: right; font-family: 'Poppins', sans-serif; }
+.vt-box-table tfoot td {
+  font-weight: 700; background: var(--bg); border-bottom: none;
+  font-size: 11px;
+}
 @media (max-width: 600px) {
   .vt-score-a, .vt-score-b { font-size: 28px; }
   .vt-game-summary { padding: 12px 14px; }
   .vt-game-body { padding: 12px 14px; }
   .vt-qcell { padding: 0 6px; }
+  .vt-box-grid { grid-template-columns: 1fr; }
 }
 
 /* =====================================================
@@ -2512,7 +2565,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.05.13-3';
+const APP_VERSION = '2026.05.13-4';
 
 // =====================================================
 // Firebase 初期化
@@ -5783,6 +5836,9 @@ function renderTournamentViewer(tData, gameDocs) {
           <div class="score-graph-title">得点推移グラフ</div>${graphSVG}
         </div>` : ''}
         ${plays.length > 0
+          ? renderViewerBoxScore(plays, teamA, teamB, d.playersA, d.playersB)
+          : ''}
+        ${plays.length > 0
           ? renderViewerScoresheet({ ...d, tournamentName: tData.name || '' })
           : '<p style="padding:8px 0;color:var(--text-mid)">PBPデータがありません</p>'}
       </div>
@@ -5909,6 +5965,90 @@ let viewerRankMetric = 'pts';
 function setViewerRankMetric(metric) {
   viewerRankMetric = metric;
   if (viewerLastTData) renderTournamentViewer(viewerLastTData, viewerLastGameDocs);
+}
+
+// 1試合のボックススコア（選手別 得点・ファウル）を算出
+function buildGameBoxScore(plays, regPlayersA, regPlayersB) {
+  const st = buildState(plays);
+  // 登録選手をマージ（PBPに出ていない選手も0で表示）
+  (regPlayersA || []).forEach(p => { if (p.num && !st.players.A[p.num]) st.players.A[p.num] = { num: p.num, name: p.name || '' }; });
+  (regPlayersB || []).forEach(p => { if (p.num && !st.players.B[p.num]) st.players.B[p.num] = { num: p.num, name: p.name || '' }; });
+  const byNum = (a, b) => (parseInt(a.num,10)||0) - (parseInt(b.num,10)||0);
+  const calc = (team) => {
+    const cells = team === 'A' ? st.cellsA : st.cellsB;
+    const pts = {};
+    for (const cell of Object.values(cells)) {
+      if (cell.idx !== 0) continue;
+      const p = cell.scoreType === '3P' ? 3 : cell.scoreType === '2P' ? 2 : 1;
+      pts[cell.playerNum] = (pts[cell.playerNum] || 0) + p;
+    }
+    return Object.values(st.players[team]).map(pl => ({
+      num: pl.num, name: pl.name || '',
+      pts: pts[pl.num] || 0,
+      fouls: st.fouls[team][pl.num] || 0,
+      team
+    })).sort(byNum);
+  };
+  return { A: calc('A'), B: calc('B') };
+}
+
+// 閲覧URL：スコアリーダー（上位3名）＋ ボックススコア表
+function renderViewerBoxScore(plays, teamAName, teamBName, regPlayersA, regPlayersB) {
+  const box = buildGameBoxScore(plays, regPlayersA, regPlayersB);
+  const all = [...box.A.map(p => ({...p, teamName: teamAName})),
+               ...box.B.map(p => ({...p, teamName: teamBName}))];
+  const leaders = all.filter(p => p.pts > 0).sort((a, b) => b.pts - a.pts).slice(0, 3);
+
+  const leadersHTML = leaders.length === 0 ? '' : `
+    <div class="vt-box-section">
+      <div class="vt-box-title">🏀 スコアリーダー</div>
+      <div class="vt-leaders">
+        ${leaders.map((p, i) => `
+          <div class="vt-leader">
+            <span class="vt-leader-rank rank-${i+1}">${i+1}</span>
+            <div class="vt-leader-info">
+              <div class="vt-leader-name"><strong>#${esc(p.num)}</strong> ${esc(p.name) || '—'}</div>
+              <div class="vt-leader-team">${esc(p.teamName)}</div>
+            </div>
+            <span class="vt-leader-pts">${p.pts}<small>点</small></span>
+          </div>`).join('')}
+      </div>
+    </div>`;
+
+  const boxTable = (label, rows) => {
+    const scored = rows.filter(p => p.pts > 0 || p.fouls > 0);
+    if (scored.length === 0) return `
+      <div class="vt-box-team">
+        <div class="vt-box-team-name">${esc(label)}</div>
+        <div class="vt-box-empty">記録なし</div>
+      </div>`;
+    const totalPts = scored.reduce((s, p) => s + p.pts, 0);
+    return `
+      <div class="vt-box-team">
+        <div class="vt-box-team-name">${esc(label)}</div>
+        <table class="vt-box-table">
+          <thead><tr><th>#</th><th>選手名</th><th class="num">得点</th><th class="num">ファウル</th></tr></thead>
+          <tbody>
+            ${scored.map(p => `<tr>
+              <td><strong>${esc(p.num)}</strong></td>
+              <td>${esc(p.name) || '—'}</td>
+              <td class="num"${p.pts > 0 ? ' style="font-weight:800;color:var(--blue)"' : ''}>${p.pts}</td>
+              <td class="num"${p.fouls >= 4 ? ' style="color:#c62828;font-weight:700"' : ''}>${p.fouls}</td>
+            </tr>`).join('')}
+          </tbody>
+          <tfoot><tr><td colspan="2">合計</td><td class="num"><strong>${totalPts}</strong></td><td class="num"></td></tr></tfoot>
+        </table>
+      </div>`;
+  };
+
+  return `${leadersHTML}
+    <div class="vt-box-section">
+      <div class="vt-box-title">📋 ボックススコア</div>
+      <div class="vt-box-grid">
+        ${boxTable(teamAName, box.A)}
+        ${boxTable(teamBName, box.B)}
+      </div>
+    </div>`;
 }
 
 function renderViewerScoresheet(data) {
