@@ -877,6 +877,29 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   padding: 16px 20px;
 }
 /* スコアリーダー / ボックススコア */
+/* フルボックススコア（スタッツモード） */
+.full-box-section {
+  background: white; border-radius: var(--radius);
+  padding: 16px; margin: 20px 0;
+  box-shadow: var(--shadow-sm);
+}
+.full-box-title {
+  font-size: 14px; font-weight: 800; color: var(--blue);
+  margin-bottom: 12px; padding-bottom: 8px;
+  border-bottom: 2px solid var(--blue);
+}
+.full-box-team { margin-bottom: 18px; }
+.full-box-team:last-child { margin-bottom: 0; }
+.full-box-team-name {
+  font-size: 13px; font-weight: 700; color: var(--text);
+  margin-bottom: 6px;
+}
+.full-box-table { width: 100%; min-width: 800px; font-size: 11px; }
+.full-box-table th { white-space: nowrap; }
+.full-box-table tfoot td { font-weight: 700; background: #f5f8fc; }
+@media print {
+  .full-box-section { page-break-before: always; box-shadow: none; }
+}
 .vt-box-section { margin-bottom: 18px; }
 .vt-box-title {
   font-size: 13px; font-weight: 800; color: var(--text);
@@ -2691,7 +2714,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.05.13-9';
+const APP_VERSION = '2026.05.13-10';
 
 // =====================================================
 // Firebase 初期化
@@ -4046,6 +4069,11 @@ function generate() {
     <div class="sig-cell"><div class="sig-label">終了時間</div><div class="sig-line"></div></div>
   </div>
 </div></div>`;
+  // スタッツモードの試合ならフルボックススコアを末尾に追加
+  if (pendingGameMode === 'stats' || recGameMode === 'stats') {
+    const fullStats = computeGameFullStats(plays, regA, regB);
+    document.getElementById('output').innerHTML += renderFullBoxScoreHTML(fullStats, teamAName, teamBName);
+  }
 }
 
 // =====================================================
@@ -6237,6 +6265,156 @@ let viewerRankMetric = 'pts';
 function setViewerRankMetric(metric) {
   viewerRankMetric = metric;
   if (viewerLastTData) renderTournamentViewer(viewerLastTData, viewerLastGameDocs);
+}
+
+// 1試合のフルボックススコア（選手別 シュート試投/成功・REB・AST・STL・BLK・TO・FOULS）を算出
+// スタッツモードで記録された試合用
+function computeGameFullStats(plays, regPlayersA, regPlayersB) {
+  // 登録選手で初期化
+  const stats = { A: {}, B: {} };
+  const initPlayer = (team, num, name) => {
+    if (!num) return;
+    if (!stats[team][num]) stats[team][num] = {
+      num, name: name || '',
+      fgm2: 0, fga2: 0,   // 2P 成功/試投
+      fgm3: 0, fga3: 0,   // 3P 成功/試投
+      ftm: 0,  fta: 0,    // FT 成功/試投
+      oreb: 0, dreb: 0,   // リバウンド
+      ast: 0,  stl: 0,
+      blk: 0,  tov: 0,    // ターンオーバー
+      fouls: 0,
+      get pts() { return this.fgm2 * 2 + this.fgm3 * 3 + this.ftm; },
+      get reb() { return this.oreb + this.dreb; },
+      get fga() { return this.fga2 + this.fga3; },
+      get fgm() { return this.fgm2 + this.fgm3; }
+    };
+    if (!stats[team][num].name && name) stats[team][num].name = name;
+  };
+  (regPlayersA || []).forEach(p => initPlayer('A', p.num, p.name));
+  (regPlayersB || []).forEach(p => initPlayer('B', p.num, p.name));
+
+  // PBP からスタッツ集計
+  for (const play of plays) {
+    if (!play) continue;
+    [['A', play.evA], ['B', play.evB]].forEach(([team, ev]) => {
+      if (!ev) return;
+      const e = parseEvent(ev);
+      if (!e || !e.playerNum) return;
+      const n = e.playerNum;
+      initPlayer(team, n, e.playerName);
+      const p = stats[team][n];
+      switch (e.type) {
+        case '2P':   p.fgm2++; p.fga2++; break;
+        case '2PA':  p.fga2++; break;
+        case '3P':   p.fgm3++; p.fga3++; break;
+        case '3PA':  p.fga3++; break;
+        case 'FT':
+        case '1P':   p.ftm++;  p.fta++; break;
+        case 'FTA':  p.fta++; break;
+        case 'OREB': p.oreb++; break;
+        case 'DREB': p.dreb++; break;
+        case 'AST':  p.ast++; break;
+        case 'STL':  p.stl++; break;
+        case 'BLK':  p.blk++; break;
+        case 'TOV':  p.tov++; break;
+        case 'PF':
+        case 'TF':   p.fouls++; break;
+      }
+    });
+  }
+
+  const byNum = (a, b) => (parseInt(a.num,10)||0) - (parseInt(b.num,10)||0);
+  return {
+    A: Object.values(stats.A).sort(byNum),
+    B: Object.values(stats.B).sort(byNum)
+  };
+}
+
+// フルボックススコアのHTMLテーブル（編集画面・閲覧画面で共通利用）
+function renderFullBoxScoreHTML(stats, teamAName, teamBName) {
+  const pct = (m, a) => a > 0 ? Math.round(m / a * 100) + '%' : '—';
+  const teamTable = (label, rows) => {
+    if (!rows || rows.length === 0) return `
+      <div class="full-box-team">
+        <div class="full-box-team-name">${esc(label)}</div>
+        <div class="dash-no-data">選手未登録</div>
+      </div>`;
+    const tot = {
+      pts: rows.reduce((s,p)=>s+p.pts,0),
+      fgm2: rows.reduce((s,p)=>s+p.fgm2,0), fga2: rows.reduce((s,p)=>s+p.fga2,0),
+      fgm3: rows.reduce((s,p)=>s+p.fgm3,0), fga3: rows.reduce((s,p)=>s+p.fga3,0),
+      ftm: rows.reduce((s,p)=>s+p.ftm,0),   fta: rows.reduce((s,p)=>s+p.fta,0),
+      oreb: rows.reduce((s,p)=>s+p.oreb,0), dreb: rows.reduce((s,p)=>s+p.dreb,0),
+      ast: rows.reduce((s,p)=>s+p.ast,0),   stl: rows.reduce((s,p)=>s+p.stl,0),
+      blk: rows.reduce((s,p)=>s+p.blk,0),   tov: rows.reduce((s,p)=>s+p.tov,0),
+      fouls: rows.reduce((s,p)=>s+p.fouls,0)
+    };
+    return `
+      <div class="full-box-team">
+        <div class="full-box-team-name">${esc(label)}</div>
+        <div class="dash-table-wrap">
+          <table class="dash-table full-box-table">
+            <thead><tr>
+              <th>#</th><th>選手</th>
+              <th class="num">PTS</th>
+              <th class="num">2P</th><th class="num">%</th>
+              <th class="num">3P</th><th class="num">%</th>
+              <th class="num">FT</th><th class="num">%</th>
+              <th class="num">REB</th><th class="num">OR</th><th class="num">DR</th>
+              <th class="num">AST</th><th class="num">STL</th><th class="num">BLK</th>
+              <th class="num">TO</th><th class="num">PF</th>
+            </tr></thead>
+            <tbody>
+              ${rows.map(p => `<tr>
+                <td><strong>${esc(p.num)}</strong></td>
+                <td>${esc(p.name) || '—'}</td>
+                <td class="num"${p.pts > 0 ? ' style="font-weight:800;color:var(--blue)"' : ''}>${p.pts}</td>
+                <td class="num">${p.fgm2}/${p.fga2}</td>
+                <td class="num">${pct(p.fgm2, p.fga2)}</td>
+                <td class="num">${p.fgm3}/${p.fga3}</td>
+                <td class="num">${pct(p.fgm3, p.fga3)}</td>
+                <td class="num">${p.ftm}/${p.fta}</td>
+                <td class="num">${pct(p.ftm, p.fta)}</td>
+                <td class="num"><strong>${p.reb}</strong></td>
+                <td class="num">${p.oreb}</td>
+                <td class="num">${p.dreb}</td>
+                <td class="num">${p.ast}</td>
+                <td class="num">${p.stl}</td>
+                <td class="num">${p.blk}</td>
+                <td class="num">${p.tov}</td>
+                <td class="num"${p.fouls >= 4 ? ' style="color:#c62828;font-weight:700"' : ''}>${p.fouls}</td>
+              </tr>`).join('')}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="2">合計</td>
+                <td class="num"><strong>${tot.pts}</strong></td>
+                <td class="num">${tot.fgm2}/${tot.fga2}</td>
+                <td class="num">${pct(tot.fgm2, tot.fga2)}</td>
+                <td class="num">${tot.fgm3}/${tot.fga3}</td>
+                <td class="num">${pct(tot.fgm3, tot.fga3)}</td>
+                <td class="num">${tot.ftm}/${tot.fta}</td>
+                <td class="num">${pct(tot.ftm, tot.fta)}</td>
+                <td class="num"><strong>${tot.oreb + tot.dreb}</strong></td>
+                <td class="num">${tot.oreb}</td>
+                <td class="num">${tot.dreb}</td>
+                <td class="num">${tot.ast}</td>
+                <td class="num">${tot.stl}</td>
+                <td class="num">${tot.blk}</td>
+                <td class="num">${tot.tov}</td>
+                <td class="num">${tot.fouls}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>`;
+  };
+  return `
+    <div class="full-box-section">
+      <div class="full-box-title">📈 フルボックススコア</div>
+      ${teamTable(teamAName, stats.A)}
+      ${teamTable(teamBName, stats.B)}
+    </div>`;
 }
 
 // 1試合のボックススコア（選手別 得点・ファウル）を算出
