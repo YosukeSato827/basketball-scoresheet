@@ -956,6 +956,12 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 .rec-back { background: rgba(255,255,255,.18); color: white; border: none; border-radius: var(--radius-sm); padding: 6px 12px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; }
 .rec-title { flex: 1; font-weight: 700; font-size: 14px; text-align: center; }
 .rec-status { font-size: 11px; color: rgba(255,255,255,.8); white-space: nowrap; min-width: 60px; text-align: right; }
+.rec-mode-tag {
+  font-size: 10px; font-weight: 700; letter-spacing: .04em;
+  background: rgba(255,255,255,.18); color: rgba(255,255,255,.95);
+  border-radius: 4px; padding: 3px 8px; white-space: nowrap;
+}
+.rec-mode-tag.stats { background: #ef6c00; }
 
 /* スコアボード（タイマーを中央に配置） */
 .rec-scoreboard {
@@ -1349,6 +1355,42 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 .setup-uniform-opt-num { font-size: 16px; font-weight: 900; }
 .setup-uniform-opt-label { font-size: 9px; opacity: .8; }
 .setup-divider { height: 1px; background: var(--border); margin: 14px 0; }
+/* 記録モード選択 */
+.setup-mode-section { margin-bottom: 4px; }
+.setup-mode-label {
+  font-size: 12px; font-weight: 700; color: var(--text-mid);
+  letter-spacing: .04em; margin-bottom: 8px;
+}
+.setup-mode-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+.setup-mode-card {
+  cursor: pointer; position: relative;
+  border: 2px solid var(--border); border-radius: var(--radius);
+  background: white; transition: all .15s;
+  display: block;
+}
+.setup-mode-card input[type="radio"] {
+  position: absolute; opacity: 0; pointer-events: none;
+}
+.setup-mode-card-inner {
+  padding: 12px 14px;
+}
+.setup-mode-card-title {
+  font-size: 14px; font-weight: 700; color: var(--text);
+  margin-bottom: 4px;
+}
+.setup-mode-card-desc {
+  font-size: 11px; color: var(--text-light); line-height: 1.5;
+}
+.setup-mode-card:hover { border-color: #90CAF9; background: #f5f9ff; }
+.setup-mode-card:has(input:checked) {
+  border-color: var(--blue); background: var(--blue-dim);
+}
+.setup-mode-card:has(input:checked) .setup-mode-card-title { color: var(--blue); }
+@media (max-width: 600px) {
+  .setup-mode-grid { grid-template-columns: 1fr; }
+}
 .setup-meta-grid {
   display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px;
 }
@@ -2249,6 +2291,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
     <div class="rec-header">
       <button class="rec-back" onclick="backFromRecorder()">← 戻る</button>
       <span class="rec-title" id="rec-title">記録中</span>
+      <span class="rec-mode-tag" id="rec-mode-tag"></span>
       <span class="rec-status" id="rec-status"></span>
       <button class="rec-end-btn" onclick="endGame()">試合終了</button>
     </div>
@@ -2568,6 +2611,29 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 
     <div class="setup-divider"></div>
 
+    <!-- 記録モード選択 -->
+    <div class="setup-mode-section">
+      <div class="setup-mode-label">📊 記録モード</div>
+      <div class="setup-mode-grid">
+        <label class="setup-mode-card">
+          <input type="radio" name="setup-game-mode" value="scoresheet" checked>
+          <div class="setup-mode-card-inner">
+            <div class="setup-mode-card-title">📋 スコアシートモード</div>
+            <div class="setup-mode-card-desc">2P/3P/FT・ファウル・タイムアウトを記録。公式スコアシートを出力。</div>
+          </div>
+        </label>
+        <label class="setup-mode-card">
+          <input type="radio" name="setup-game-mode" value="stats">
+          <div class="setup-mode-card-inner">
+            <div class="setup-mode-card-title">📈 スタッツモード</div>
+            <div class="setup-mode-card-desc">シュート成功率・リバウンド・アシスト・ブロック等のフルボックススコアを記録。</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div class="setup-divider"></div>
+
     <!-- 試合情報 -->
     <div class="setup-meta-grid">
       <input id="setup-game-no" placeholder="試合番号">
@@ -2588,7 +2654,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.05.13-7';
+const APP_VERSION = '2026.05.13-8';
 
 // =====================================================
 // Firebase 初期化
@@ -3164,6 +3230,7 @@ async function deleteTournament(id) {
 // =====================================================
 let setupTeamA = null;  // { teamId, teamName, players, uniforms }
 let setupTeamB = null;
+let pendingGameMode = 'scoresheet';  // 新規試合作成時の記録モード（'scoresheet' or 'stats'）
 // ユニフォーム選択の完了状態（true=確定済み or 確認不要）
 let setupUniformDone = { a: true, b: true };
 
@@ -3190,6 +3257,10 @@ async function openGameSetupModal() {
     const btn   = document.getElementById(`setup-toggle-${slot}`);
     if (cards) cards.style.display = 'none';
     if (btn)   btn.textContent = '▼ チームを選択';
+  });
+  // 記録モードをデフォルト（スコアシート）にリセット
+  document.querySelectorAll('input[name="setup-game-mode"]').forEach(r => {
+    r.checked = (r.value === 'scoresheet');
   });
   document.getElementById('modal-game-setup').classList.remove('hidden');
   await loadSetupTeamCards();
@@ -3381,6 +3452,9 @@ function confirmGameSetup(mode) {
   const gameNo = document.getElementById('setup-game-no').value.trim();
   const date   = document.getElementById('setup-date').value.trim();
   const venue  = document.getElementById('setup-venue').value.trim();
+  // 記録モード読み取り
+  const gameModeInput = document.querySelector('input[name="setup-game-mode"]:checked');
+  pendingGameMode = (gameModeInput && gameModeInput.value === 'stats') ? 'stats' : 'scoresheet';
   document.getElementById('modal-game-setup').classList.add('hidden');
 
   // エディタに反映
@@ -3428,6 +3502,7 @@ async function openGame(id) {
     if (!doc.exists) { showToast('試合データが見つかりません'); return; }
     const d = doc.data();
     currentGameId = id;
+    pendingGameMode = d.gameMode || 'scoresheet';  // 既存試合のモードを復元
     document.getElementById('teamAName').value = d.teamAName || '';
     document.getElementById('teamBName').value = d.teamBName || '';
     document.getElementById('gameNo').value    = d.gameNo    || '';
@@ -3461,6 +3536,7 @@ async function saveGame() {
       playersB:   parsePlayers(document.getElementById('playersB').value),
       totalA:     lastTotalA,
       totalB:     lastTotalB,
+      gameMode:   pendingGameMode || 'scoresheet',
       updatedAt:  now
     };
     if (currentGameId) {
@@ -3966,6 +4042,7 @@ function tapFeedback(type = 'light') {
 // ライブ記録
 // =====================================================
 let recGameId       = null;
+let recGameMode     = 'scoresheet';  // 'scoresheet' or 'stats'
 let recCurrentQ     = 1;
 let recPbpData      = '';
 let recPlayersA     = [];
@@ -3994,6 +4071,7 @@ function openRecorder() {
   if (!recUniformsA) recUniformsA = [];
   if (!recUniformsB) recUniformsB = [];
   recGameId    = currentGameId;
+  recGameMode  = pendingGameMode || 'scoresheet';
   recTeamAName = document.getElementById('teamAName').value || 'チームA';
   recTeamBName = document.getElementById('teamBName').value || 'チームB';
   recPbpData   = document.getElementById('pbpInput').value;
@@ -4030,6 +4108,12 @@ function openRecorder() {
   document.getElementById('rec-name-a').innerHTML = makeRecTeamName(recTeamAName, recUniformsA);
   document.getElementById('rec-name-b').innerHTML = makeRecTeamName(recTeamBName, recUniformsB);
   document.getElementById('rec-status').textContent     = '';
+  // モードタグ表示
+  const modeTag = document.getElementById('rec-mode-tag');
+  if (modeTag) {
+    modeTag.textContent = recGameMode === 'stats' ? '📈 スタッツ' : '📋 スコアシート';
+    modeTag.className = 'rec-mode-tag' + (recGameMode === 'stats' ? ' stats' : '');
+  }
 
   setRecorderQ(1);
   renderActionGrids();
@@ -4076,7 +4160,8 @@ function saveRecSession() {
       tournamentId: currentTournamentId,
       uniformA: recUniformsA,
       uniformB: recUniformsB,
-      currentQ: recCurrentQ
+      currentQ: recCurrentQ,
+      gameMode: recGameMode
     }));
   } catch(e) { /* sessionStorage 利用不可時は無視 */ }
 }
@@ -6158,6 +6243,7 @@ async function initApp() {
           currentGameId       = sess.gameId;
           recUniformsA        = sess.uniformA || [];
           recUniformsB        = sess.uniformB || [];
+          pendingGameMode     = sess.gameMode || d.gameMode || 'scoresheet';
           document.getElementById('teamAName').value = d.teamAName || '';
           document.getElementById('teamBName').value = d.teamBName || '';
           document.getElementById('gameNo').value    = d.gameNo    || '';
