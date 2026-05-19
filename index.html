@@ -2715,7 +2715,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.05.13-11';
+const APP_VERSION = '2026.05.13-12';
 
 // =====================================================
 // Firebase 初期化
@@ -6327,13 +6327,30 @@ function computeGameFullStats(plays, regPlayersA, regPlayersB) {
   }
 
   const byNum = (a, b) => (parseInt(a.num,10)||0) - (parseInt(b.num,10)||0);
+  // ゲストチーム判定：30名以上の登録があり、全員が名前なし
+  const isGuest = (regPlayers) => {
+    if (!regPlayers || regPlayers.length < 30) return false;
+    return regPlayers.every(p => !p.name || !p.name.trim());
+  };
+  // ゲストチーム向けフィルタ：スタッツがある選手を優先＋低い番号で 18 名まで
+  const filterGuest = (rows) => {
+    const MAX = 18;
+    const hasStat = p => (p.fga2 + p.fga3 + p.fta + p.oreb + p.dreb + p.ast + p.stl + p.blk + p.tov + p.fouls) > 0;
+    const withStats = rows.filter(hasStat);
+    const withoutStats = rows.filter(p => !hasStat(p));
+    // スタッツありを優先、残り枠を低い番号で埋める（最大 MAX 名）
+    const merged = [...withStats, ...withoutStats].slice(0, MAX);
+    return merged.sort(byNum);
+  };
+  const rowsA = Object.values(stats.A).sort(byNum);
+  const rowsB = Object.values(stats.B).sort(byNum);
   return {
-    A: Object.values(stats.A).sort(byNum),
-    B: Object.values(stats.B).sort(byNum)
+    A: isGuest(regPlayersA) ? filterGuest(rowsA) : rowsA,
+    B: isGuest(regPlayersB) ? filterGuest(rowsB) : rowsB
   };
 }
 
-// フルボックススコアのHTMLテーブル（編集画面・閲覧画面で共通利用）
+// ボックススコアのHTMLテーブル（編集画面・閲覧画面で共通利用）
 function renderFullBoxScoreHTML(stats, teamAName, teamBName) {
   const pct = (m, a) => a > 0 ? Math.round(m / a * 100) + '%' : '—';
   const teamTable = (label, rows) => {
@@ -6414,7 +6431,7 @@ function renderFullBoxScoreHTML(stats, teamAName, teamBName) {
   };
   return `
     <div class="full-box-section">
-      <div class="full-box-title">📈 フルボックススコア</div>
+      <div class="full-box-title">📈 ボックススコア</div>
       ${teamTable(teamAName, stats.A)}
       ${teamTable(teamBName, stats.B)}
     </div>`;
