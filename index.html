@@ -894,7 +894,8 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   font-size: 13px; font-weight: 700; color: var(--text);
   margin-bottom: 6px;
 }
-.full-box-table { width: 100%; min-width: 800px; font-size: 11px; }
+.full-box-section .dash-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; box-shadow: none; }
+.full-box-table { width: 100%; min-width: 760px; font-size: 11px; }
 .full-box-table th { white-space: nowrap; }
 .full-box-table tfoot td { font-weight: 700; background: #f5f8fc; }
 @media print {
@@ -2714,7 +2715,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.05.13-10';
+const APP_VERSION = '2026.05.13-11';
 
 // =====================================================
 // Firebase 初期化
@@ -6135,9 +6136,11 @@ function renderTournamentViewer(tData, gameDocs) {
         ${graphSVG ? `<div class="score-graph-wrap" style="margin-bottom:16px">
           <div class="score-graph-title">得点推移グラフ</div>${graphSVG}
         </div>` : ''}
-        ${plays.length > 0
-          ? renderViewerBoxScore(plays, teamA, teamB, d.playersA, d.playersB)
-          : ''}
+        ${plays.length > 0 ? (
+          d.gameMode === 'stats'
+            ? renderFullBoxScoreHTML(computeGameFullStats(plays, d.playersA, d.playersB), teamA, teamB)
+            : renderViewerBoxScore(plays, teamA, teamB, d.playersA, d.playersB)
+        ) : ''}
         ${plays.length > 0
           ? renderViewerScoresheet({ ...d, tournamentName: tData.name || '' })
           : '<p style="padding:8px 0;color:var(--text-mid)">PBPデータがありません</p>'}
