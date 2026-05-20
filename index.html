@@ -2715,7 +2715,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.05.13-14';
+const APP_VERSION = '2026.05.13-15';
 
 // =====================================================
 // Firebase 初期化
@@ -4716,7 +4716,8 @@ function renderLineupModal() {
   nextBtn.onclick = isB ? confirmLineup : nextLineupStep;
 
   const skipBtn = document.getElementById('rec-lineup-skip-btn');
-  skipBtn.onclick = skipLineup;
+  skipBtn.textContent = `${teamName} 全員で開始`;
+  skipBtn.onclick = selectAllForCurrentTeam;
 }
 
 function toggleLineupPlayer(num, name) {
@@ -4742,6 +4743,21 @@ function confirmLineup() {
   updateCourtDisplay();
 }
 
+// 現在表示中のチームのみ「全員」を選び、次のチームへ進む（最後なら開始）
+function selectAllForCurrentTeam() {
+  tapFeedback('light');
+  if (recLineupCurrentTeam === 'A') {
+    recLineupTempA = [...recPlayersA];
+    // チームB へ進む
+    nextLineupStep();
+  } else {
+    recLineupTempB = [...recPlayersB];
+    // 試合開始
+    confirmLineup();
+  }
+}
+
+// 旧 skipLineup（互換のため残置）
 function skipLineup() {
   recCourtA = [...recPlayersA];
   recCourtB = [...recPlayersB];
