@@ -1,0 +1,66 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- ヘルパー関数 ----
+
+    // ログインユーザーのメール（小文字）
+    function userEmail() {
+      return request.auth != null ? request.auth.token.email.lower() : '';
+    }
+
+    // 許可リスト（app_config/editors の emails 配列）に含まれるか
+    function isListedEditor() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/app_config/editors)
+        && userEmail() in get(/databases/$(database)/documents/app_config/editors).data.emails;
+    }
+
+    // ブートストラップ：許可リストが未作成の場合のみ、初期管理者を編集者とみなす
+    function isBootstrapEditor() {
+      return request.auth != null
+        && userEmail() == 'yo.827.suke@gmail.com'
+        && !exists(/databases/$(database)/documents/app_config/editors);
+    }
+
+    // 編集権限
+    function canEdit() {
+      return isListedEditor() || isBootstrapEditor();
+    }
+
+    // ---- 大会・試合・ロスター ----
+    // 閲覧は誰でも可（公開ビュー用）、書き込みは編集者のみ
+    match /tournaments/{id} {
+      allow read: if true;
+      allow write: if canEdit();
+    }
+    match /games/{id} {
+      allow read: if true;
+      allow write: if canEdit();
+    }
+    match /roster_teams/{id} {
+      allow read: if true;
+      allow write: if canEdit();
+    }
+
+    // ---- タイマー同期 ----
+    // 閲覧は誰でも可。書き込みは Lambda(Admin SDK) のみ＝クライアント書き込み禁止。
+    // Admin SDK はセキュリティルールをバイパスするため Lambda は引き続き書き込める。
+    match /timer_sync/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ---- 許可リスト（編集者管理）----
+    // 読み取りはログインユーザーのみ（編集者判定に使用）、書き込みは編集者のみ
+    match /app_config/{id} {
+      allow read: if request.auth != null;
+      allow write: if canEdit();
+    }
+
+    // それ以外は全拒否
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
