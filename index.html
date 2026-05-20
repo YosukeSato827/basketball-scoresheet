@@ -2715,7 +2715,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.05.13-12';
+const APP_VERSION = '2026.05.13-13';
 
 // =====================================================
 // Firebase 初期化
@@ -2743,13 +2743,22 @@ let editingTournamentId = null;   // モーダルの編集対象
 // =====================================================
 // 画面切り替え
 // =====================================================
+let _currentView = 'tournaments';
 function showView(name) {
+  // 前のビューからのクリーンアップ（popstate 経由でも漏れないように）
+  if (_currentView === 'recorder' && name !== 'recorder') {
+    clearInterval(recTimerIv);
+    recTimerRunning = false;
+    stopTimerSync();
+    sessionStorage.removeItem('recSession');
+  }
   document.getElementById('view-tournaments').style.display = name === 'tournaments' ? 'block' : 'none';
   document.getElementById('view-detail').style.display      = name === 'detail'      ? 'block' : 'none';
   document.getElementById('view-editor').style.display      = name === 'editor'      ? 'block' : 'none';
   document.getElementById('view-recorder').style.display    = name === 'recorder'    ? 'flex' : 'none';
   document.getElementById('view-roster').style.display      = name === 'roster'      ? 'block' : 'none';
   document.getElementById('view-register').style.display    = name === 'register'    ? 'block' : 'none';
+  _currentView = name;
 }
 
 function parsePlayers(text) {
@@ -2877,6 +2886,7 @@ async function openTournament(id) {
   // 大会一覧の購読を解除（詳細画面に移動するため）
   stopTournamentsSubscription();
   currentTournamentId = id;
+  pushAppState('detail');
   showView('detail');
   try {
     const doc = await withTimeout(db.collection('tournaments').doc(id).get());
@@ -2890,10 +2900,8 @@ async function openTournament(id) {
 }
 
 function backToTournaments() {
-  // 試合一覧の購読を解除
-  stopGamesSubscription();
-  showView('tournaments');
-  loadTournaments();
+  // ブラウザ履歴を1つ戻す（popstate ハンドラがビュー切替を処理）
+  history.back();
 }
 
 // =====================================================
@@ -3299,6 +3307,7 @@ async function openGameSetupModal() {
   setupTeamA = null;
   setupTeamB = null;
   setupUniformDone = { a: true, b: true };  // 未選択時は確認不要
+  pushAppState('setup-modal');  // 戻るボタンでモーダルを閉じられるように
   // フォームリセット
   ['setup-game-no','setup-date','setup-venue'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('setup-a-selected').textContent = '（未選択）';
@@ -3486,6 +3495,10 @@ function useGuestTeam(slot) {
 function closeGameSetupModal(event) {
   if (event && event.target !== document.getElementById('modal-game-setup')) return;
   document.getElementById('modal-game-setup').classList.add('hidden');
+  // 履歴を1つ戻して同期（setup-modal 状態を抜ける）
+  if (history.state && history.state.view === 'setup-modal') {
+    history.back();
+  }
 }
 
 function confirmGameSetup(mode) {
@@ -3517,6 +3530,10 @@ function confirmGameSetup(mode) {
   const gameModeInput = document.querySelector('input[name="setup-game-mode"]:checked');
   pendingGameMode = (gameModeInput && gameModeInput.value === 'stats') ? 'stats' : 'scoresheet';
   document.getElementById('modal-game-setup').classList.add('hidden');
+  // 履歴から setup-modal 状態を抜けて detail を現在の状態とする
+  if (history.state && history.state.view === 'setup-modal') {
+    try { history.replaceState({ view: 'detail', ts: Date.now() }, '', '#detail'); } catch(e) {}
+  }
 
   // エディタに反映
   currentGameId = null;
@@ -3573,6 +3590,7 @@ async function openGame(id) {
     document.getElementById('playersA').value  = playersToText(d.playersA);
     document.getElementById('playersB').value  = playersToText(d.playersB);
     updateToolbarTitle();
+    pushAppState('editor');
     showView('editor');
     if (d.pbpData) generate();
   } catch(e) {
@@ -3628,8 +3646,7 @@ async function deleteGame(id) {
 }
 
 function backToDetail() {
-  showView('detail');
-  switchTab(currentTab);
+  history.back();
 }
 
 function updateToolbarTitle() {
@@ -4206,6 +4223,7 @@ function openRecorder() {
   // リロード対策：記録中セッションを保存
   saveRecSession();
 
+  pushAppState('recorder');
   showView('recorder');
   showLineupModal();
 }
@@ -4219,7 +4237,7 @@ function backFromRecorder() {
   document.getElementById('playersA').value = playersToText(recPlayersA);
   document.getElementById('playersB').value = playersToText(recPlayersB);
   if (recPbpData) generate();
-  showView('editor');
+  history.back();  // popstate ハンドラがビュー切替を処理
 }
 
 function setRecorderQ(q) {
@@ -5231,12 +5249,13 @@ async function openRosterView() {
   rosterTournamentId   = currentTournamentId;
   rosterTournamentName = document.getElementById('detail-title')?.textContent || '大会';
   document.getElementById('roster-page-title').textContent = `${rosterTournamentName} ロスター`;
+  pushAppState('roster');
   showView('roster');
   await loadAndRenderRosterTeams();
 }
 
 function backFromRoster() {
-  showView('detail');
+  history.back();
 }
 
 async function loadAndRenderRosterTeams() {
@@ -6574,6 +6593,69 @@ function renderViewerScoresheet(data) {
 // =====================================================
 // 起動
 // =====================================================
+// =====================================================
+// ブラウザ戻るボタン対応（History API）
+// =====================================================
+let _isPoppingState = false;
+
+function pushAppState(view, label) {
+  if (_isPoppingState) return;
+  try {
+    history.pushState({ view, ts: Date.now() }, label || '', '#' + view);
+  } catch(e) { /* IE等 */ }
+}
+
+function handlePopState(e) {
+  _isPoppingState = true;
+  const state = (e && e.state) || { view: 'tournaments' };
+  const target = state.view || 'tournaments';
+  // モーダル系を閉じる
+  const setupModal = document.getElementById('modal-game-setup');
+  if (setupModal && !setupModal.classList.contains('hidden')) {
+    setupModal.classList.add('hidden');
+    _isPoppingState = false;
+    return;
+  }
+  const tournamentModal = document.getElementById('modal-tournament');
+  if (tournamentModal && tournamentModal.classList.contains('open')) {
+    tournamentModal.classList.remove('open');
+    _isPoppingState = false;
+    return;
+  }
+  const teamEditModal = document.getElementById('modal-team-editor');
+  if (teamEditModal && teamEditModal.classList.contains('open')) {
+    teamEditModal.classList.remove('open');
+    _isPoppingState = false;
+    return;
+  }
+  // 画面遷移
+  if (target === 'tournaments') {
+    stopGamesSubscription();
+    showView('tournaments');
+    loadTournaments();
+  } else if (target === 'detail') {
+    if (currentTournamentId) {
+      showView('detail');
+      switchTab('games');
+    } else {
+      showView('tournaments');
+      loadTournaments();
+    }
+  } else if (target === 'editor') {
+    showView('editor');
+  } else if (target === 'recorder') {
+    showView('recorder');
+  } else if (target === 'roster') {
+    showView('roster');
+  } else {
+    showView('tournaments');
+    loadTournaments();
+  }
+  _isPoppingState = false;
+}
+
+window.addEventListener('popstate', handlePopState);
+
 async function initApp() {
   updateGeminiApiKeyStatus();
   const verEl = document.getElementById('app-version');
@@ -6581,6 +6663,12 @@ async function initApp() {
   const params      = new URLSearchParams(window.location.search);
   const registerTid = params.get('register');
   const viewTid     = params.get('view');
+  // viewer/register 以外でのみ初期 history state を設定
+  if (!registerTid && !viewTid) {
+    try {
+      if (!history.state) history.replaceState({ view: 'tournaments', ts: Date.now() }, '', location.hash || '');
+    } catch(e) {}
+  }
   if (registerTid) {
     initRegisterView(registerTid);
   } else if (viewTid) {
