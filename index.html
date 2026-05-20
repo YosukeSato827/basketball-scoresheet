@@ -16,6 +16,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Poppins:wght@700;900&family=Klee+One:wght@400;600&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <!-- Tesseract.js removed: replaced by Gemini Vision API -->
 <style>
 /* =====================================================
@@ -71,6 +72,27 @@ body {
   text-underline-offset: 2px;
 }
 .app-version:hover { color: rgba(255,255,255,.85); }
+/* 認証UI */
+.auth-block { display: flex; align-items: center; gap: 8px; }
+.btn-login {
+  background: white; color: var(--blue);
+  border: none; border-radius: var(--radius-sm);
+  padding: 7px 14px; font-size: 13px; font-weight: 700;
+  cursor: pointer; white-space: nowrap; font-family: inherit;
+}
+.btn-login:hover { background: #f0f0f0; }
+.auth-user { display: flex; align-items: center; gap: 8px; }
+.auth-user-name {
+  font-size: 12px; color: rgba(255,255,255,.95); font-weight: 600;
+  white-space: nowrap; max-width: 160px; overflow: hidden; text-overflow: ellipsis;
+}
+.btn-logout {
+  background: rgba(255,255,255,.18); color: white;
+  border: 1px solid rgba(255,255,255,.4); border-radius: var(--radius-sm);
+  padding: 5px 10px; font-size: 11px; font-weight: 700;
+  cursor: pointer; white-space: nowrap; font-family: inherit;
+}
+.btn-logout:hover { background: rgba(255,255,255,.28); }
 /* バージョン履歴モーダル */
 .changelog-overlay {
   display: none; position: fixed; inset: 0;
@@ -2220,7 +2242,14 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
     </div>
     <span class="app-version" id="app-version" onclick="openChangelogModal()" title="更新履歴を表示"></span>
     <div class="logo-divider"></div>
-    <button class="btn-hdr-primary" onclick="openTournamentModal()">+ 大会を登録</button>
+    <div class="auth-block" id="auth-block">
+      <button class="btn-login" id="btn-login" onclick="signInWithGoogle()">🔑 ログイン</button>
+      <div class="auth-user" id="auth-user" style="display:none">
+        <span class="auth-user-name" id="auth-user-name"></span>
+        <button class="btn-logout" onclick="signOutUser()">ログアウト</button>
+      </div>
+    </div>
+    <button class="btn-hdr-primary" id="btn-add-tournament" onclick="openTournamentModal()">+ 大会を登録</button>
   </div>
   <div class="page-body">
     <div class="section-eyebrow">TOURNAMENTS</div>
@@ -2772,9 +2801,10 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.05.20-2';
+const APP_VERSION = '2026.05.20-3';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.05.20-3', notes: ['Googleログイン基盤を追加（Auth Phase 1）'] },
   { v: '2026.05.20-2', notes: ['バージョン番号クリックで履歴モーダルを表示できるように'] },
   { v: '2026.05.20-1', notes: ['バージョン番号フォーマットを日付ベースに変更（YYYY.MM.DD-N）'] },
   { v: '2026.05.13-15', notes: ['スターティング選手選択で「全員で開始」をチーム毎に選択可能に'] },
@@ -2807,6 +2837,14 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+const auth = firebase.auth();
+
+// =====================================================
+// 認証状態
+// =====================================================
+let currentUser = null;     // ログイン中の Firebase ユーザー
+let isEditor = false;       // 編集権限（許可リストに含まれるか）
+let allowedEditors = [];    // 許可リスト（メールアドレス）
 
 // =====================================================
 // アプリ状態
@@ -6707,6 +6745,93 @@ function renderViewerScoresheet(data) {
 }
 
 // =====================================================
+// 認証（Google ログイン）
+// =====================================================
+async function signInWithGoogle() {
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    await auth.signInWithPopup(provider);
+    // onAuthStateChanged が後続処理を担当
+  } catch(e) {
+    console.error('ログインエラー:', e);
+    if (e.code === 'auth/popup-blocked') {
+      showToast('ポップアップがブロックされました。許可してください');
+    } else if (e.code === 'auth/popup-closed-by-user') {
+      // ユーザーが閉じただけ。無視
+    } else if (e.code === 'auth/operation-not-allowed') {
+      showToast('Google認証が有効化されていません（管理者設定が必要）');
+    } else {
+      showToast('ログインエラー: ' + e.message);
+    }
+  }
+}
+
+async function signOutUser() {
+  try {
+    await auth.signOut();
+    showToast('ログアウトしました');
+  } catch(e) {
+    showToast('ログアウトエラー: ' + e.message);
+  }
+}
+
+// 許可リストを取得（Firestore: app_config/editors）
+async function loadAllowedEditors() {
+  try {
+    const doc = await db.collection('app_config').doc('editors').get();
+    allowedEditors = (doc.exists && Array.isArray(doc.data().emails))
+      ? doc.data().emails.map(e => String(e).toLowerCase().trim())
+      : [];
+  } catch(e) {
+    console.warn('許可リスト取得失敗:', e);
+    allowedEditors = [];
+  }
+}
+
+// 認証状態の変化を監視
+function initAuth() {
+  auth.onAuthStateChanged(async (user) => {
+    currentUser = user;
+    if (user) {
+      await loadAllowedEditors();
+      const email = (user.email || '').toLowerCase().trim();
+      // 許可リストが空の場合は最初の編集者をブートストラップ（後述）
+      isEditor = allowedEditors.length === 0
+        ? (email === 'yo.827.suke@gmail.com')   // 初期ブートストラップ用
+        : allowedEditors.includes(email);
+    } else {
+      isEditor = false;
+    }
+    updateAuthUI();
+    applyEditorPermissions();
+  });
+}
+
+// ログインUIの表示更新
+function updateAuthUI() {
+  const loginBtn = document.getElementById('btn-login');
+  const userBox  = document.getElementById('auth-user');
+  const nameEl   = document.getElementById('auth-user-name');
+  if (!loginBtn || !userBox) return;
+  if (currentUser) {
+    loginBtn.style.display = 'none';
+    userBox.style.display = 'flex';
+    const label = currentUser.displayName || currentUser.email || 'ユーザー';
+    nameEl.textContent = isEditor ? `${label}` : `${label}（閲覧のみ）`;
+  } else {
+    loginBtn.style.display = '';
+    userBox.style.display = 'none';
+  }
+}
+
+// 編集権限に応じてUIの表示/非表示を制御
+function applyEditorPermissions() {
+  // 編集者でなければ編集系UIを隠す
+  document.body.classList.toggle('is-editor', isEditor);
+  document.body.classList.toggle('not-editor', !isEditor);
+}
+
+// =====================================================
 // 起動
 // =====================================================
 // =====================================================
@@ -6774,6 +6899,7 @@ window.addEventListener('popstate', handlePopState);
 
 async function initApp() {
   updateGeminiApiKeyStatus();
+  initAuth();  // 認証状態の監視を開始
   const verEl = document.getElementById('app-version');
   if (verEl) verEl.textContent = 'ver ' + APP_VERSION;
   const params      = new URLSearchParams(window.location.search);
