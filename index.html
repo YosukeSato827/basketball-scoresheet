@@ -72,6 +72,8 @@ body {
   text-underline-offset: 2px;
 }
 .app-version:hover { color: rgba(255,255,255,.85); }
+/* 編集者専用UI：非編集者には非表示 */
+body.not-editor .editor-only { display: none !important; }
 /* 認証UI */
 .auth-block { display: flex; align-items: center; gap: 8px; }
 .btn-login {
@@ -135,6 +137,25 @@ body {
 }
 .changelog-notes { margin: 0; padding-left: 18px; }
 .changelog-notes li { font-size: 12px; color: var(--text); line-height: 1.6; }
+/* メンバー管理 */
+.members-add-row { display: flex; gap: 8px; }
+.members-input {
+  flex: 1; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  padding: 8px 10px; font-size: 13px; font-family: inherit;
+}
+.members-input:focus { outline: none; border-color: var(--blue); }
+.member-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 12px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); margin-bottom: 6px; font-size: 13px;
+}
+.member-row .member-email { word-break: break-all; }
+.member-row .member-self { font-size: 10px; color: #2e7d32; font-weight: 700; margin-left: 6px; }
+.member-remove {
+  background: #ffebee; color: #c62828; border: none;
+  border-radius: var(--radius-sm); padding: 4px 10px;
+  font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap;
+}
 
 /* Molten logo + ScoreLink */
 .logo-block {
@@ -2182,6 +2203,26 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 
 <div id="toast"></div>
 
+<!-- メンバー管理モーダル -->
+<div class="changelog-overlay" id="members-overlay" onclick="closeMembersModal(event)">
+  <div class="changelog-sheet" onclick="event.stopPropagation()">
+    <div class="changelog-header">
+      <span class="changelog-title">👤 編集メンバー管理</span>
+      <button class="changelog-close" onclick="closeMembersModal()">×</button>
+    </div>
+    <div class="changelog-body">
+      <p style="font-size:12px;color:var(--text-mid);margin:0 0 12px">
+        ここに登録された Google アカウント（メールアドレス）のみが、大会・試合の作成や編集を行えます。
+      </p>
+      <div class="members-add-row">
+        <input type="email" id="members-add-input" placeholder="追加するメールアドレス" class="members-input">
+        <button class="btn btn-primary" onclick="addEditorMember()" style="white-space:nowrap">追加</button>
+      </div>
+      <div id="members-list" style="margin-top:14px"></div>
+    </div>
+  </div>
+</div>
+
 <!-- バージョン履歴モーダル -->
 <div class="changelog-overlay" id="changelog-overlay" onclick="closeChangelogModal(event)">
   <div class="changelog-sheet" onclick="event.stopPropagation()">
@@ -2249,7 +2290,8 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
         <button class="btn-logout" onclick="signOutUser()">ログアウト</button>
       </div>
     </div>
-    <button class="btn-hdr-primary" id="btn-add-tournament" onclick="openTournamentModal()">+ 大会を登録</button>
+    <button class="btn-hdr editor-only" id="btn-members" onclick="openMembersModal()" style="background:rgba(255,255,255,.18);color:white">👤 メンバー管理</button>
+    <button class="btn-hdr-primary editor-only" id="btn-add-tournament" onclick="openTournamentModal()">+ 大会を登録</button>
   </div>
   <div class="page-body">
     <div class="section-eyebrow">TOURNAMENTS</div>
@@ -2269,16 +2311,17 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <button class="btn-hdr" onclick="backToTournaments()">← 大会一覧</button>
       <div style="flex:1"></div>
       <button class="btn-hdr" onclick="openRosterView()">👥 参加チーム一覧</button>
-      <button class="btn-hdr" onclick="copyRegisterUrl()">📋 登録URL</button>
+      <button class="btn-hdr editor-only" onclick="copyRegisterUrl()">📋 登録URL</button>
       <button class="btn-hdr" onclick="copyTournamentViewUrl()">🔗 閲覧URL</button>
-      <button class="btn-hdr" onclick="openTournamentModal(currentTournamentId)">編集</button>
-      <button class="btn-hdr-primary" onclick="newGame()">+ 試合を追加</button>
+      <button class="btn-hdr editor-only" onclick="openTournamentModal(currentTournamentId)">編集</button>
+      <button class="btn-hdr-primary editor-only" onclick="newGame()">+ 試合を追加</button>
     </div>
     <div class="detail-header-sub">
       <button class="btn-hdr" onclick="openRosterView()">👥 参加チーム一覧</button>
-      <button class="btn-hdr" onclick="copyRegisterUrl()">📋 登録URL</button>
+      <button class="btn-hdr editor-only" onclick="copyRegisterUrl()">📋 登録URL</button>
       <button class="btn-hdr" onclick="copyTournamentViewUrl()">🔗 閲覧URL</button>
-      <button class="btn-hdr" onclick="openTournamentModal(currentTournamentId)">編集</button>
+      <button class="btn-hdr editor-only" onclick="openTournamentModal(currentTournamentId)">編集</button>
+      <button class="btn-hdr-primary editor-only" onclick="newGame()">+ 試合を追加</button>
     </div>
     <div class="detail-meta" id="detail-meta"></div>
   </div>
@@ -2375,8 +2418,8 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   <div class="editor-toolbar">
     <button class="btn-back" onclick="backToDetail()">← 試合一覧</button>
     <span class="toolbar-title" id="toolbar-title">新規試合</span>
-    <button class="btn-live" onclick="openRecorder()">🎙 ライブ記録</button>
-    <button class="btn-save" id="btn-save" onclick="saveGame()">保存</button>
+    <button class="btn-live editor-only" onclick="openRecorder()">🎙 ライブ記録</button>
+    <button class="btn-save editor-only" id="btn-save" onclick="saveGame()">保存</button>
     <button class="btn-print-small" onclick="window.print()">印刷</button>
   </div>
   <div class="input-section">
@@ -2639,7 +2682,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
     <button class="rec-back" onclick="backFromRoster()">← 戻る</button>
     <span class="roster-page-title" id="roster-page-title">ロスター管理</span>
     <button class="roster-add-btn" onclick="loadAndRenderRosterTeams()" style="margin-right:4px;background:rgba(255,255,255,.12)">🔄</button>
-    <button class="roster-add-btn" onclick="openTeamEditorModal(null)">+ チーム追加</button>
+    <button class="roster-add-btn editor-only" onclick="openTeamEditorModal(null)">+ チーム追加</button>
   </div>
   <div class="roster-list" id="roster-teams-list"></div>
 </div>
@@ -2801,9 +2844,10 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.05.20-3';
+const APP_VERSION = '2026.05.20-4';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.05.20-4', notes: ['編集権限制御（許可リストのユーザーのみ編集可）／メンバー管理機能を追加（Auth Phase 2）'] },
   { v: '2026.05.20-3', notes: ['Googleログイン基盤を追加（Auth Phase 1）'] },
   { v: '2026.05.20-2', notes: ['バージョン番号クリックで履歴モーダルを表示できるように'] },
   { v: '2026.05.20-1', notes: ['バージョン番号フォーマットを日付ベースに変更（YYYY.MM.DD-N）'] },
@@ -2896,6 +2940,87 @@ function showToast(msg, duration = 2500) {
   setTimeout(() => el.classList.remove('show'), duration);
 }
 
+// =====================================================
+// メンバー管理（編集者許可リスト）
+// =====================================================
+async function openMembersModal() {
+  await loadAllowedEditors();
+  renderMembersList();
+  document.getElementById('members-overlay').classList.add('open');
+}
+
+function closeMembersModal(event) {
+  if (event && event.target !== event.currentTarget) return;
+  document.getElementById('members-overlay').classList.remove('open');
+}
+
+function renderMembersList() {
+  const list = document.getElementById('members-list');
+  if (!list) return;
+  // 許可リストが空でブートストラップ中なら、自分を表示
+  let emails = allowedEditors.slice();
+  if (emails.length === 0 && currentUser) {
+    emails = [(currentUser.email || '').toLowerCase()];
+  }
+  const myEmail = (currentUser?.email || '').toLowerCase();
+  list.innerHTML = emails.length === 0
+    ? '<div class="dash-no-data">メンバーが登録されていません</div>'
+    : emails.map(em => `
+      <div class="member-row">
+        <span class="member-email">${esc(em)}${em === myEmail ? '<span class="member-self">あなた</span>' : ''}</span>
+        <button class="member-remove" onclick="removeEditorMember('${esc(em)}')">削除</button>
+      </div>`).join('');
+}
+
+async function addEditorMember() {
+  const input = document.getElementById('members-add-input');
+  const email = (input.value || '').toLowerCase().trim();
+  if (!email || !email.includes('@')) {
+    showToast('正しいメールアドレスを入力してください');
+    return;
+  }
+  await loadAllowedEditors();
+  let emails = allowedEditors.slice();
+  // ブートストラップ：リストが空なら自分も追加しておく
+  const myEmail = (currentUser?.email || '').toLowerCase();
+  if (emails.length === 0 && myEmail) emails.push(myEmail);
+  if (emails.includes(email)) {
+    showToast('既に登録されています');
+    return;
+  }
+  emails.push(email);
+  try {
+    await db.collection('app_config').doc('editors').set({ emails });
+    allowedEditors = emails;
+    input.value = '';
+    renderMembersList();
+    showToast('メンバーを追加しました');
+  } catch(e) {
+    showToast('追加エラー: ' + e.message);
+  }
+}
+
+async function removeEditorMember(email) {
+  if (!confirm(`${email} を編集メンバーから削除しますか？`)) return;
+  await loadAllowedEditors();
+  let emails = allowedEditors.slice();
+  const myEmail = (currentUser?.email || '').toLowerCase();
+  if (emails.length === 0 && myEmail) emails.push(myEmail);
+  emails = emails.filter(e => e !== email);
+  if (emails.length === 0) {
+    showToast('最後の1人は削除できません');
+    return;
+  }
+  try {
+    await db.collection('app_config').doc('editors').set({ emails });
+    allowedEditors = emails;
+    renderMembersList();
+    showToast('メンバーを削除しました');
+  } catch(e) {
+    showToast('削除エラー: ' + e.message);
+  }
+}
+
 // バージョン履歴モーダル
 function openChangelogModal() {
   const body = document.getElementById('changelog-body');
@@ -2969,8 +3094,8 @@ function loadTournaments() {
             </div>
             <div class="tc-actions" onclick="event.stopPropagation()">
               <button class="btn-card btn-open" onclick="openTournament('${doc.id}')">開く</button>
-              <button class="btn-card btn-edit" onclick="openTournamentModal('${doc.id}')">編集</button>
-              <button class="btn-card btn-delete" onclick="deleteTournament('${doc.id}')">削除</button>
+              <button class="btn-card btn-edit editor-only" onclick="openTournamentModal('${doc.id}')">編集</button>
+              <button class="btn-card btn-delete editor-only" onclick="deleteTournament('${doc.id}')">削除</button>
             </div>
           </div>`;
       }).join('');
@@ -3100,7 +3225,7 @@ function loadGames() {
               <div class="gc-score">${esc(score)}</div>
               <div class="gc-actions" onclick="event.stopPropagation()">
                 <button class="btn-card btn-open" onclick="openGame('${doc.id}')">開く</button>
-                <button class="btn-card btn-delete" onclick="deleteGame('${doc.id}')">削除</button>
+                <button class="btn-card btn-delete editor-only" onclick="deleteGame('${doc.id}')">削除</button>
               </div>
             </div>`;
         }).join('');
@@ -5432,7 +5557,7 @@ async function loadAndRenderRosterTeams() {
           <div class="roster-team-count">${(t.players || []).length} 名登録</div>
           ${uniformSwatchesHtml(t.uniforms)}
         </div>
-        <button class="roster-team-edit-btn" onclick="openTeamEditorModal('${t.id}')">編集</button>
+        <button class="roster-team-edit-btn editor-only" onclick="openTeamEditorModal('${t.id}')">編集</button>
       </div>`).join('');
   } catch(e) {
     container.innerHTML = `<div class="roster-empty">エラー: ${esc(e.message)}</div>`;
