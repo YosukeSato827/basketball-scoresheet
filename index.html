@@ -66,7 +66,53 @@ body {
   font-size: 10px; color: rgba(255,255,255,.45);
   letter-spacing: .03em; align-self: flex-end;
   margin-bottom: 8px; white-space: nowrap;
+  cursor: pointer; user-select: none;
+  text-decoration: underline; text-decoration-color: rgba(255,255,255,.2);
+  text-underline-offset: 2px;
 }
+.app-version:hover { color: rgba(255,255,255,.85); }
+/* バージョン履歴モーダル */
+.changelog-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.5); z-index: 10000;
+  align-items: center; justify-content: center; padding: 16px;
+}
+.changelog-overlay.open { display: flex; }
+.changelog-sheet {
+  background: white; border-radius: 12px;
+  max-width: 560px; width: 100%; max-height: 80vh;
+  display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0,0,0,.35);
+}
+.changelog-header {
+  padding: 14px 18px; background: var(--blue); color: white;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.changelog-title { font-size: 15px; font-weight: 700; }
+.changelog-close {
+  background: transparent; border: none; color: white;
+  font-size: 22px; cursor: pointer; line-height: 1;
+}
+.changelog-body { padding: 14px 18px; overflow-y: auto; }
+.changelog-entry {
+  border-left: 3px solid var(--blue);
+  padding: 8px 12px; margin-bottom: 10px;
+  background: var(--bg); border-radius: 0 6px 6px 0;
+}
+.changelog-entry.current { border-left-color: #2e7d32; background: #e8f5e9; }
+.changelog-version {
+  font-family: 'Poppins', sans-serif; font-weight: 800;
+  font-size: 12px; color: var(--blue); letter-spacing: .03em;
+  margin-bottom: 4px;
+}
+.changelog-entry.current .changelog-version { color: #2e7d32; }
+.changelog-version .badge-current {
+  background: #2e7d32; color: white;
+  border-radius: 4px; padding: 1px 6px;
+  font-size: 9px; margin-left: 6px; font-weight: 700;
+}
+.changelog-notes { margin: 0; padding-left: 18px; }
+.changelog-notes li { font-size: 12px; color: var(--text); line-height: 1.6; }
 
 /* Molten logo + ScoreLink */
 .logo-block {
@@ -2114,6 +2160,17 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 
 <div id="toast"></div>
 
+<!-- バージョン履歴モーダル -->
+<div class="changelog-overlay" id="changelog-overlay" onclick="closeChangelogModal(event)">
+  <div class="changelog-sheet" onclick="event.stopPropagation()">
+    <div class="changelog-header">
+      <span class="changelog-title">📋 更新履歴</span>
+      <button class="changelog-close" onclick="closeChangelogModal()">×</button>
+    </div>
+    <div class="changelog-body" id="changelog-body"></div>
+  </div>
+</div>
+
 <!-- =====================================================
      モーダル：大会登録 / 編集
      ===================================================== -->
@@ -2161,7 +2218,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <div class="logo-wordmark">molten</div>
       <div class="logo-product">ScoreLink</div>
     </div>
-    <span class="app-version" id="app-version"></span>
+    <span class="app-version" id="app-version" onclick="openChangelogModal()" title="更新履歴を表示"></span>
     <div class="logo-divider"></div>
     <button class="btn-hdr-primary" onclick="openTournamentModal()">+ 大会を登録</button>
   </div>
@@ -2715,7 +2772,27 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.05.20-1';
+const APP_VERSION = '2026.05.20-2';
+// バージョン履歴（新しいものを上に追加）
+const APP_CHANGELOG = [
+  { v: '2026.05.20-2', notes: ['バージョン番号クリックで履歴モーダルを表示できるように'] },
+  { v: '2026.05.20-1', notes: ['バージョン番号フォーマットを日付ベースに変更（YYYY.MM.DD-N）'] },
+  { v: '2026.05.13-15', notes: ['スターティング選手選択で「全員で開始」をチーム毎に選択可能に'] },
+  { v: '2026.05.13-14', notes: ['選手番号誤抽出バグを修正（P成功/P失敗が選手名扱いになる問題）'] },
+  { v: '2026.05.13-13', notes: ['ブラウザ戻るボタンでアプリ内ナビゲーション対応'] },
+  { v: '2026.05.13-12', notes: ['「ボックススコア」に名称変更／ゲストチームは18名上限（スタッツ優先表示）'] },
+  { v: '2026.05.13-11', notes: ['閲覧ページにスタッツモードのボックススコアを表示（Phase 4）'] },
+  { v: '2026.05.13-10', notes: ['エディタ／プレビューにボックススコアを表示（Phase 3）'] },
+  { v: '2026.05.13-9',  notes: ['スタッツモードのレコーダーUI（2ステップ式、フルアクション）（Phase 2）'] },
+  { v: '2026.05.13-8',  notes: ['スコアシート／スタッツモードの切替基盤（Phase 1）'] },
+  { v: '2026.05.13-7',  notes: ['閲覧ページを公開向けに整備（タイトル／フッター／スピナー／モードタグ等）'] },
+  { v: '2026.05.13-6',  notes: ['スコア一覧に得点なしの選手も含めて表示'] },
+  { v: '2026.05.13-5',  notes: ['スコアリーダー削除／「ボックススコア」を「スコア一覧」に改名'] },
+  { v: '2026.05.13-4',  notes: ['閲覧ページにスコアリーダー（上位3名）とボックススコア追加'] },
+  { v: '2026.05.13-3',  notes: ['セットアップモーダルでユニフォーム選択をリセット／ゲストチームに青・赤ユニフォーム'] },
+  { v: '2026.05.13-2',  notes: ['ゲストチーム機能追加（背番号0〜99を自動登録）'] },
+  { v: '2026.05.13-1',  notes: ['ユニフォーム未選択スタート（自動選択は廃止）／ヘッダーにバージョン番号追加'] },
+];
 
 // =====================================================
 // Firebase 初期化
@@ -2779,6 +2856,27 @@ function showToast(msg, duration = 2500) {
   el.textContent = msg;
   el.classList.add('show');
   setTimeout(() => el.classList.remove('show'), duration);
+}
+
+// バージョン履歴モーダル
+function openChangelogModal() {
+  const body = document.getElementById('changelog-body');
+  if (!body) return;
+  body.innerHTML = APP_CHANGELOG.map(entry => {
+    const isCurrent = entry.v === APP_VERSION;
+    const notes = (entry.notes || []).map(n => `<li>${esc(n)}</li>`).join('');
+    return `<div class="changelog-entry${isCurrent ? ' current' : ''}">
+      <div class="changelog-version">${esc(entry.v)}${isCurrent ? '<span class="badge-current">CURRENT</span>' : ''}</div>
+      <ul class="changelog-notes">${notes}</ul>
+    </div>`;
+  }).join('');
+  document.getElementById('changelog-overlay').classList.add('open');
+}
+
+function closeChangelogModal(event) {
+  // 背景クリック時は overlay 自体のクリックのみで閉じる（中身は stopPropagation 済み）
+  if (event && event.target !== event.currentTarget) return;
+  document.getElementById('changelog-overlay').classList.remove('open');
 }
 
 // =====================================================
