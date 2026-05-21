@@ -2844,9 +2844,10 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.05.21-1';
+const APP_VERSION = '2026.05.21-2';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.05.21-2', notes: ['タイマー同期を改善：不正な時間値のバリデーション＋カウント中のクライアント補間（滑らか表示・遅延軽減）'] },
   { v: '2026.05.21-1', notes: ['Firestoreセキュリティルールを適用し、編集者のみ書き込み可能に（Auth Phase 3）— 認証機能完成'] },
   { v: '2026.05.20-4', notes: ['編集権限制御（許可リストのユーザーのみ編集可）／メンバー管理機能を追加（Auth Phase 2）'] },
   { v: '2026.05.20-3', notes: ['Googleログイン基盤を追加（Auth Phase 1）'] },
@@ -5356,46 +5357,84 @@ function updateTimerSyncStatus() {
   }
 }
 
-// 値を表示形式に整形（秒数 → MM:SS 形式、文字列はそのまま）
-function _formatClockValue(v, isGameClock) {
-  if (v == null) return null;
-  if (typeof v === 'string') {
-    // 既に "10:00" 等の形式ならそのまま
-    if (v.includes(':')) return v;
-    // 数字文字列の場合は数値化して処理
-    const n = parseFloat(v);
-    if (isNaN(n)) return v;
-    v = n;
-  }
-  if (typeof v === 'number') {
-    // ゲームクロックは秒数なら MM:SS、ショットクロックはそのまま秒
-    if (isGameClock && v >= 60) {
-      const m = Math.floor(v / 60);
-      const s = Math.floor(v % 60);
-      return `${m}:${s.toString().padStart(2, '0')}`;
-    }
-    return String(Math.floor(v));
-  }
+// データから「表示文字列」を取り出す（複数構造に対応）
+function _rawClockValue(data, primaryKey, fallbackKey) {
+  if (!data) return null;
+  const v = data[primaryKey];
+  if (v && typeof v === 'object' && v.display != null) return v.display;
+  if (typeof v === 'string' || typeof v === 'number') return v;
+  if (fallbackKey && data[fallbackKey] != null) return data[fallbackKey];
   return null;
 }
 
-// 複数のデータ構造に対応してタイマー値を抽出
-function _extractClockDisplay(data, primaryKey, fallbackKey, defaultVal, isGameClock) {
-  if (!data) return defaultVal;
-  const v = data[primaryKey];
-  // { display: "10:00", running: true } 構造
-  if (v && typeof v === 'object' && v.display != null) {
-    return _formatClockValue(v.display, isGameClock) || defaultVal;
+// ゲームクロックを「秒」に変換＋バリデーション。不正値は null を返す。
+function _parseGameClockSec(raw) {
+  if (raw == null) return null;
+  const s = String(raw).trim();
+  if (s.includes(':')) {
+    const parts = s.split(':');
+    const m = parseInt(parts[0], 10);
+    const sec = parseInt(parts[1], 10);
+    if (isNaN(m) || isNaN(sec)) return null;
+    if (m < 0 || m > 99 || sec < 0 || sec >= 60) return null;  // 不正な時間を弾く
+    return m * 60 + sec;
   }
-  // 文字列 or 数値で直接保存
-  if (typeof v === 'string' || typeof v === 'number') {
-    return _formatClockValue(v, isGameClock) || defaultVal;
+  const n = parseFloat(s);
+  if (isNaN(n) || n < 0 || n > 6000) return null;  // 100分超は不正
+  return Math.floor(n);
+}
+
+// ショットクロックを「秒」に変換＋バリデーション（0〜35）。不正値は null。
+function _parseShotClockSec(raw) {
+  if (raw == null) return null;
+  const n = parseFloat(String(raw).replace(/[^0-9.]/g, ''));
+  if (isNaN(n) || n < 0 || n > 35) return null;
+  return Math.floor(n);
+}
+
+// 秒 → "M:SS"
+function _fmtGameClock(sec) {
+  sec = Math.max(0, Math.floor(sec));
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+// running フラグ抽出
+function _extractRunning(data) {
+  if (!data) return false;
+  if (data.gameClock && typeof data.gameClock === 'object' && data.gameClock.running != null) return !!data.gameClock.running;
+  if (data.isCounting != null) return !!data.isCounting;
+  return false;
+}
+
+// 同期タイマーの状態（補間用）
+let timerSyncState = {
+  gameSec: null,    // 最後に受信したゲームクロック（秒）
+  shotSec: null,    // 最後に受信したショットクロック（秒）
+  running: false,   // カウント中か
+  receivedAt: 0     // 受信時刻（Date.now()）
+};
+
+// 補間して表示を更新（カウント中はローカルで減算）
+function renderSyncedTimer() {
+  let gameSec = timerSyncState.gameSec;
+  let shotSec = timerSyncState.shotSec;
+  if (timerSyncState.running && timerSyncState.receivedAt) {
+    const elapsed = (Date.now() - timerSyncState.receivedAt) / 1000;
+    if (gameSec != null) gameSec = Math.max(0, gameSec - elapsed);
+    if (shotSec != null) shotSec = Math.max(0, shotSec - elapsed);
   }
-  // フォールバック：旧フィールド名（gameTime / subTime）
-  if (fallbackKey && data[fallbackKey] != null) {
-    return _formatClockValue(data[fallbackKey], isGameClock) || defaultVal;
+  const dispEl = document.getElementById('rec-timer-display');
+  if (dispEl && gameSec != null) {
+    recTimerSyncDisplay = _fmtGameClock(gameSec);
+    dispEl.textContent = recTimerSyncDisplay;
   }
-  return defaultVal;
+  const shotEl = document.getElementById('rec-shot-clock');
+  if (shotEl && shotSec != null) {
+    const sv = Math.ceil(shotSec);
+    shotEl.textContent = String(sv);
+    shotEl.className = 'rec-shot-display' + (sv <= 5 ? ' danger' : sv <= 10 ? ' warning' : '');
+  }
 }
 
 function toggleTimerSync() {
@@ -5428,40 +5467,44 @@ function toggleTimerSync() {
         return;
       }
       const data = doc.data();
-      // 受信したスナップショット時刻を「最新」とする（doc 内の updatedAt は古い場合もある）
       timerLastUpdatedAt = Date.now();
 
-      recTimerSyncDisplay = _extractClockDisplay(data, 'gameClock', 'gameTime', '00:00', true);
-      const shot          = _extractClockDisplay(data, 'shotClock', 'subTime',  '24',    false);
+      // 生値を取り出してバリデーション
+      const rawGame = _rawClockValue(data, 'gameClock', 'gameTime');
+      const rawShot = _rawClockValue(data, 'shotClock', 'subTime');
+      const gameSec = _parseGameClockSec(rawGame);
+      const shotSec = _parseShotClockSec(rawShot);
+      const running = _extractRunning(data);
 
-      // 受信間隔を計測
-      if (!window._timerSyncPrev) window._timerSyncPrev = Date.now();
-      const intervalMs = Date.now() - window._timerSyncPrev;
-      window._timerSyncPrev = Date.now();
-      console.log('[timer_sync]',
-        'gc=', recTimerSyncDisplay,
-        'sc=', shot,
-        '間隔=' + intervalMs + 'ms');
+      // 不正値は無視（前回値を維持）。有効値のみ反映。
+      let accepted = false;
+      if (gameSec != null) { timerSyncState.gameSec = gameSec; accepted = true; }
+      if (shotSec != null) { timerSyncState.shotSec = shotSec; accepted = true; }
+      timerSyncState.running = running;
+      if (accepted) timerSyncState.receivedAt = Date.now();
 
-      const dispEl = document.getElementById('rec-timer-display');
-      if (dispEl) dispEl.textContent = recTimerSyncDisplay;
-      const shotEl = document.getElementById('rec-shot-clock');
-      if (shotEl) {
-        shotEl.textContent = shot;
-        const sec = parseInt(shot, 10);
-        shotEl.className = 'rec-shot-display' + (sec <= 5 ? ' danger' : sec <= 10 ? ' warning' : '');
-      }
+      console.log('[timer_sync] recv',
+        'rawGame=', rawGame, 'rawShot=', rawShot,
+        '→ gameSec=', gameSec, 'shotSec=', shotSec, 'running=', running,
+        accepted ? '' : '(不正値のため無視)');
+
+      renderSyncedTimer();
       updateTimerSyncStatus();
     }, err => {
       console.error('[timer_sync] error:', err);
       showToast('同期エラー: ' + err.message);
     });
-    timerSyncStatusIv = setInterval(updateTimerSyncStatus, 2000);
+    // 補間レンダリング（250msごと、カウント中はローカル減算で滑らかに表示）
+    timerSyncStatusIv = setInterval(() => {
+      renderSyncedTimer();
+      updateTimerSyncStatus();
+    }, 250);
     showToast('🔗 タイマー同期 ON');
   } else {
     if (timerSyncUnsubscribe) { timerSyncUnsubscribe(); timerSyncUnsubscribe = null; }
     clearInterval(timerSyncStatusIv);
     timerLastUpdatedAt = null;
+    timerSyncState = { gameSec: null, shotSec: null, running: false, receivedAt: 0 };
     updateTimerSyncStatus();
     document.getElementById('rec-timer-btn').disabled = false;
     const rstBtn = document.getElementById('rec-timer-reset');
@@ -5475,6 +5518,7 @@ function stopTimerSync() {
   clearInterval(timerSyncStatusIv);
   timerSyncMode = false;
   timerLastUpdatedAt = null;
+  timerSyncState = { gameSec: null, shotSec: null, running: false, receivedAt: 0 };
   updateTimerSyncStatus();
 }
 
