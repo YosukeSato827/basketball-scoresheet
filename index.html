@@ -1075,17 +1075,32 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   border-radius: 4px; padding: 3px 8px; white-space: nowrap;
 }
 .rec-mode-tag.stats { background: #ef6c00; }
-.rec-offline-badge {
-  display: inline-flex; align-items: center;
-  font-size: 10px; font-weight: 800; letter-spacing: .04em;
-  background: #c62828; color: white;
-  border-radius: 4px; padding: 3px 8px; white-space: nowrap;
+/* 通信状態インジケーター（全画面共通・常時表示） */
+.net-status {
+  position: fixed; bottom: 14px; left: 14px; z-index: 9998;
+  display: inline-flex; align-items: center; gap: 6px;
+  background: white; border-radius: 20px;
+  padding: 5px 12px 5px 9px;
+  font-size: 11px; font-weight: 700; letter-spacing: .03em;
+  box-shadow: 0 2px 10px rgba(0,0,0,.18);
+  pointer-events: none; user-select: none;
+}
+.net-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  flex-shrink: 0;
+}
+.net-status.online  { color: #2e7d32; }
+.net-status.online  .net-dot { background: #2e7d32; }
+.net-status.offline { color: white; background: #c62828; }
+.net-status.offline .net-dot {
+  background: white;
   animation: offline-blink 1.6s ease-in-out infinite;
 }
 @keyframes offline-blink {
   0%, 100% { opacity: 1; }
-  50%      { opacity: .55; }
+  50%      { opacity: .4; }
 }
+@media print { .net-status { display: none; } }
 
 /* スコアボード（タイマーを中央に配置） */
 .rec-scoreboard {
@@ -2214,6 +2229,12 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 
 <div id="toast"></div>
 
+<!-- 通信状態インジケーター（常時表示） -->
+<div id="net-status" class="net-status online">
+  <span class="net-dot"></span>
+  <span class="net-label">オンライン</span>
+</div>
+
 <!-- メンバー管理モーダル -->
 <div class="changelog-overlay" id="members-overlay" onclick="closeMembersModal(event)">
   <div class="changelog-sheet" onclick="event.stopPropagation()">
@@ -2478,7 +2499,6 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <button class="rec-back" onclick="backFromRecorder()">← 戻る</button>
       <span class="rec-title" id="rec-title">記録中</span>
       <span class="rec-mode-tag" id="rec-mode-tag"></span>
-      <span class="rec-offline-badge" id="offline-badge" style="display:none">📡 オフライン</span>
       <span class="rec-status" id="rec-status"></span>
       <button class="rec-end-btn" onclick="endGame()">試合終了</button>
     </div>
@@ -2856,9 +2876,10 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.06.12-1';
+const APP_VERSION = '2026.06.12-2';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.06.12-2', notes: ['通信状態を常時表示（左下：オンライン=緑／オフライン=赤・点滅）'] },
   { v: '2026.06.12-1', notes: ['オフライン対応：通信切断中も記録を継続し、復帰時に自動同期（Firestore永続化＋非ブロッキング保存＋オフラインバッジ）'] },
   { v: '2026.05.21-2', notes: ['タイマー同期を改善：不正な時間値のバリデーション＋カウント中のクライアント補間（滑らか表示・遅延軽減）'] },
   { v: '2026.05.21-1', notes: ['Firestoreセキュリティルールを適用し、編集者のみ書き込み可能に（Auth Phase 3）— 認証機能完成'] },
@@ -2918,11 +2939,17 @@ db.enablePersistence({ synchronizeTabs: true }).catch(err => {
 // =====================================================
 let isOnline = navigator.onLine;
 
+// 常時表示インジケーターの表示を更新
+function renderNetStatus() {
+  const el = document.getElementById('net-status');
+  if (!el) return;
+  el.className = 'net-status ' + (isOnline ? 'online' : 'offline');
+  el.querySelector('.net-label').textContent = isOnline ? 'オンライン' : 'オフライン';
+}
+
 function updateOnlineStatus() {
   isOnline = navigator.onLine;
-  // レコーダーヘッダーのオフラインバッジ
-  const badge = document.getElementById('offline-badge');
-  if (badge) badge.style.display = isOnline ? 'none' : 'inline-flex';
+  renderNetStatus();
   // 復帰時：未同期があれば自動送信される（Firestoreが処理）
   if (isOnline) {
     showToast('🟢 オンラインに復帰しました（データを同期中）');
@@ -2932,6 +2959,8 @@ function updateOnlineStatus() {
 }
 window.addEventListener('online',  updateOnlineStatus);
 window.addEventListener('offline', updateOnlineStatus);
+// 初期表示（トーストなしで状態だけ反映）
+document.addEventListener('DOMContentLoaded', renderNetStatus);
 
 // =====================================================
 // 認証状態
@@ -4538,9 +4567,6 @@ function openRecorder() {
     modeTag.textContent = recGameMode === 'stats' ? '📈 スタッツ' : '📋 スコアシート';
     modeTag.className = 'rec-mode-tag' + (recGameMode === 'stats' ? ' stats' : '');
   }
-  // オフラインバッジの初期状態
-  const offBadge = document.getElementById('offline-badge');
-  if (offBadge) offBadge.style.display = navigator.onLine ? 'none' : 'inline-flex';
 
   setRecorderQ(1);
   renderActionGrids();
