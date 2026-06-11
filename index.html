@@ -1075,6 +1075,17 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   border-radius: 4px; padding: 3px 8px; white-space: nowrap;
 }
 .rec-mode-tag.stats { background: #ef6c00; }
+.rec-offline-badge {
+  display: inline-flex; align-items: center;
+  font-size: 10px; font-weight: 800; letter-spacing: .04em;
+  background: #c62828; color: white;
+  border-radius: 4px; padding: 3px 8px; white-space: nowrap;
+  animation: offline-blink 1.6s ease-in-out infinite;
+}
+@keyframes offline-blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .55; }
+}
 
 /* スコアボード（タイマーを中央に配置） */
 .rec-scoreboard {
@@ -2467,6 +2478,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <button class="rec-back" onclick="backFromRecorder()">← 戻る</button>
       <span class="rec-title" id="rec-title">記録中</span>
       <span class="rec-mode-tag" id="rec-mode-tag"></span>
+      <span class="rec-offline-badge" id="offline-badge" style="display:none">📡 オフライン</span>
       <span class="rec-status" id="rec-status"></span>
       <button class="rec-end-btn" onclick="endGame()">試合終了</button>
     </div>
@@ -2844,9 +2856,10 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.05.21-2';
+const APP_VERSION = '2026.06.12-1';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.06.12-1', notes: ['オフライン対応：通信切断中も記録を継続し、復帰時に自動同期（Firestore永続化＋非ブロッキング保存＋オフラインバッジ）'] },
   { v: '2026.05.21-2', notes: ['タイマー同期を改善：不正な時間値のバリデーション＋カウント中のクライアント補間（滑らか表示・遅延軽減）'] },
   { v: '2026.05.21-1', notes: ['Firestoreセキュリティルールを適用し、編集者のみ書き込み可能に（Auth Phase 3）— 認証機能完成'] },
   { v: '2026.05.20-4', notes: ['編集権限制御（許可リストのユーザーのみ編集可）／メンバー管理機能を追加（Auth Phase 2）'] },
@@ -2884,6 +2897,41 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
+
+// =====================================================
+// オフライン永続化（体育館などWi-Fiが不安定な環境向け）
+// 書き込みは IndexedDB にキューされ、再接続時に自動送信される
+// =====================================================
+db.enablePersistence({ synchronizeTabs: true }).catch(err => {
+  if (err.code === 'failed-precondition') {
+    // 複数タブで開いている場合など。キャッシュなしでも動作は継続
+    console.warn('[offline] persistence無効（複数タブ）:', err.message);
+  } else if (err.code === 'unimplemented') {
+    console.warn('[offline] このブラウザはオフライン永続化に非対応');
+  } else {
+    console.warn('[offline] persistence有効化失敗:', err);
+  }
+});
+
+// =====================================================
+// 接続状態の監視
+// =====================================================
+let isOnline = navigator.onLine;
+
+function updateOnlineStatus() {
+  isOnline = navigator.onLine;
+  // レコーダーヘッダーのオフラインバッジ
+  const badge = document.getElementById('offline-badge');
+  if (badge) badge.style.display = isOnline ? 'none' : 'inline-flex';
+  // 復帰時：未同期があれば自動送信される（Firestoreが処理）
+  if (isOnline) {
+    showToast('🟢 オンラインに復帰しました（データを同期中）');
+  } else {
+    showToast('🔴 オフラインです（記録は端末に保存され、復帰時に同期されます）', 4000);
+  }
+}
+window.addEventListener('online',  updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
 
 // =====================================================
 // 認証状態
@@ -3881,14 +3929,28 @@ async function saveGame() {
       gameMode:   pendingGameMode || 'scoresheet',
       updatedAt:  now
     };
-    if (currentGameId) {
+    if (!isOnline) {
+      // オフライン：書き込みをキューして即完了扱い（復帰時に自動同期）
+      if (currentGameId) {
+        db.collection('games').doc(currentGameId).update(data)
+          .catch(e => console.error('[offline-queue] saveGame同期エラー:', e));
+      } else {
+        data.createdAt = now;
+        // doc() はクライアント側でIDを生成するためネットワーク不要
+        const ref = db.collection('games').doc();
+        ref.set(data).catch(e => console.error('[offline-queue] saveGame同期エラー:', e));
+        currentGameId = ref.id;
+      }
+      showToast('⏳ オフライン保存（再接続時に同期されます）');
+    } else if (currentGameId) {
       await withTimeout(db.collection('games').doc(currentGameId).update(data));
+      showToast('保存しました');
     } else {
       data.createdAt = now;
       const ref = await withTimeout(db.collection('games').add(data));
       currentGameId = ref.id;
+      showToast('保存しました');
     }
-    showToast('保存しました');
   } catch(e) {
     console.error(e);
     showToast('保存エラー: ' + e.message);
@@ -4476,6 +4538,9 @@ function openRecorder() {
     modeTag.textContent = recGameMode === 'stats' ? '📈 スタッツ' : '📋 スコアシート';
     modeTag.className = 'rec-mode-tag' + (recGameMode === 'stats' ? ' stats' : '');
   }
+  // オフラインバッジの初期状態
+  const offBadge = document.getElementById('offline-badge');
+  if (offBadge) offBadge.style.display = navigator.onLine ? 'none' : 'inline-flex';
 
   setRecorderQ(1);
   renderActionGrids();
@@ -4720,7 +4785,44 @@ function closePlayerSelect() {
   document.getElementById('rec-player-overlay').classList.remove('show');
 }
 
-async function recordEvent(evType, team, player) {
+// PBPデータを Firestore に保存（非ブロッキング・オフライン対応）
+// - オンライン時：サーバーACKで '✓'
+// - オフライン時：Firestore が IndexedDB にキュー → 再接続時に自動同期。
+//   ローカルの記録は絶対にロールバックしない（データ消失防止）
+function savePbpToFirestore(extraFields = {}) {
+  if (!recGameId) return;
+  const plays  = parsePBP(recPbpData);
+  const st     = buildState(plays);
+  const totalA = st.qScore.A.reduce((a, b) => a + b, 0);
+  const totalB = st.qScore.B.reduce((a, b) => a + b, 0);
+  const payload = {
+    pbpData: recPbpData, totalA, totalB,
+    updatedAt: new Date().toISOString(),
+    ...extraFields
+  };
+  if (!isOnline) {
+    // キューされる。ACKは復帰後に来るので待たない
+    db.collection('games').doc(recGameId).update(payload).catch(e => {
+      console.error('[offline-queue] 同期時エラー:', e);
+    });
+    setRecStatus('⏳ オフライン保存');
+    return;
+  }
+  setRecStatus('保存中...');
+  db.collection('games').doc(recGameId).update(payload)
+    .then(() => {
+      setRecStatus('✓');
+      setTimeout(() => setRecStatus(''), 1200);
+    })
+    .catch(e => {
+      console.error('[save] エラー:', e);
+      // 権限エラー等の真のエラーでもローカルは保持（PBPテキストから復元可能）
+      setRecStatus('⚠ 未同期');
+      showToast('保存エラー: ' + e.message + '（記録は端末に保持されています）', 4000);
+    });
+}
+
+function recordEvent(evType, team, player) {
   tapFeedback('medium');
   closePlayerSelect();
   const timer = getRecTimerStr();
@@ -4732,27 +4834,10 @@ async function recordEvent(evType, team, player) {
   recPbpData = recPbpData ? recPbpData + '\n' + line : line;
   updateRecScore();
   updatePBPFeed();
-
-  setRecStatus('保存中...');
-  try {
-    const plays  = parsePBP(recPbpData);
-    const st     = buildState(plays);
-    const totalA = st.qScore.A.reduce((a, b) => a + b, 0);
-    const totalB = st.qScore.B.reduce((a, b) => a + b, 0);
-    await db.collection('games').doc(recGameId).update({
-      pbpData: recPbpData, totalA, totalB,
-      updatedAt: new Date().toISOString()
-    });
-    setRecStatus('✓');
-    setTimeout(() => setRecStatus(''), 1200);
-  } catch(e) {
-    setRecStatus('⚠ 保存失敗');
-    recPbpData = recPbpData.split('\n').slice(0, -1).join('\n');
-    updateRecScore();
-  }
+  savePbpToFirestore();
 }
 
-async function undoLastEvent() {
+function undoLastEvent() {
   const lines = recPbpData.trim().split('\n').filter(Boolean);
   if (lines.length === 0) return;
   if (!confirm('最後のイベントを取り消しますか？')) return;
@@ -4760,17 +4845,8 @@ async function undoLastEvent() {
   recPbpData = lines.join('\n');
   updateRecScore();
   updatePBPFeed();
-  try {
-    const plays  = parsePBP(recPbpData);
-    const st     = buildState(plays);
-    const totalA = st.qScore.A.reduce((a, b) => a + b, 0);
-    const totalB = st.qScore.B.reduce((a, b) => a + b, 0);
-    await db.collection('games').doc(recGameId).update({
-      pbpData: recPbpData, totalA, totalB,
-      updatedAt: new Date().toISOString()
-    });
-    showToast('取り消しました');
-  } catch(e) { showToast('エラー: ' + e.message); }
+  savePbpToFirestore();
+  showToast('取り消しました');
 }
 
 function updateRecScore() {
@@ -4810,19 +4886,11 @@ function closeSheetPreview() {
   document.getElementById('rec-sheet-preview').classList.remove('show');
 }
 
-async function endGame() {
+function endGame() {
   if (!confirm('試合を終了しますか？')) return;
-  try {
-    const st     = buildState(parsePBP(recPbpData));
-    const totalA = st.qScore.A.reduce((a, b) => a + b, 0);
-    const totalB = st.qScore.B.reduce((a, b) => a + b, 0);
-    await db.collection('games').doc(recGameId).update({
-      pbpData: recPbpData, totalA, totalB,
-      status: 'finished', updatedAt: new Date().toISOString()
-    });
-    showToast('試合終了しました');
-    backFromRecorder();
-  } catch(e) { showToast('エラー: ' + e.message); }
+  savePbpToFirestore({ status: 'finished' });
+  showToast(isOnline ? '試合終了しました' : '試合終了（オフライン：復帰時に同期されます）');
+  backFromRecorder();
 }
 
 // 交代
@@ -4914,12 +4982,7 @@ async function confirmSubstitution() {
 
   updatePBPFeed();
   showToast('交代を記録しました');
-
-  try {
-    await db.collection('games').doc(recGameId).update({
-      pbpData: recPbpData, updatedAt: new Date().toISOString()
-    });
-  } catch(e) { showToast('保存エラー: ' + e.message); }
+  savePbpToFirestore();
 }
 
 function closeSubstitution() {
@@ -5275,15 +5338,8 @@ async function updatePBPEntryType(idx, newEvType) {
   recPbpData = lines.join('\n');
   updateRecScore();
   updatePBPFeed();
-  try {
-    const st = buildState(parsePBP(recPbpData));
-    const totalA = st.qScore.A.reduce((a,b)=>a+b,0);
-    const totalB = st.qScore.B.reduce((a,b)=>a+b,0);
-    await db.collection('games').doc(recGameId).update({
-      pbpData: recPbpData, totalA, totalB, updatedAt: new Date().toISOString()
-    });
-    showToast('プレーを更新しました');
-  } catch(e) { showToast('エラー: ' + e.message); }
+  savePbpToFirestore();
+  showToast('プレーを更新しました');
 }
 
 function closePBPEdit() {
@@ -5302,15 +5358,8 @@ async function updatePBPEntryPlayer(idx, player) {
   recPbpData = lines.join('\n');
   updateRecScore();
   updatePBPFeed();
-  try {
-    const st = buildState(parsePBP(recPbpData));
-    const totalA = st.qScore.A.reduce((a,b)=>a+b,0);
-    const totalB = st.qScore.B.reduce((a,b)=>a+b,0);
-    await db.collection('games').doc(recGameId).update({
-      pbpData: recPbpData, totalA, totalB, updatedAt: new Date().toISOString()
-    });
-    showToast('選手を更新しました');
-  } catch(e) { showToast('エラー: ' + e.message); }
+  savePbpToFirestore();
+  showToast('選手を更新しました');
 }
 
 async function deletePBPEntry(idx) {
@@ -5321,15 +5370,8 @@ async function deletePBPEntry(idx) {
   recPbpData = lines.join('\n');
   updateRecScore();
   updatePBPFeed();
-  try {
-    const st = buildState(parsePBP(recPbpData));
-    const totalA = st.qScore.A.reduce((a,b)=>a+b,0);
-    const totalB = st.qScore.B.reduce((a,b)=>a+b,0);
-    await db.collection('games').doc(recGameId).update({
-      pbpData: recPbpData, totalA, totalB, updatedAt: new Date().toISOString()
-    });
-    showToast('削除しました');
-  } catch(e) { showToast('エラー: ' + e.message); }
+  savePbpToFirestore();
+  showToast('削除しました');
 }
 
 // =====================================================
