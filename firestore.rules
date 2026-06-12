@@ -38,9 +38,14 @@ service cloud.firestore {
       allow read: if true;
       allow write: if canEdit();
     }
+    // 公開登録ページ（?register=URL）から未ログインのチームが
+    // 自己登録・自己編集するため、create/update は公開。
+    // 削除のみ編集者限定（荒らし対策の最低ライン）。
     match /roster_teams/{id} {
       allow read: if true;
-      allow write: if canEdit();
+      allow create: if true;
+      allow update: if true;
+      allow delete: if canEdit();
     }
 
     // ---- タイマー同期 ----

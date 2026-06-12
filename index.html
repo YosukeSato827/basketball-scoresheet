@@ -773,7 +773,7 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
 /* =====================================================
    閲覧専用ビュー（?view=GAME_ID）
    ===================================================== */
-#view-viewer { display: none; min-height: 100vh; display: none; flex-direction: column; }
+#view-viewer { display: none; min-height: 100vh; flex-direction: column; }
 #view-viewer.show { display: flex; }
 
 .viewer-header {
@@ -2217,7 +2217,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 .rec-psel-name { font-size: 11px; color: var(--text-mid); }
 </style>
 </head>
-<body>
+<body class="not-editor">
 
 <svg style="position:absolute;width:0;height:0;overflow:hidden">
   <defs>
@@ -2877,9 +2877,15 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.06.12-3';
+const APP_VERSION = '2026.06.12-4';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.06.12-4', notes: [
+    'デバッグ一括修正：戻るボタンでチーム編集モーダルが閉じない問題',
+    '公開チーム登録がセキュリティルールで拒否される問題（ルール更新が必要）',
+    'ロスター保存／大会保存・削除／試合削除のオフライン対応（ハング・誤エラー解消）',
+    '認証判定前に編集ボタンが一瞬表示される問題／死コード削除'
+  ] },
   { v: '2026.06.12-3', notes: ['通信状態インジケーターを右上（ヘッダー下）に移動'] },
   { v: '2026.06.12-2', notes: ['通信状態を常時表示（左下：オンライン=緑／オフライン=赤・点滅）'] },
   { v: '2026.06.12-1', notes: ['オフライン対応：通信切断中も記録を継続し、復帰時に自動同期（Firestore永続化＋非ブロッキング保存＋オフラインバッジ）'] },
@@ -3054,6 +3060,7 @@ function renderMembersList() {
 }
 
 async function addEditorMember() {
+  if (!isOnline) { showToast('オフラインのためメンバー変更はできません'); return; }
   const input = document.getElementById('members-add-input');
   const email = (input.value || '').toLowerCase().trim();
   if (!email || !email.includes('@')) {
@@ -3082,6 +3089,7 @@ async function addEditorMember() {
 }
 
 async function removeEditorMember(email) {
+  if (!isOnline) { showToast('オフラインのためメンバー変更はできません'); return; }
   if (!confirm(`${email} を編集メンバーから削除しますか？`)) return;
   await loadAllowedEditors();
   let emails = allowedEditors.slice();
@@ -3603,16 +3611,29 @@ async function saveTournament() {
   };
   try {
     if (editingTournamentId) {
-      await withTimeout(db.collection('tournaments').doc(editingTournamentId).update(data));
-      showToast('大会を更新しました');
+      if (!isOnline) {
+        // オフライン：キューして即完了扱い（復帰時に自動同期）
+        db.collection('tournaments').doc(editingTournamentId).update(data)
+          .catch(e => console.error('[offline-queue] 大会更新同期エラー:', e));
+        showToast('⏳ オフライン保存（再接続時に同期されます）');
+      } else {
+        await withTimeout(db.collection('tournaments').doc(editingTournamentId).update(data));
+        showToast('大会を更新しました');
+      }
       // 詳細画面が開いていれば表示を更新
       if (currentTournamentId === editingTournamentId) {
         document.getElementById('detail-title').textContent = name;
       }
     } else {
       data.createdAt = new Date().toISOString();
-      await withTimeout(db.collection('tournaments').add(data));
-      showToast('大会を登録しました');
+      if (!isOnline) {
+        db.collection('tournaments').doc().set(data)
+          .catch(e => console.error('[offline-queue] 大会登録同期エラー:', e));
+        showToast('⏳ オフライン保存（再接続時に同期されます）');
+      } else {
+        await withTimeout(db.collection('tournaments').add(data));
+        showToast('大会を登録しました');
+      }
     }
     closeTournamentModal();
     // 大会一覧画面にいれば再読み込み
@@ -3628,8 +3649,14 @@ async function saveTournament() {
 async function deleteTournament(id) {
   if (!confirm('この大会を削除しますか？\n※ 試合データは削除されません')) return;
   try {
-    await withTimeout(db.collection('tournaments').doc(id).delete());
-    showToast('大会を削除しました');
+    if (!isOnline) {
+      db.collection('tournaments').doc(id).delete()
+        .catch(e => console.error('[offline-queue] 大会削除同期エラー:', e));
+      showToast('⏳ オフラインで削除（再接続時に同期されます）');
+    } else {
+      await withTimeout(db.collection('tournaments').doc(id).delete());
+      showToast('大会を削除しました');
+    }
     loadTournaments();
   } catch(e) {
     showToast('エラー: ' + e.message);
@@ -3993,8 +4020,14 @@ async function saveGame() {
 async function deleteGame(id) {
   if (!confirm('この試合を削除しますか？')) return;
   try {
-    await withTimeout(db.collection('games').doc(id).delete());
-    showToast('削除しました');
+    if (!isOnline) {
+      db.collection('games').doc(id).delete()
+        .catch(e => console.error('[offline-queue] 試合削除同期エラー:', e));
+      showToast('⏳ オフラインで削除（再接続時に同期されます）');
+    } else {
+      await withTimeout(db.collection('games').doc(id).delete());
+      showToast('削除しました');
+    }
     loadGames();
   } catch(e) {
     showToast('エラー: ' + e.message);
@@ -5111,14 +5144,6 @@ function selectAllForCurrentTeam() {
   }
 }
 
-// 旧 skipLineup（互換のため残置）
-function skipLineup() {
-  recCourtA = [...recPlayersA];
-  recCourtB = [...recPlayersB];
-  document.getElementById('rec-lineup-overlay').classList.remove('show');
-  updateCourtDisplay();
-}
-
 // =====================================================
 // PBPフィード
 // =====================================================
@@ -5719,6 +5744,20 @@ async function saveTeamEditorModal() {
   const now = new Date().toISOString();
   const data = { tournamentId: rosterTournamentId, teamName, players, uniforms, updatedAt: now };
   try {
+    if (!isOnline) {
+      // オフライン：キューして即完了扱い（復帰時に自動同期）
+      if (editingRosterTeamId) {
+        db.collection('roster_teams').doc(editingRosterTeamId).update(data)
+          .catch(e => console.error('[offline-queue] ロスター更新同期エラー:', e));
+      } else {
+        db.collection('roster_teams').doc().set({ ...data, createdAt: now })
+          .catch(e => console.error('[offline-queue] ロスター登録同期エラー:', e));
+      }
+      document.getElementById('modal-roster-team').classList.remove('show');
+      loadAndRenderRosterTeams();
+      showToast('⏳ オフライン保存（再接続時に同期されます）');
+      return;
+    }
     if (editingRosterTeamId) {
       await db.collection('roster_teams').doc(editingRosterTeamId).update(data);
     } else {
@@ -5734,6 +5773,14 @@ async function deleteRosterTeam() {
   if (!editingRosterTeamId) return;
   if (!confirm('このチームを削除しますか？')) return;
   try {
+    if (!isOnline) {
+      db.collection('roster_teams').doc(editingRosterTeamId).delete()
+        .catch(e => console.error('[offline-queue] ロスター削除同期エラー:', e));
+      document.getElementById('modal-roster-team').classList.remove('show');
+      loadAndRenderRosterTeams();
+      showToast('⏳ オフラインで削除（再接続時に同期されます）');
+      return;
+    }
     await db.collection('roster_teams').doc(editingRosterTeamId).delete();
     document.getElementById('modal-roster-team').classList.remove('show');
     await loadAndRenderRosterTeams();
@@ -5904,6 +5951,10 @@ function setRegFormMode(mode) {
 }
 
 async function submitTeamRegistration() {
+  if (!isOnline) {
+    showToast('❌ オフラインのため登録できません。通信環境をご確認ください。');
+    return;
+  }
   if (!regTournamentId) {
     showToast('❌ 大会IDが取得できていません。URLを確認してページを再読み込みしてください。');
     return;
@@ -7103,9 +7154,9 @@ function handlePopState(e) {
     _isPoppingState = false;
     return;
   }
-  const teamEditModal = document.getElementById('modal-team-editor');
-  if (teamEditModal && teamEditModal.classList.contains('open')) {
-    teamEditModal.classList.remove('open');
+  const teamEditModal = document.getElementById('modal-roster-team');
+  if (teamEditModal && teamEditModal.classList.contains('show')) {
+    teamEditModal.classList.remove('show');
     _isPoppingState = false;
     return;
   }
