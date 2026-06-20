@@ -2877,9 +2877,13 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.06.12-4';
+const APP_VERSION = '2026.06.12-5';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.06.12-5', notes: [
+    'セキュリティ強化：参加チーム情報の改ざん・乗っ取りを防止（公開更新時にeditToken/大会IDの変更を禁止）',
+    '※Firestoreルールの再公開が必要'
+  ] },
   { v: '2026.06.12-4', notes: [
     'デバッグ一括修正：戻るボタンでチーム編集モーダルが閉じない問題',
     '公開チーム登録がセキュリティルールで拒否される問題（ルール更新が必要）',
@@ -5969,6 +5973,9 @@ async function submitTeamRegistration() {
   btn.textContent = '保存中...';
   try {
     if (isEditing) {
+      // editToken / tournamentId は更新ペイロードに含めない。
+      // update() は未指定フィールドを保持するため、ルールの「改ざん禁止」検証を
+      // 自動的にパスする（明示送信すると token が null の場合に失敗するリスクがあるため避ける）。
       await db.collection('roster_teams').doc(regEditingTeamId).update({
         teamName, players, uniforms, updatedAt: new Date().toISOString()
       });

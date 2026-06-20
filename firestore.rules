@@ -38,13 +38,21 @@ service cloud.firestore {
       allow read: if true;
       allow write: if canEdit();
     }
-    // 公開登録ページ（?register=URL）から未ログインのチームが
-    // 自己登録・自己編集するため、create/update は公開。
-    // 削除のみ編集者限定（荒らし対策の最低ライン）。
+    // 公開登録ページ（?register=URL）から未ログインのチームが自己登録・自己編集する。
+    // - 編集者（運営）はいつでも可
+    // - 公開作成：誰でも可（editToken 付きで登録される）
+    // - 公開更新：editToken と tournamentId を改変しない限り許可（他チーム乗っ取りの実害を防ぐ）
+    //   ※完全な本人認証ではないが、editToken は推測困難な乱数で、
+    //     クライアントは自分の token を持つチームしか編集画面を開けない設計。
+    // - 削除は編集者のみ
     match /roster_teams/{id} {
       allow read: if true;
       allow create: if true;
-      allow update: if true;
+      allow update: if canEdit() || (
+        // 既存の editToken / tournamentId を変更しないこと（改ざん・乗っ取り防止）
+        resource.data.editToken == request.resource.data.editToken
+        && resource.data.tournamentId == request.resource.data.tournamentId
+      );
       allow delete: if canEdit();
     }
 
