@@ -168,9 +168,12 @@ body.not-editor .editor-only { display: none !important; }
   display: flex; flex-direction: column; line-height: 1;
   flex: 1; gap: 4px;
 }
-/* molten：公式コーポレートロゴ（molten.co.jp から取得・透過処理済み） */
+/* molten：公式ワードマーク（正式SVGデータ・ベクターなので常にシャープ） */
 .logo-wordmark { line-height: 0; }
-.logo-wordmark img { height: 19px; width: auto; display: inline-block; }
+.logo-wordmark .molten-mark {
+  height: 20px; width: 89px; /* viewBox比 287.23:64.32 */
+  color: #fff; display: inline-block;
+}
 /* ScoreLink：Feel the emotion と同系の流れる筆記体 */
 .logo-product {
   font-family: 'Dancing Script', cursive;
@@ -813,7 +816,10 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
 .viewer-footer-logo {
   display: flex; align-items: center; justify-content: center; gap: 8px;
 }
-.viewer-footer-logo img { height: 15px; width: auto; }
+.viewer-footer-logo .molten-mark-footer {
+  height: 15px; width: 67px; /* viewBox比 287.23:64.32 */
+  color: #0b579f; /* 公式ロゴカラー */
+}
 .viewer-footer-logo span {
   font-family: 'Dancing Script', cursive;
   color: var(--text-mid); font-weight: 600; font-size: 18px;
@@ -2228,6 +2234,23 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 </head>
 <body class="not-editor">
 
+<!-- molten 公式ワードマーク（正式SVGデータ・currentColorで色替え可能） -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <symbol id="molten-logo" viewBox="0 0 287.23 64.32">
+    <g fill="currentColor">
+      <path d="m45.3,61.94V29.87c0-3.28,1.44-7.17,6.97-7.17s6.97,4.91,6.97,7.17v32.07h14.97v-31.66c0-6.35-4.11-19.06-20.3-19.06-12.29,0-16.8,8.81-16.8,8.81,0,0-4.51-8.81-16.8-8.81C4.11,11.22,0,23.93,0,30.28v31.66h14.97V29.87c0-2.26,1.44-7.17,6.97-7.17s6.97,3.89,6.97,7.17v32.07h16.39Z"/>
+      <path d="m83.3,54.05c4.88,6.25,12.48,10.27,21.03,10.27s16.15-4.02,21.03-10.27h-42.05Z"/>
+      <path d="m99.19,51.02c-4.76-1.69-9.06-6.44-9.06-13.51,0-13.37,17.67-14.76,17.67-21.98,0-2.66-2.88-4.1-5.36-4.45-13.85.96-24.79,12.49-24.79,26.59,0,4.85,1.3,9.4,3.56,13.32l17.97.04Zm28.24-.04c2.26-3.92,3.56-8.47,3.56-13.32,0-13.49-10.01-24.62-23-26.41,3.05,1.74,9.04,6.91,9.04,15.8,0,13.44-16.6,12.45-16.6,19.67,0,3.2,2.82,4.29,3.89,4.29l23.11-.04Zm-19.54-1.97c-3.48,0-6.91-3.17.77-6.34,2.88-1.19,8.88-5.19,10.31-10.21,1.43,11.37-4.32,16.55-11.09,16.55Z"/>
+      <rect x="134.09" width="15.06" height="61.94"/>
+      <path d="m178.97,25.36v-12.14h-9.99V.16h-14.45v46.41c0,3.54,2,9.99,6.15,12.6,4.15,2.61,7.69,3.38,18.29,3.38v-13.07c-3.53.77-9.99.92-9.99-5.84v-18.29h9.99Z"/>
+      <path d="m232,32.43c-1.07-11.22-11.68-22.59-25.97-22.59s-26.74,11.22-26.74,28.13c0,6.46,4.3,25.51,25.82,25.51s26.28-14.14,26.28-17.37h-14.6c-.31.92-2,6.62-11.37,6.62-7.17,0-11-3.1-11.71-11.84h38.45c0-2.61.15-4.92-.15-8.45Zm-37.85-1.38c1.41-6.99,5.36-10.3,11.87-10.3,8.3,0,11.22,6.92,11.22,10.3h-23.09Z"/>
+      <path d="m257.58,21.83c6.15,0,7.3,5.99,7.3,7.53v32.58h14.76v-30.74c0-5.07-2.23-21.21-22.06-21.21s-22.05,16.14-22.05,21.21v30.74h14.75V29.36c0-1.54,1.15-7.53,7.3-7.53Z"/>
+      <path d="m280.65,15.53c1.76,0,3.41-.69,4.66-1.93,1.25-1.24,1.93-2.9,1.93-4.66s-.68-3.42-1.93-4.66c-1.25-1.24-2.9-1.93-4.66-1.93-3.64,0-6.59,2.95-6.59,6.59,0,1.76.69,3.42,1.93,4.66,1.24,1.25,2.9,1.93,4.66,1.93Zm-5.51-6.6c0-1.47.57-2.86,1.62-3.89,1.04-1.04,2.42-1.62,3.9-1.62s2.85.57,3.9,1.62c1.04,1.04,1.61,2.42,1.61,3.89,0,3.04-2.47,5.51-5.51,5.51-1.48,0-2.86-.57-3.9-1.61-1.04-1.04-1.62-2.43-1.62-3.9Z"/>
+      <path d="m278.86,6.14h2.4c.34,0,.6.05.8.15.38.19.56.54.56,1.06,0,.48-.14.81-.4,1-.27.18-.64.28-1.09.28h-2.27v-2.48Zm0,6.4v-3.11h2.23c.4,0,.7.04.88.13.33.16.51.48.53.95l.06,1.21c.02.29.03.47.05.57.02.1.04.18.08.24h1.2v-.16c-.15-.07-.26-.22-.32-.45-.03-.13-.06-.34-.07-.62l-.03-.97c-.02-.42-.09-.72-.24-.91-.15-.19-.35-.34-.64-.45.32-.16.57-.39.75-.66.18-.28.27-.64.27-1.07,0-.83-.34-1.4-1.02-1.71-.36-.16-.81-.24-1.37-.24h-3.35v7.25h.98Z"/>
+    </g>
+  </symbol>
+</svg>
+
 <svg style="position:absolute;width:0;height:0;overflow:hidden">
   <defs>
     <filter id="pencil" x="-5%" y="-5%" width="110%" height="110%">
@@ -2320,7 +2343,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 <div id="view-tournaments">
   <div class="app-header">
     <div class="logo-block">
-      <div class="logo-wordmark"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFIAAAATCAYAAAADKFpSAAADkElEQVR42u2YeYjNURTHn2VGxNiXDMMgpGhGDf4gQ0LJkJpClghjiMbEPxM1lKgpS0TGvoxlhkwi+Qd/kKXIUvyDZiwxaexZxvDxu3VeXaf7e7/33tC85NTpdc895/7O/b5zzj33hoBQAnMpUGXxcZHvAe5YvLiR/ewWSnAgK/mdLov8spIXN6KPc4C1/4FsOC8C1mhhB2AusAHYDhQBwxzGqUA+sAnYAqz00m5gFB9tCeQCJWLbF5ghv38LyE7AauAm8A74DjwDjgLjA/ztCqwT21qxNyWmApgkOoXAGNtoBfAZN10Aungh3EScrvPROwm0dThk7JYCb5T+KaAf8AIoN7UmTiBtKrDs58vmI9E5oKPD57HA2wDbcgmgvLBRAcH0ANgahd5VoJnlUHOgzEd3uehMkbEBdPAfArKQ6OmhArOPl2WforQ1mRsKSRR88Vm8JsIC34C7PlG80HKqxDFv/ulZKmKrZe6p94e1byCQWV7d+qHk5sTPAcZJydKResbyZ59P5O7wou+lktcDvUMSFZomy4JJsoAmk6K9rDpSreavyJyJrp+OMtHNkUqnLZ1tMQJ5XWq14dEeX1Lzmxzfy5RgsClbMui9km+z7NIcgbcy3JPpFLY/OMkB5EGlU6zmP4p8r5IfUWnvB6RxtE2ch01PNfddDlHXNyuUronE/o79Ziq782r+kBEe8HE2zNmOhbcoHVeNNfLn1rhWwHFtqJXXVL9yZEU8QM51pF6VD39QuqZUZTj20jvgEKz8m0C2UOMKHxBN+Tgm6WPTsjiBLCJ+qkpEIFPUuMwB4kjvALgtKZWu9FfFCeT6fw3IkCraj+V0DjfmZVKPp4osX9lPjwHIdZYvC9TcLc/fdlFySqICeUbJ5ok8TzaYJOOhUkPDZE767hGAvOhojO0e0KavQOsI9+Rii6clKpATlaxOdEd4N53XwFlpVeq1YwHtz0HH90rl9pTlAHqnF7VNHd1IvaMHTUggw3fdjBh4QBQ3m9w4GnJzwdgloF5z2FVL5CYskOaWci/KYl9n1cxIQJrouhFwRVwSwyFTY/WKCQtkSIr44YDNPAJGRfloEX6p2i810O/RIkeunH70U/zqYdnEDWSaSq1+yqi1I/1SlU5nh46ruA8BNsvDxhPgPnACmAkkO/TTA3wLN/PD5eHDnPSD1Ly58k0wj6+e37ul1drodRGz5UBzPfXpvSQH+JX+Cz0kUEEwVU4QAAAAAElFTkSuQmCC" alt="molten"></div>
+      <div class="logo-wordmark"><svg class="molten-mark" role="img" aria-label="molten"><use href="#molten-logo"/></svg></div>
       <div class="logo-product">ScoreLink</div>
     </div>
     <span class="app-version" id="app-version" onclick="openChangelogModal()" title="更新履歴を表示"></span>
@@ -2387,7 +2410,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 <div id="view-register" style="display:none">
   <div class="app-header">
     <div class="logo-block">
-      <div class="logo-wordmark"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFIAAAATCAYAAAADKFpSAAADkElEQVR42u2YeYjNURTHn2VGxNiXDMMgpGhGDf4gQ0LJkJpClghjiMbEPxM1lKgpS0TGvoxlhkwi+Qd/kKXIUvyDZiwxaexZxvDxu3VeXaf7e7/33tC85NTpdc895/7O/b5zzj33hoBQAnMpUGXxcZHvAe5YvLiR/ewWSnAgK/mdLov8spIXN6KPc4C1/4FsOC8C1mhhB2AusAHYDhQBwxzGqUA+sAnYAqz00m5gFB9tCeQCJWLbF5ghv38LyE7AauAm8A74DjwDjgLjA/ztCqwT21qxNyWmApgkOoXAGNtoBfAZN10Aungh3EScrvPROwm0dThk7JYCb5T+KaAf8AIoN7UmTiBtKrDs58vmI9E5oKPD57HA2wDbcgmgvLBRAcH0ANgahd5VoJnlUHOgzEd3uehMkbEBdPAfArKQ6OmhArOPl2WforQ1mRsKSRR88Vm8JsIC34C7PlG80HKqxDFv/ulZKmKrZe6p94e1byCQWV7d+qHk5sTPAcZJydKResbyZ59P5O7wou+lktcDvUMSFZomy4JJsoAmk6K9rDpSreavyJyJrp+OMtHNkUqnLZ1tMQJ5XWq14dEeX1Lzmxzfy5RgsClbMui9km+z7NIcgbcy3JPpFLY/OMkB5EGlU6zmP4p8r5IfUWnvB6RxtE2ch01PNfddDlHXNyuUronE/o79Ziq782r+kBEe8HE2zNmOhbcoHVeNNfLn1rhWwHFtqJXXVL9yZEU8QM51pF6VD39QuqZUZTj20jvgEKz8m0C2UOMKHxBN+Tgm6WPTsjiBLCJ+qkpEIFPUuMwB4kjvALgtKZWu9FfFCeT6fw3IkCraj+V0DjfmZVKPp4osX9lPjwHIdZYvC9TcLc/fdlFySqICeUbJ5ok8TzaYJOOhUkPDZE767hGAvOhojO0e0KavQOsI9+Rii6clKpATlaxOdEd4N53XwFlpVeq1YwHtz0HH90rl9pTlAHqnF7VNHd1IvaMHTUggw3fdjBh4QBQ3m9w4GnJzwdgloF5z2FVL5CYskOaWci/KYl9n1cxIQJrouhFwRVwSwyFTY/WKCQtkSIr44YDNPAJGRfloEX6p2i810O/RIkeunH70U/zqYdnEDWSaSq1+yqi1I/1SlU5nh46ruA8BNsvDxhPgPnACmAkkO/TTA3wLN/PD5eHDnPSD1Ly58k0wj6+e37ul1drodRGz5UBzPfXpvSQH+JX+Cz0kUEEwVU4QAAAAAElFTkSuQmCC" alt="molten"></div>
+      <div class="logo-wordmark"><svg class="molten-mark" role="img" aria-label="molten"><use href="#molten-logo"/></svg></div>
       <div class="logo-product">ScoreLink</div>
     </div>
   </div>
@@ -2674,7 +2697,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 <div id="view-viewer">
   <div class="viewer-header">
     <div class="logo-block">
-      <div class="logo-wordmark"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFIAAAATCAYAAAADKFpSAAADkElEQVR42u2YeYjNURTHn2VGxNiXDMMgpGhGDf4gQ0LJkJpClghjiMbEPxM1lKgpS0TGvoxlhkwi+Qd/kKXIUvyDZiwxaexZxvDxu3VeXaf7e7/33tC85NTpdc895/7O/b5zzj33hoBQAnMpUGXxcZHvAe5YvLiR/ewWSnAgK/mdLov8spIXN6KPc4C1/4FsOC8C1mhhB2AusAHYDhQBwxzGqUA+sAnYAqz00m5gFB9tCeQCJWLbF5ghv38LyE7AauAm8A74DjwDjgLjA/ztCqwT21qxNyWmApgkOoXAGNtoBfAZN10Aungh3EScrvPROwm0dThk7JYCb5T+KaAf8AIoN7UmTiBtKrDs58vmI9E5oKPD57HA2wDbcgmgvLBRAcH0ANgahd5VoJnlUHOgzEd3uehMkbEBdPAfArKQ6OmhArOPl2WforQ1mRsKSRR88Vm8JsIC34C7PlG80HKqxDFv/ulZKmKrZe6p94e1byCQWV7d+qHk5sTPAcZJydKResbyZ59P5O7wou+lktcDvUMSFZomy4JJsoAmk6K9rDpSreavyJyJrp+OMtHNkUqnLZ1tMQJ5XWq14dEeX1Lzmxzfy5RgsClbMui9km+z7NIcgbcy3JPpFLY/OMkB5EGlU6zmP4p8r5IfUWnvB6RxtE2ch01PNfddDlHXNyuUronE/o79Ziq782r+kBEe8HE2zNmOhbcoHVeNNfLn1rhWwHFtqJXXVL9yZEU8QM51pF6VD39QuqZUZTj20jvgEKz8m0C2UOMKHxBN+Tgm6WPTsjiBLCJ+qkpEIFPUuMwB4kjvALgtKZWu9FfFCeT6fw3IkCraj+V0DjfmZVKPp4osX9lPjwHIdZYvC9TcLc/fdlFySqICeUbJ5ok8TzaYJOOhUkPDZE767hGAvOhojO0e0KavQOsI9+Rii6clKpATlaxOdEd4N53XwFlpVeq1YwHtz0HH90rl9pTlAHqnF7VNHd1IvaMHTUggw3fdjBh4QBQ3m9w4GnJzwdgloF5z2FVL5CYskOaWci/KYl9n1cxIQJrouhFwRVwSwyFTY/WKCQtkSIr44YDNPAJGRfloEX6p2i810O/RIkeunH70U/zqYdnEDWSaSq1+yqi1I/1SlU5nh46ruA8BNsvDxhPgPnACmAkkO/TTA3wLN/PD5eHDnPSD1Ly58k0wj6+e37ul1drodRGz5UBzPfXpvSQH+JX+Cz0kUEEwVU4QAAAAAElFTkSuQmCC" alt="molten"></div>
+      <div class="logo-wordmark"><svg class="molten-mark" role="img" aria-label="molten"><use href="#molten-logo"/></svg></div>
       <div class="logo-product">ScoreLink</div>
     </div>
     <span class="viewer-mode-tag">観戦ビュー</span>
@@ -2693,7 +2716,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
     </div>
   </div>
   <footer class="viewer-footer">
-    <div class="viewer-footer-logo"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFIAAAATCAYAAAADKFpSAAADs0lEQVR42u1Ya2iPYRQ/Lpto5s4yZmMhRZsaPpCRUMtIrRAWHWZEs+bLomYlajXTFpnrMJeNrHUkX9gHcilyKb6gzSWW5p7LNpv3Peetp+N5/+/7f2ftTT6c/r3n8jzn+f3P7XkAkCDAVA5I9RqdZf5hQLqv0YZu9jMGAg5kDSC1a1TH/DrBL+hGH1cD0s7/QHae1gPSDskcDEiZgLQbkMoAKR+QphmMYwEpG5CKAakEkPKstJvoYdO+gJQBSEVsOw6QlvNvVwE5FJC2A9IdQPoISC2A9BKQTgPSfBd/RwBSIds2sb0qMdWAlMY6uYA0RzfaCkjfhIM2XQGk4VYI92Cnmx30zgPSAINDym4TIL0X+hcAKRGQXgNSVUet8QekTjma/Vo+fHsIugRIQww+zwWkDy62VRxAWbZRjouBoseAtM+D3g1A6qU51BuQKh10t7DOYv5WgE7+S0DmevDVpicCzLFWln31aFvWYcNR8N1h8cYQC/wEpAcOUbxOc6rIIFf/9EoRsQ0se2H9YYM6CWSKVbd+Cb7q+OmANI9LlozUWs2fow6Ru9+KvjeC3wpI8cBRIY0W8YIRvICUqxQdo9WRBiG/zjIVXW2GMhFjSKWLmk5pmEDe4lqtaLZF14S82LBfMgeDrpfKGfRJ8Es1uzhD4OXZM5lMYX3DNAOQFUKnQMi/MP+I4J8Sae8EpHK0v89mM1rIWriJmvasFroqEscbzpss7C4L+QnFPO7grE2phoVLhI6pxir+K+27icExHaifNVS/NWSFHyAzDalX70Cfha4qVUmGs8S7NMGargSyj/iudgBRlY8znD66/mafQOaH0WQk1QcRyGjxXWkAcabVAO5xSiUI/W0+gdz1rwEJomg/4+5sD+aVXI+XMC9b2C8LA8hCzRcUsruWvwM9UnRQgawVvDXMz+IDRvD3VK6htp7q9CNDAHnVMBjrM6Au+wFIUSHuyQUaLQ0qkAsFr5l1Z1g3nXeARDyqtP7hWOjxp8KwXznfnlIMQB+woranYRppNcyggQTSvusmhUETPNxsMnwM5OqCcZBBvWmwa+DIDSyQ6pby0GOxb9ZqZiggVXTddrkibgyjyTRqs2JggQQu4iddDvMUkGZ5fLSwX6qOcQ10erRI5yun055t7NcozcY3kHEitRKFUZQh/WKFzjCDjqm4TwGkvfyw8RyQHgHSOUBaAUiRBv0EF9/sYX46P3yoTj9JyNWVb0HH4yvSIR619lhTxCpuaKanPnmWSBe/En4D7lDH30A2be8AAAAASUVORK5CYII=" alt="molten"> <span>ScoreLink</span></div>
+    <div class="viewer-footer-logo"><svg class="molten-mark-footer" role="img" aria-label="molten"><use href="#molten-logo"/></svg> <span>ScoreLink</span></div>
     <div class="viewer-footer-note">バスケットボール ライブスコア配信</div>
   </footer>
 </div>
@@ -2886,9 +2909,12 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.07.08-2';
+const APP_VERSION = '2026.07.08-3';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.07.08-3', notes: [
+    'moltenロゴを正式SVGデータに差し替え（ベクター化でぼやけ解消・どの解像度でもシャープに表示）'
+  ] },
   { v: '2026.07.08-2', notes: [
     'ロゴを公式素材に刷新：molten=molten.co.jp の公式ワードマーク（透過処理して埋め込み）',
     'ScoreLink=公式「Feel the emotion」の筆記体に合わせて Dancing Script に変更'
