@@ -13,7 +13,7 @@
 <link rel="icon" href="data:image/svg+xml,&lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'&gt;&lt;rect width='100' height='100' rx='20' fill='%230064B4'/&gt;&lt;text x='50' y='68' font-size='52' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold'&gt;S&lt;/text&gt;&lt;/svg&gt;">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700;800&family=Cormorant+Garamond:ital,wght@1,500;1,600;1,700&family=Klee+One:wght@400;600&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700;800&family=Dancing+Script:wght@500;600;700&family=Klee+One:wght@400;600&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
@@ -165,23 +165,18 @@ body.not-editor .editor-only { display: none !important; }
 
 /* Molten logo + ScoreLink */
 .logo-block {
-  display: flex; flex-direction: column; line-height: 1.1;
-  flex: 1; gap: 1px;
+  display: flex; flex-direction: column; line-height: 1;
+  flex: 1; gap: 4px;
 }
-/* molten：コーポレートロゴ準拠（小文字・太字ジオメトリックサンセリフ・詰め気味） */
-.logo-wordmark {
-  font-family: 'Poppins', sans-serif;
-  font-weight: 700; font-size: 22px;
-  color: white; letter-spacing: -.025em;
-  line-height: 1; text-transform: lowercase;
-}
-/* ScoreLink：Feel the emotion 風のエレガントな細身イタリック */
+/* molten：公式コーポレートロゴ（molten.co.jp から取得・透過処理済み） */
+.logo-wordmark { line-height: 0; }
+.logo-wordmark img { height: 19px; width: auto; display: inline-block; }
+/* ScoreLink：Feel the emotion と同系の流れる筆記体 */
 .logo-product {
-  font-family: 'Cormorant Garamond', 'Times New Roman', serif;
-  font-style: italic;
-  font-size: 15px; font-weight: 600;
-  color: rgba(255,255,255,.88);
-  letter-spacing: .05em;
+  font-family: 'Dancing Script', cursive;
+  font-size: 17px; font-weight: 600;
+  color: rgba(255,255,255,.92);
+  letter-spacing: .02em;
   line-height: 1;
 }
 .logo-divider {
@@ -816,14 +811,13 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
   background: white;
 }
 .viewer-footer-logo {
-  font-family: 'Poppins', sans-serif; font-weight: 700;
-  font-size: 16px; color: var(--blue); letter-spacing: -.02em;
-  text-transform: lowercase;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
 }
+.viewer-footer-logo img { height: 15px; width: auto; }
 .viewer-footer-logo span {
-  font-family: 'Cormorant Garamond', serif; font-style: italic;
-  color: var(--text-mid); font-weight: 600; font-size: 17px;
-  letter-spacing: .04em; text-transform: none;
+  font-family: 'Dancing Script', cursive;
+  color: var(--text-mid); font-weight: 600; font-size: 18px;
+  letter-spacing: .02em; line-height: 1;
 }
 .viewer-footer-note {
   font-size: 11px; color: var(--text-light); margin-top: 4px;
@@ -2326,7 +2320,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 <div id="view-tournaments">
   <div class="app-header">
     <div class="logo-block">
-      <div class="logo-wordmark">molten</div>
+      <div class="logo-wordmark"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFIAAAATCAYAAAADKFpSAAADkElEQVR42u2YeYjNURTHn2VGxNiXDMMgpGhGDf4gQ0LJkJpClghjiMbEPxM1lKgpS0TGvoxlhkwi+Qd/kKXIUvyDZiwxaexZxvDxu3VeXaf7e7/33tC85NTpdc895/7O/b5zzj33hoBQAnMpUGXxcZHvAe5YvLiR/ewWSnAgK/mdLov8spIXN6KPc4C1/4FsOC8C1mhhB2AusAHYDhQBwxzGqUA+sAnYAqz00m5gFB9tCeQCJWLbF5ghv38LyE7AauAm8A74DjwDjgLjA/ztCqwT21qxNyWmApgkOoXAGNtoBfAZN10Aungh3EScrvPROwm0dThk7JYCb5T+KaAf8AIoN7UmTiBtKrDs58vmI9E5oKPD57HA2wDbcgmgvLBRAcH0ANgahd5VoJnlUHOgzEd3uehMkbEBdPAfArKQ6OmhArOPl2WforQ1mRsKSRR88Vm8JsIC34C7PlG80HKqxDFv/ulZKmKrZe6p94e1byCQWV7d+qHk5sTPAcZJydKResbyZ59P5O7wou+lktcDvUMSFZomy4JJsoAmk6K9rDpSreavyJyJrp+OMtHNkUqnLZ1tMQJ5XWq14dEeX1Lzmxzfy5RgsClbMui9km+z7NIcgbcy3JPpFLY/OMkB5EGlU6zmP4p8r5IfUWnvB6RxtE2ch01PNfddDlHXNyuUronE/o79Ziq782r+kBEe8HE2zNmOhbcoHVeNNfLn1rhWwHFtqJXXVL9yZEU8QM51pF6VD39QuqZUZTj20jvgEKz8m0C2UOMKHxBN+Tgm6WPTsjiBLCJ+qkpEIFPUuMwB4kjvALgtKZWu9FfFCeT6fw3IkCraj+V0DjfmZVKPp4osX9lPjwHIdZYvC9TcLc/fdlFySqICeUbJ5ok8TzaYJOOhUkPDZE767hGAvOhojO0e0KavQOsI9+Rii6clKpATlaxOdEd4N53XwFlpVeq1YwHtz0HH90rl9pTlAHqnF7VNHd1IvaMHTUggw3fdjBh4QBQ3m9w4GnJzwdgloF5z2FVL5CYskOaWci/KYl9n1cxIQJrouhFwRVwSwyFTY/WKCQtkSIr44YDNPAJGRfloEX6p2i810O/RIkeunH70U/zqYdnEDWSaSq1+yqi1I/1SlU5nh46ruA8BNsvDxhPgPnACmAkkO/TTA3wLN/PD5eHDnPSD1Ly58k0wj6+e37ul1drodRGz5UBzPfXpvSQH+JX+Cz0kUEEwVU4QAAAAAElFTkSuQmCC" alt="molten"></div>
       <div class="logo-product">ScoreLink</div>
     </div>
     <span class="app-version" id="app-version" onclick="openChangelogModal()" title="更新履歴を表示"></span>
@@ -2393,7 +2387,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 <div id="view-register" style="display:none">
   <div class="app-header">
     <div class="logo-block">
-      <div class="logo-wordmark">molten</div>
+      <div class="logo-wordmark"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFIAAAATCAYAAAADKFpSAAADkElEQVR42u2YeYjNURTHn2VGxNiXDMMgpGhGDf4gQ0LJkJpClghjiMbEPxM1lKgpS0TGvoxlhkwi+Qd/kKXIUvyDZiwxaexZxvDxu3VeXaf7e7/33tC85NTpdc895/7O/b5zzj33hoBQAnMpUGXxcZHvAe5YvLiR/ewWSnAgK/mdLov8spIXN6KPc4C1/4FsOC8C1mhhB2AusAHYDhQBwxzGqUA+sAnYAqz00m5gFB9tCeQCJWLbF5ghv38LyE7AauAm8A74DjwDjgLjA/ztCqwT21qxNyWmApgkOoXAGNtoBfAZN10Aungh3EScrvPROwm0dThk7JYCb5T+KaAf8AIoN7UmTiBtKrDs58vmI9E5oKPD57HA2wDbcgmgvLBRAcH0ANgahd5VoJnlUHOgzEd3uehMkbEBdPAfArKQ6OmhArOPl2WforQ1mRsKSRR88Vm8JsIC34C7PlG80HKqxDFv/ulZKmKrZe6p94e1byCQWV7d+qHk5sTPAcZJydKResbyZ59P5O7wou+lktcDvUMSFZomy4JJsoAmk6K9rDpSreavyJyJrp+OMtHNkUqnLZ1tMQJ5XWq14dEeX1Lzmxzfy5RgsClbMui9km+z7NIcgbcy3JPpFLY/OMkB5EGlU6zmP4p8r5IfUWnvB6RxtE2ch01PNfddDlHXNyuUronE/o79Ziq782r+kBEe8HE2zNmOhbcoHVeNNfLn1rhWwHFtqJXXVL9yZEU8QM51pF6VD39QuqZUZTj20jvgEKz8m0C2UOMKHxBN+Tgm6WPTsjiBLCJ+qkpEIFPUuMwB4kjvALgtKZWu9FfFCeT6fw3IkCraj+V0DjfmZVKPp4osX9lPjwHIdZYvC9TcLc/fdlFySqICeUbJ5ok8TzaYJOOhUkPDZE767hGAvOhojO0e0KavQOsI9+Rii6clKpATlaxOdEd4N53XwFlpVeq1YwHtz0HH90rl9pTlAHqnF7VNHd1IvaMHTUggw3fdjBh4QBQ3m9w4GnJzwdgloF5z2FVL5CYskOaWci/KYl9n1cxIQJrouhFwRVwSwyFTY/WKCQtkSIr44YDNPAJGRfloEX6p2i810O/RIkeunH70U/zqYdnEDWSaSq1+yqi1I/1SlU5nh46ruA8BNsvDxhPgPnACmAkkO/TTA3wLN/PD5eHDnPSD1Ly58k0wj6+e37ul1drodRGz5UBzPfXpvSQH+JX+Cz0kUEEwVU4QAAAAAElFTkSuQmCC" alt="molten"></div>
       <div class="logo-product">ScoreLink</div>
     </div>
   </div>
@@ -2680,7 +2674,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 <div id="view-viewer">
   <div class="viewer-header">
     <div class="logo-block">
-      <div class="logo-wordmark">molten</div>
+      <div class="logo-wordmark"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFIAAAATCAYAAAADKFpSAAADkElEQVR42u2YeYjNURTHn2VGxNiXDMMgpGhGDf4gQ0LJkJpClghjiMbEPxM1lKgpS0TGvoxlhkwi+Qd/kKXIUvyDZiwxaexZxvDxu3VeXaf7e7/33tC85NTpdc895/7O/b5zzj33hoBQAnMpUGXxcZHvAe5YvLiR/ewWSnAgK/mdLov8spIXN6KPc4C1/4FsOC8C1mhhB2AusAHYDhQBwxzGqUA+sAnYAqz00m5gFB9tCeQCJWLbF5ghv38LyE7AauAm8A74DjwDjgLjA/ztCqwT21qxNyWmApgkOoXAGNtoBfAZN10Aungh3EScrvPROwm0dThk7JYCb5T+KaAf8AIoN7UmTiBtKrDs58vmI9E5oKPD57HA2wDbcgmgvLBRAcH0ANgahd5VoJnlUHOgzEd3uehMkbEBdPAfArKQ6OmhArOPl2WforQ1mRsKSRR88Vm8JsIC34C7PlG80HKqxDFv/ulZKmKrZe6p94e1byCQWV7d+qHk5sTPAcZJydKResbyZ59P5O7wou+lktcDvUMSFZomy4JJsoAmk6K9rDpSreavyJyJrp+OMtHNkUqnLZ1tMQJ5XWq14dEeX1Lzmxzfy5RgsClbMui9km+z7NIcgbcy3JPpFLY/OMkB5EGlU6zmP4p8r5IfUWnvB6RxtE2ch01PNfddDlHXNyuUronE/o79Ziq782r+kBEe8HE2zNmOhbcoHVeNNfLn1rhWwHFtqJXXVL9yZEU8QM51pF6VD39QuqZUZTj20jvgEKz8m0C2UOMKHxBN+Tgm6WPTsjiBLCJ+qkpEIFPUuMwB4kjvALgtKZWu9FfFCeT6fw3IkCraj+V0DjfmZVKPp4osX9lPjwHIdZYvC9TcLc/fdlFySqICeUbJ5ok8TzaYJOOhUkPDZE767hGAvOhojO0e0KavQOsI9+Rii6clKpATlaxOdEd4N53XwFlpVeq1YwHtz0HH90rl9pTlAHqnF7VNHd1IvaMHTUggw3fdjBh4QBQ3m9w4GnJzwdgloF5z2FVL5CYskOaWci/KYl9n1cxIQJrouhFwRVwSwyFTY/WKCQtkSIr44YDNPAJGRfloEX6p2i810O/RIkeunH70U/zqYdnEDWSaSq1+yqi1I/1SlU5nh46ruA8BNsvDxhPgPnACmAkkO/TTA3wLN/PD5eHDnPSD1Ly58k0wj6+e37ul1drodRGz5UBzPfXpvSQH+JX+Cz0kUEEwVU4QAAAAAElFTkSuQmCC" alt="molten"></div>
       <div class="logo-product">ScoreLink</div>
     </div>
     <span class="viewer-mode-tag">観戦ビュー</span>
@@ -2699,7 +2693,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
     </div>
   </div>
   <footer class="viewer-footer">
-    <div class="viewer-footer-logo">molten <span>ScoreLink</span></div>
+    <div class="viewer-footer-logo"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFIAAAATCAYAAAADKFpSAAADs0lEQVR42u1Ya2iPYRQ/Lpto5s4yZmMhRZsaPpCRUMtIrRAWHWZEs+bLomYlajXTFpnrMJeNrHUkX9gHcilyKb6gzSWW5p7LNpv3Peetp+N5/+/7f2ftTT6c/r3n8jzn+f3P7XkAkCDAVA5I9RqdZf5hQLqv0YZu9jMGAg5kDSC1a1TH/DrBL+hGH1cD0s7/QHae1gPSDskcDEiZgLQbkMoAKR+QphmMYwEpG5CKAakEkPKstJvoYdO+gJQBSEVsOw6QlvNvVwE5FJC2A9IdQPoISC2A9BKQTgPSfBd/RwBSIds2sb0qMdWAlMY6uYA0RzfaCkjfhIM2XQGk4VYI92Cnmx30zgPSAINDym4TIL0X+hcAKRGQXgNSVUet8QekTjma/Vo+fHsIugRIQww+zwWkDy62VRxAWbZRjouBoseAtM+D3g1A6qU51BuQKh10t7DOYv5WgE7+S0DmevDVpicCzLFWln31aFvWYcNR8N1h8cYQC/wEpAcOUbxOc6rIIFf/9EoRsQ0se2H9YYM6CWSKVbd+Cb7q+OmANI9LlozUWs2fow6Ru9+KvjeC3wpI8cBRIY0W8YIRvICUqxQdo9WRBiG/zjIVXW2GMhFjSKWLmk5pmEDe4lqtaLZF14S82LBfMgeDrpfKGfRJ8Es1uzhD4OXZM5lMYX3DNAOQFUKnQMi/MP+I4J8Sae8EpHK0v89mM1rIWriJmvasFroqEscbzpss7C4L+QnFPO7grE2phoVLhI6pxir+K+27icExHaifNVS/NWSFHyAzDalX70Cfha4qVUmGs8S7NMGargSyj/iudgBRlY8znD66/mafQOaH0WQk1QcRyGjxXWkAcabVAO5xSiUI/W0+gdz1rwEJomg/4+5sD+aVXI+XMC9b2C8LA8hCzRcUsruWvwM9UnRQgawVvDXMz+IDRvD3VK6htp7q9CNDAHnVMBjrM6Au+wFIUSHuyQUaLQ0qkAsFr5l1Z1g3nXeARDyqtP7hWOjxp8KwXznfnlIMQB+woranYRppNcyggQTSvusmhUETPNxsMnwM5OqCcZBBvWmwa+DIDSyQ6pby0GOxb9ZqZiggVXTddrkibgyjyTRqs2JggQQu4iddDvMUkGZ5fLSwX6qOcQ10erRI5yun055t7NcozcY3kHEitRKFUZQh/WKFzjCDjqm4TwGkvfyw8RyQHgHSOUBaAUiRBv0EF9/sYX46P3yoTj9JyNWVb0HH4yvSIR619lhTxCpuaKanPnmWSBe/En4D7lDH30A2be8AAAAASUVORK5CYII=" alt="molten"> <span>ScoreLink</span></div>
     <div class="viewer-footer-note">バスケットボール ライブスコア配信</div>
   </footer>
 </div>
@@ -2892,9 +2886,13 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.07.08-1';
+const APP_VERSION = '2026.07.08-2';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.07.08-2', notes: [
+    'ロゴを公式素材に刷新：molten=molten.co.jp の公式ワードマーク（透過処理して埋め込み）',
+    'ScoreLink=公式「Feel the emotion」の筆記体に合わせて Dancing Script に変更'
+  ] },
   { v: '2026.07.08-1', notes: [
     'デザイン一新：全体の文字を一段細く（スタイリッシュ化）、字間・アンチエイリアス調整',
     'ロゴ刷新：molten=コーポレートロゴ風（小文字太字）、ScoreLink=Feel the emotion風イタリック',
