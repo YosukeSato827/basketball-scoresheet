@@ -573,7 +573,12 @@ textarea#pbpInput:focus {
 /* =====================================================
    スコアシート本体
    ===================================================== */
-.sheet-outer { background: white; margin: 0 16px 16px; padding: 4px; box-shadow: 0 2px 10px rgba(0,0,0,.15); }
+.sheet-outer {
+  background: white; margin: 0 16px 16px; padding: 4px;
+  box-shadow: 0 2px 10px rgba(0,0,0,.15);
+  /* スマホ：シート(575px固定)をページ外にはみ出させず内部で横スクロール */
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+}
 .sheet {
   width: 575px; font-family: 'Meiryo','Yu Gothic','MS Gothic',sans-serif;
   font-size: 6.5pt; border: 2px solid rgba(52,38,24,0.75);
@@ -711,7 +716,23 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
 @media (max-width: 600px) {
   /* 共通余白を縮小 */
   .page-body { padding: 14px 12px; }
-  .app-header { padding: 0 14px; height: 50px; }
+  /* ヘッダー：ボタンが多い場合は折り返して収める（ログイン中の溢れ対策） */
+  .app-header {
+    padding: 8px 12px; height: auto; min-height: 50px;
+    flex-wrap: wrap; row-gap: 6px;
+  }
+  .app-version { display: none; }
+  .logo-divider { display: none; }
+  .auth-user-name { max-width: 80px; }
+  .btn-hdr, .btn-hdr-primary { font-size: 11px; padding: 6px 10px; }
+  .btn-login { font-size: 12px; padding: 6px 12px; }
+
+  /* iOS：フォーカス時の自動ズームを防止（16px未満の入力欄が原因）
+     ※select はPLAY LOGフィルター等の極小UIがあるため除外 */
+  input, textarea { font-size: 16px !important; }
+
+  /* トースト：長文でも画面内に収める（nowrapのはみ出し対策） */
+  #toast { left: 12px; right: 12px; white-space: normal; text-align: center; }
 
   /* 大会詳細ヘッダー */
   .detail-header { padding: 10px 14px 10px; }
@@ -2160,6 +2181,23 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 /* 下部コート表示は常に非表示 */
 .rec-court-bottom { display: none !important; }
 
+/* スマホ縦持ち：記録画面の最適化（上の 230px 固定より後方に置いて上書き） */
+@media (max-width: 600px) {
+  /* PBP列を狭めてアクションボタンに幅を確保 */
+  .rec-pbp-col { flex: 0 0 100px !important; }
+  /* ボタンは1列表示で幅を最大化 */
+  .rec-act-grid { grid-template-columns: 1fr; gap: 6px; }
+  .rec-act-grid.stats-mode { grid-template-columns: 1fr; gap: 4px; }
+  .rec-act-btn { font-size: 12px; padding: 12px 2px; }
+  /* スコアボードをコンパクトに */
+  .rec-score-val { font-size: 26px; }
+  .rec-score-name { font-size: 11px; max-width: 72px; overflow: hidden; text-overflow: ellipsis; }
+  .rec-team-box { padding: 6px 10px; gap: 8px; border-radius: 10px; }
+  #view-recorder .rec-timer-display { font-size: 20px; min-width: 72px; }
+  .rec-shot-display { font-size: 15px; }
+  .rec-pbp-select { font-size: 10px; padding: 3px 2px; }
+}
+
 /* 選手選択ポップアップ：ユニフォーム色 */
 .rec-player-select-btn.team-a {
   background: var(--uniform-a-bg);
@@ -2909,9 +2947,14 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.07.08-3';
+const APP_VERSION = '2026.07.08-4';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.07.08-4', notes: [
+    'スマホ対応デバッグ：スコアシートの横はみ出しを内部スクロール化',
+    '記録画面の縦持ちレイアウト最適化（ボタン1列化・スコアボード縮小）',
+    'ログイン中ヘッダーの溢れを折り返しで解消／iOSの入力時自動ズーム防止／長文トーストのはみ出し修正'
+  ] },
   { v: '2026.07.08-3', notes: [
     'moltenロゴを正式SVGデータに差し替え（ベクター化でぼやけ解消・どの解像度でもシャープに表示）'
   ] },
