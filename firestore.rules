@@ -56,6 +56,13 @@ service cloud.firestore {
       allow delete: if canEdit();
     }
 
+    // ---- トーナメント表 ----
+    // 閲覧は誰でも可（閲覧ページ表示用）、作成・編集・削除は編集者のみ
+    match /brackets/{id} {
+      allow read: if true;
+      allow write: if canEdit();
+    }
+
     // ---- タイマー同期 ----
     // 閲覧は誰でも可。書き込みは Lambda(Admin SDK) のみ＝クライアント書き込み禁止。
     // Admin SDK はセキュリティルールをバイパスするため Lambda は引き続き書き込める。

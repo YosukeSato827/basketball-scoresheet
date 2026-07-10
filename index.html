@@ -162,6 +162,100 @@ body.not-editor .editor-only { display: none !important; }
   border-radius: var(--radius-sm); padding: 4px 10px;
   font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;
 }
+/* =====================================================
+   トーナメント表
+   ===================================================== */
+.bracket-block {
+  background: white; border-radius: var(--radius);
+  box-shadow: var(--shadow-sm); padding: 14px 16px; margin-bottom: 18px;
+}
+.bracket-block-head {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+}
+.bracket-block-name { font-size: 15px; font-weight: 700; color: var(--text); }
+.bracket-block-size {
+  font-size: 10px; font-weight: 600; color: var(--blue);
+  background: var(--blue-dim); border-radius: 10px; padding: 2px 8px;
+}
+.bracket-hint { font-size: 10.5px; color: var(--text-light); margin-top: 8px; }
+.bracket-wrap {
+  display: flex; gap: 18px; overflow-x: auto;
+  -webkit-overflow-scrolling: touch; padding: 6px 2px 10px;
+}
+.br-round { flex: 0 0 172px; display: flex; flex-direction: column; }
+.br-round-title {
+  font-size: 10px; font-weight: 700; color: var(--text-light);
+  letter-spacing: .08em; text-align: center; margin-bottom: 8px;
+  text-transform: uppercase;
+}
+.br-round-matches {
+  flex: 1; display: flex; flex-direction: column;
+  justify-content: space-around; gap: 10px;
+}
+.br-match {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; overflow: hidden; position: relative;
+}
+.br-match.editable { cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.br-match.editable:hover { border-color: var(--blue); box-shadow: 0 2px 8px rgba(0,100,180,.18); }
+.br-slot {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 9px; gap: 6px;
+}
+.br-slot + .br-slot { border-top: 1px solid var(--border); }
+.br-slot .br-name {
+  font-size: 11.5px; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.br-slot .br-score {
+  font-family: 'Poppins', sans-serif; font-size: 13px; font-weight: 700;
+  color: var(--text-mid); min-width: 20px; text-align: right;
+}
+.br-slot.win { background: var(--blue-dim); }
+.br-slot.win .br-name { font-weight: 700; color: var(--blue); }
+.br-slot.win .br-score { color: var(--blue); font-weight: 800; }
+.br-tbd { color: var(--text-light); font-size: 10.5px; }
+.br-live {
+  position: absolute; top: -7px; right: 6px;
+  background: #E53935; color: white; font-size: 8px; font-weight: 800;
+  border-radius: 8px; padding: 1px 6px; letter-spacing: .06em;
+}
+.br-champion {
+  background: #FFF8E1; border: 1.5px solid #F9A825; border-radius: 8px;
+  padding: 12px 10px; text-align: center;
+  font-size: 13px; font-weight: 800; color: #8a6d00;
+}
+/* 作成/編集モーダル */
+.bracket-form-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.bracket-form-label { font-size: 12px; font-weight: 700; color: var(--text-mid); min-width: 40px; }
+.bracket-slot-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+.bracket-slot-label { font-size: 10px; color: var(--text-light); min-width: 52px; text-align: right; }
+.bracket-slot-input {
+  flex: 1; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  padding: 6px 9px; font-size: 13px; font-family: inherit;
+}
+.bracket-slot-input:focus { outline: none; border-color: var(--blue); }
+/* 紐付けモーダル */
+.bracket-link-item {
+  display: flex; flex-direction: column; gap: 2px; width: 100%;
+  text-align: left; background: var(--bg); border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm); padding: 9px 12px; margin-bottom: 6px;
+  cursor: pointer; font-family: inherit;
+}
+.bracket-link-item:hover { border-color: var(--blue); }
+.bracket-link-item.current { border-color: var(--blue); background: var(--blue-dim); }
+.bracket-link-item .bli-label { font-size: 10.5px; color: var(--text-light); }
+.bracket-link-item .bli-teams { font-size: 13px; font-weight: 600; color: var(--text); }
+.bracket-linked-mark {
+  align-self: flex-start; font-size: 9px; font-weight: 700;
+  background: #eceff1; color: var(--text-mid); border-radius: 8px; padding: 1px 7px;
+}
+.bracket-linked-mark.cur { background: var(--blue); color: white; }
+.bracket-unlink-btn {
+  width: 100%; margin-top: 8px; padding: 10px;
+  background: #ffebee; color: #c62828; border: none; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
+}
 
 /* Molten logo + ScoreLink */
 .logo-block {
@@ -2326,6 +2420,54 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   </div>
 </div>
 
+<!-- トーナメント作成/編集モーダル -->
+<div class="changelog-overlay" id="bracket-edit-overlay" onclick="closeBracketEditModal(event)">
+  <div class="changelog-sheet" onclick="event.stopPropagation()">
+    <div class="changelog-header">
+      <span class="changelog-title" id="bracket-edit-title">トーナメントを作成</span>
+      <button class="changelog-close" onclick="closeBracketEditModal()">×</button>
+    </div>
+    <div class="changelog-body">
+      <div class="bracket-form-row">
+        <label class="bracket-form-label">名前</label>
+        <input class="members-input" id="bracket-name-input" placeholder="例: 決勝トーナメント">
+      </div>
+      <div class="bracket-form-row">
+        <label class="bracket-form-label">規模</label>
+        <select class="members-input" id="bracket-size-select" onchange="renderBracketSlotInputs(null)">
+          <option value="4">4チーム</option>
+          <option value="8" selected>8チーム</option>
+          <option value="16">16チーム</option>
+        </select>
+      </div>
+      <div class="bracket-form-label" style="margin:10px 0 6px">出場チーム（1回戦の並び順）</div>
+      <div id="bracket-slots-wrap"></div>
+      <datalist id="bracket-team-datalist"></datalist>
+      <div class="modal-btns" style="margin-top:14px">
+        <button class="btn btn-primary" onclick="saveBracket()">保存</button>
+        <button class="btn btn-secondary" id="bracket-delete-btn" onclick="deleteBracket(null)" style="display:none;background:#ffebee;color:#c62828">削除</button>
+        <button class="btn btn-secondary" onclick="closeBracketEditModal()">キャンセル</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- トーナメント試合紐付けモーダル -->
+<div class="changelog-overlay" id="bracket-link-overlay" onclick="closeBracketLinkModal(event)">
+  <div class="changelog-sheet" onclick="event.stopPropagation()">
+    <div class="changelog-header">
+      <span class="changelog-title" id="bracket-link-title">試合を紐付け</span>
+      <button class="changelog-close" onclick="closeBracketLinkModal()">×</button>
+    </div>
+    <div class="changelog-body">
+      <p style="font-size:12px;color:var(--text-mid);margin:0 0 10px">
+        この枠に対応する試合を選択してください。スコアと勝敗が自動でトーナメント表に反映されます。
+      </p>
+      <div id="bracket-link-list"></div>
+    </div>
+  </div>
+</div>
+
 <!-- バージョン履歴モーダル -->
 <div class="changelog-overlay" id="changelog-overlay" onclick="closeChangelogModal(event)">
   <div class="changelog-sheet" onclick="event.stopPropagation()">
@@ -2430,11 +2572,15 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   </div>
   <div class="tab-bar">
     <button class="tab-btn active" id="tab-games-btn" onclick="switchTab('games')">試合一覧</button>
+    <button class="tab-btn" id="tab-bracket-btn" onclick="switchTab('bracket')">トーナメント</button>
     <button class="tab-btn" id="tab-stats-btn" onclick="switchTab('stats')">成績・ランキング</button>
   </div>
   <div class="page-body">
     <div id="tab-games" style="display:block">
       <div id="game-list-container"><div class="loading-msg">読み込み中...</div></div>
+    </div>
+    <div id="tab-bracket" style="display:none">
+      <div id="bracket-container"><div class="loading-msg">読み込み中...</div></div>
     </div>
     <div id="tab-stats" style="display:none">
       <div id="stats-container"><div class="loading-msg">集計中...</div></div>
@@ -2947,9 +3093,14 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.07.08-4';
+const APP_VERSION = '2026.07.10-1';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.07.10-1', notes: [
+    'トーナメント表機能を追加：大会ごとに4/8/16チームのトーナメントを作成、試合を枠に紐付けるとスコア・勝敗が自動反映（勝者は次ラウンドへ自動進出）',
+    '閲覧ページにも「🏆 トーナメント」タブを追加（観客もリアルタイムで確認可能）',
+    '※Firestoreルールの再公開が必要（brackets コレクション追加）'
+  ] },
   { v: '2026.07.08-4', notes: [
     'スマホ対応デバッグ：スコアシートの横はみ出しを内部スクロール化',
     '記録画面の縦持ちレイアウト最適化（ボタン1列化・スコアボード縮小）',
@@ -3350,12 +3501,349 @@ function backToTournaments() {
 // =====================================================
 function switchTab(tab) {
   currentTab = tab;
-  document.getElementById('tab-games').style.display = tab === 'games' ? 'block' : 'none';
-  document.getElementById('tab-stats').style.display = tab === 'stats' ? 'block' : 'none';
-  document.getElementById('tab-games-btn').className = 'tab-btn' + (tab === 'games' ? ' active' : '');
-  document.getElementById('tab-stats-btn').className = 'tab-btn' + (tab === 'stats' ? ' active' : '');
-  if (tab === 'games') loadGames();
-  else                 { stopGamesSubscription(); loadStats(); }
+  ['games', 'bracket', 'stats'].forEach(t => {
+    document.getElementById(`tab-${t}`).style.display = t === tab ? 'block' : 'none';
+    document.getElementById(`tab-${t}-btn`).className = 'tab-btn' + (t === tab ? ' active' : '');
+  });
+  if (tab === 'games')        loadGames();
+  else if (tab === 'bracket') { stopGamesSubscription(); loadBrackets(); }
+  else                        { stopGamesSubscription(); loadStats(); }
+}
+
+// =====================================================
+// トーナメント表（brackets）
+// =====================================================
+let bracketTabBrackets = [];   // 現在の大会のブラケット一覧
+let bracketTabGames    = [];   // 紐付け・勝敗判定用の試合一覧
+let editingBracketId   = null; // 編集中ブラケット（null=新規）
+let linkTargetBracket  = null; // 紐付けモーダルの対象
+let linkTargetMatchId  = null;
+
+// ラウンド名（決勝から逆算）
+function bracketRoundName(round, totalRounds) {
+  const fromFinal = totalRounds - round;
+  if (fromFinal === 0) return '決勝';
+  if (fromFinal === 1) return '準決勝';
+  if (fromFinal === 2) return '準々決勝';
+  return `${round}回戦`;
+}
+
+// ブラケットの全マッチ状態を計算（勝者は次ラウンドへ自動伝播）
+// 返値: rounds[roundIdx] = [{ id, a, b, sa, sb, winner, game }]
+function computeBracket(bracket, games) {
+  const size = bracket.size || 8;
+  const totalRounds = Math.round(Math.log2(size));
+  const entries = bracket.entries || [];
+  const rounds = [];
+  for (let r = 1; r <= totalRounds; r++) {
+    const count = size / Math.pow(2, r);
+    const matches = [];
+    for (let i = 1; i <= count; i++) {
+      const id = `r${r}m${i}`;
+      let a, b;
+      if (r === 1) {
+        a = entries[(i - 1) * 2]     || '';
+        b = entries[(i - 1) * 2 + 1] || '';
+      } else {
+        const prev = rounds[r - 2];
+        a = prev[(i - 1) * 2]?.winner     || '';
+        b = prev[(i - 1) * 2 + 1]?.winner || '';
+      }
+      const game = games.find(g => g.bracketId === bracket.id && g.bracketMatchId === id) || null;
+      let sa = null, sb = null, winner = '';
+      if (game && game.totalA != null && game.totalB != null) {
+        // ブラケット上の並びと試合のA/Bチームの向きを名前で合わせる
+        const swap = a && game.teamBName === a && game.teamAName !== a;
+        sa = swap ? game.totalB : game.totalA;
+        sb = swap ? game.totalA : game.totalB;
+        // 名簿と名前が一致しない場合は試合のチーム名を採用して表示
+        if (a === '' && b === '') {
+          a = swap ? game.teamBName : game.teamAName;
+          b = swap ? game.teamAName : game.teamBName;
+        }
+        if (sa !== sb) winner = sa > sb ? a : b;
+      }
+      matches.push({ id, a, b, sa, sb, winner, game });
+    }
+    rounds.push(matches);
+  }
+  return rounds;
+}
+
+// ブラケットHTML（editable=true で試合枠タップ可能）
+function renderBracketHTML(bracket, games, editable) {
+  const rounds = computeBracket(bracket, games);
+  const totalRounds = rounds.length;
+  const cols = rounds.map((matches, ri) => {
+    const roundNo = ri + 1;
+    const title = bracketRoundName(roundNo, totalRounds);
+    const cards = matches.map(m => {
+      const slot = (name, score, isWin) => `
+        <div class="br-slot${isWin ? ' win' : ''}">
+          <span class="br-name">${esc(name) || '<span class="br-tbd">未定</span>'}</span>
+          <span class="br-score">${score != null ? score : ''}</span>
+        </div>`;
+      const click = editable
+        ? ` onclick="openBracketLinkModal('${bracket.id}','${m.id}')" title="タップして試合を紐付け"`
+        : '';
+      const live = m.game && m.game.status !== 'finished' && m.sa != null ? '<span class="br-live">LIVE</span>' : '';
+      return `<div class="br-match${editable ? ' editable' : ''}"${click}>
+        ${live}
+        ${slot(m.a, m.sa, m.winner && m.winner === m.a)}
+        ${slot(m.b, m.sb, m.winner && m.winner === m.b)}
+      </div>`;
+    }).join('');
+    return `<div class="br-round">
+      <div class="br-round-title">${esc(title)}</div>
+      <div class="br-round-matches">${cards}</div>
+    </div>`;
+  }).join('');
+  // 優勝者表示
+  const finalMatch = rounds[totalRounds - 1][0];
+  const champion = finalMatch.winner
+    ? `<div class="br-round">
+        <div class="br-round-title">優勝</div>
+        <div class="br-round-matches"><div class="br-champion">🏆 ${esc(finalMatch.winner)}</div></div>
+      </div>`
+    : '';
+  return `<div class="bracket-wrap">${cols}${champion}</div>`;
+}
+
+// トーナメントタブの読み込み・描画
+async function loadBrackets() {
+  const cont = document.getElementById('bracket-container');
+  cont.innerHTML = '<div class="loading-msg">読み込み中...</div>';
+  try {
+    const [bSnap, gSnap] = await Promise.all([
+      db.collection('brackets').where('tournamentId', '==', currentTournamentId).get(),
+      db.collection('games').where('tournamentId', '==', currentTournamentId).get(),
+    ]);
+    bracketTabBrackets = bSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((x, y) => (x.createdAt || '') < (y.createdAt || '') ? -1 : 1);
+    bracketTabGames = gSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderBracketTab();
+  } catch (e) {
+    console.error(e);
+    cont.innerHTML = `<div class="loading-msg" style="color:red">読み込みエラー: ${esc(e.message)}</div>`;
+  }
+}
+
+function renderBracketTab() {
+  const cont = document.getElementById('bracket-container');
+  const createBtn = `<div style="margin-bottom:14px;display:flex;gap:8px;align-items:center">
+    <button class="btn btn-primary editor-only" onclick="openBracketEditModal(null)">+ トーナメント作成</button>
+    <button class="btn btn-secondary" onclick="loadBrackets()">🔄 更新</button>
+  </div>`;
+  if (bracketTabBrackets.length === 0) {
+    cont.innerHTML = createBtn + `<div class="empty-state">トーナメントがまだありません<br>「+ トーナメント作成」から出場チームを設定してください</div>`;
+    applyEditorPermissions();
+    return;
+  }
+  const blocks = bracketTabBrackets.map(b => `
+    <div class="bracket-block">
+      <div class="bracket-block-head">
+        <span class="bracket-block-name">🏆 ${esc(b.name || 'トーナメント')}</span>
+        <span class="bracket-block-size">${b.size}チーム</span>
+        <span style="flex:1"></span>
+        <button class="btn-card btn-edit editor-only" onclick="openBracketEditModal('${b.id}')">編集</button>
+        <button class="btn-card btn-delete editor-only" onclick="deleteBracket('${b.id}')">削除</button>
+      </div>
+      ${renderBracketHTML(b, bracketTabGames, isEditor)}
+      <div class="bracket-hint editor-only">※ 試合枠をタップすると試合を紐付けできます。スコア・勝者は自動反映されます。</div>
+    </div>`).join('');
+  cont.innerHTML = createBtn + blocks;
+  applyEditorPermissions();
+}
+
+// ---- 作成 / 編集モーダル ----
+async function openBracketEditModal(bracketId) {
+  editingBracketId = bracketId;
+  const b = bracketId ? bracketTabBrackets.find(x => x.id === bracketId) : null;
+  document.getElementById('bracket-edit-title').textContent = b ? 'トーナメントを編集' : 'トーナメントを作成';
+  document.getElementById('bracket-name-input').value = b ? (b.name || '') : '';
+  const sizeSel = document.getElementById('bracket-size-select');
+  sizeSel.value = b ? String(b.size) : '8';
+  sizeSel.disabled = !!b;  // 規模変更は作り直しで対応（紐付け崩れ防止）
+  document.getElementById('bracket-delete-btn').style.display = b ? '' : 'none';
+  renderBracketSlotInputs(b ? b.entries : null);
+  // ロスターから候補（datalist）
+  try {
+    const snap = await db.collection('roster_teams').where('tournamentId', '==', currentTournamentId).get();
+    const names = snap.docs.map(d => d.data().teamName).filter(Boolean)
+      .sort((a, b2) => a.localeCompare(b2, 'ja'));
+    document.getElementById('bracket-team-datalist').innerHTML =
+      names.map(n => `<option value="${esc(n)}">`).join('');
+  } catch (e) { /* 候補なしでも入力可 */ }
+  document.getElementById('bracket-edit-overlay').classList.add('open');
+}
+
+function renderBracketSlotInputs(entries) {
+  const size = parseInt(document.getElementById('bracket-size-select').value, 10) || 8;
+  const wrap = document.getElementById('bracket-slots-wrap');
+  let html = '';
+  for (let i = 0; i < size; i++) {
+    const v = entries && entries[i] ? entries[i] : '';
+    const matchNo = Math.floor(i / 2) + 1;
+    const label = i % 2 === 0 ? `第${matchNo}試合` : '';
+    html += `<div class="bracket-slot-row">
+      <span class="bracket-slot-label">${label}</span>
+      <input class="bracket-slot-input" id="bracket-slot-${i}" list="bracket-team-datalist"
+        placeholder="シード${i + 1}（空欄可）" value="${esc(v)}">
+    </div>`;
+  }
+  wrap.innerHTML = html;
+}
+
+function closeBracketEditModal(event) {
+  if (event && event.target !== event.currentTarget) return;
+  document.getElementById('bracket-edit-overlay').classList.remove('open');
+}
+
+async function saveBracket() {
+  const name = document.getElementById('bracket-name-input').value.trim() || 'トーナメント';
+  const size = parseInt(document.getElementById('bracket-size-select').value, 10) || 8;
+  const entries = [];
+  for (let i = 0; i < size; i++) {
+    entries.push((document.getElementById(`bracket-slot-${i}`)?.value || '').trim());
+  }
+  const now = new Date().toISOString();
+  try {
+    if (editingBracketId) {
+      const payload = { name, entries, updatedAt: now };
+      if (!isOnline) {
+        db.collection('brackets').doc(editingBracketId).update(payload)
+          .catch(e => console.error('[offline-queue] bracket更新:', e));
+        showToast('⏳ オフライン保存（再接続時に同期されます）');
+      } else {
+        await db.collection('brackets').doc(editingBracketId).update(payload);
+        showToast('トーナメントを更新しました');
+      }
+    } else {
+      const payload = { tournamentId: currentTournamentId, type: 'tournament', name, size, entries, createdAt: now, updatedAt: now };
+      if (!isOnline) {
+        db.collection('brackets').doc().set(payload)
+          .catch(e => console.error('[offline-queue] bracket作成:', e));
+        showToast('⏳ オフライン保存（再接続時に同期されます）');
+      } else {
+        await db.collection('brackets').add(payload);
+        showToast('トーナメントを作成しました');
+      }
+    }
+    document.getElementById('bracket-edit-overlay').classList.remove('open');
+    loadBrackets();
+  } catch (e) { showToast('エラー: ' + e.message); }
+}
+
+async function deleteBracket(bracketId) {
+  const id = bracketId || editingBracketId;
+  if (!id) return;
+  if (!confirm('このトーナメント表を削除しますか？\n※ 試合データ自体は削除されません')) return;
+  try {
+    if (!isOnline) {
+      db.collection('brackets').doc(id).delete()
+        .catch(e => console.error('[offline-queue] bracket削除:', e));
+      showToast('⏳ オフラインで削除（再接続時に同期されます）');
+    } else {
+      await db.collection('brackets').doc(id).delete();
+      showToast('削除しました');
+    }
+    document.getElementById('bracket-edit-overlay').classList.remove('open');
+    loadBrackets();
+  } catch (e) { showToast('エラー: ' + e.message); }
+}
+
+// ---- 試合の紐付けモーダル ----
+function openBracketLinkModal(bracketId, matchId) {
+  if (!isEditor) return;
+  linkTargetBracket = bracketTabBrackets.find(b => b.id === bracketId) || null;
+  linkTargetMatchId = matchId;
+  if (!linkTargetBracket) return;
+  const rounds = computeBracket(linkTargetBracket, bracketTabGames);
+  let target = null;
+  rounds.forEach(ms => ms.forEach(m => { if (m.id === matchId) target = m; }));
+  const roundNo = parseInt(matchId.match(/^r(\d+)/)[1], 10);
+  const title = `${bracketRoundName(roundNo, rounds.length)}｜${esc(target?.a || '未定')} vs ${esc(target?.b || '未定')}`;
+  document.getElementById('bracket-link-title').textContent = title;
+
+  const current = bracketTabGames.find(g => g.bracketId === bracketId && g.bracketMatchId === matchId);
+  // この枠の想定チームに一致する試合を上位に
+  const score2 = (g) => {
+    let s = 0;
+    [target?.a, target?.b].forEach(n => {
+      if (n && (g.teamAName === n || g.teamBName === n)) s++;
+    });
+    return s;
+  };
+  const sorted = bracketTabGames.slice().sort((x, y) => score2(y) - score2(x) || ((x.createdAt || '') < (y.createdAt || '') ? 1 : -1));
+  const list = document.getElementById('bracket-link-list');
+  const rows = sorted.map(g => {
+    const label = [g.gameDate, g.gameNo ? `Game ${g.gameNo}` : ''].filter(Boolean).join(' ');
+    const score = (g.totalA != null) ? ` (${g.totalA} - ${g.totalB})` : '';
+    const isCur = current && current.id === g.id;
+    const linkedElsewhere = !isCur && g.bracketId ? '<span class="bracket-linked-mark">紐付済</span>' : '';
+    return `<button class="bracket-link-item${isCur ? ' current' : ''}" onclick="linkGameToBracket('${g.id}')">
+      <span class="bli-label">${esc(label) || '試合'}</span>
+      <span class="bli-teams">${esc(g.teamAName || 'A')} vs ${esc(g.teamBName || 'B')}${esc(score)}</span>
+      ${isCur ? '<span class="bracket-linked-mark cur">この枠に紐付け中</span>' : linkedElsewhere}
+    </button>`;
+  }).join('');
+  list.innerHTML = (rows || '<div class="dash-no-data">この大会に試合がありません</div>')
+    + (current ? `<button class="bracket-unlink-btn" onclick="unlinkBracketGame('${current.id}')">🔗 紐付けを解除</button>` : '');
+  document.getElementById('bracket-link-overlay').classList.add('open');
+}
+
+function closeBracketLinkModal(event) {
+  if (event && event.target !== event.currentTarget) return;
+  document.getElementById('bracket-link-overlay').classList.remove('open');
+}
+
+async function linkGameToBracket(gameId) {
+  if (!linkTargetBracket || !linkTargetMatchId) return;
+  try {
+    const batch = db.batch();
+    // 同じ枠に紐付いている他の試合を解除
+    bracketTabGames.forEach(g => {
+      if (g.id !== gameId && g.bracketId === linkTargetBracket.id && g.bracketMatchId === linkTargetMatchId) {
+        batch.update(db.collection('games').doc(g.id), {
+          bracketId: firebase.firestore.FieldValue.delete(),
+          bracketMatchId: firebase.firestore.FieldValue.delete(),
+        });
+      }
+    });
+    batch.update(db.collection('games').doc(gameId), {
+      bracketId: linkTargetBracket.id,
+      bracketMatchId: linkTargetMatchId,
+      updatedAt: new Date().toISOString(),
+    });
+    if (!isOnline) {
+      batch.commit().catch(e => console.error('[offline-queue] 紐付け:', e));
+      showToast('⏳ オフラインで紐付け（再接続時に同期されます）');
+    } else {
+      await batch.commit();
+      showToast('試合を紐付けました');
+    }
+    document.getElementById('bracket-link-overlay').classList.remove('open');
+    loadBrackets();
+  } catch (e) { showToast('エラー: ' + e.message); }
+}
+
+async function unlinkBracketGame(gameId) {
+  try {
+    const payload = {
+      bracketId: firebase.firestore.FieldValue.delete(),
+      bracketMatchId: firebase.firestore.FieldValue.delete(),
+    };
+    if (!isOnline) {
+      db.collection('games').doc(gameId).update(payload)
+        .catch(e => console.error('[offline-queue] 紐付け解除:', e));
+      showToast('⏳ オフラインで解除（再接続時に同期されます）');
+    } else {
+      await db.collection('games').doc(gameId).update(payload);
+      showToast('紐付けを解除しました');
+    }
+    document.getElementById('bracket-link-overlay').classList.remove('open');
+    loadBrackets();
+  } catch (e) { showToast('エラー: ' + e.message); }
 }
 
 // =====================================================
@@ -6557,6 +7045,10 @@ function openViewer(tournamentId) {
   document.getElementById('viewer-content').innerHTML =
     '<div class="viewer-loading"><div class="viewer-spinner"></div><div>読み込み中...</div></div>';
 
+  viewerTournamentId = tournamentId;
+  // トーナメント表を取得（変更頻度が低いので1回＋タブ切替時に再取得）
+  refreshViewerBrackets(tournamentId);
+
   // 大会情報を1回取得し、試合一覧をリアルタイム監視
   db.collection('tournaments').doc(tournamentId).get().then(tSnap => {
     const tData = tSnap.exists ? tSnap.data() : { name: '大会' };
@@ -6577,12 +7069,29 @@ function openViewer(tournamentId) {
 }
 
 // 閲覧URL：タブ状態
-let viewerActiveTab = 'games'; // 'games' or 'stats'
+let viewerActiveTab = 'games'; // 'games' | 'bracket' | 'stats'
 let viewerLastGameDocs = [];
 let viewerLastTData = null;
+let viewerTournamentId = null;
+let viewerBrackets = [];
+
+function refreshViewerBrackets(tournamentId) {
+  return db.collection('brackets').where('tournamentId', '==', tournamentId).get()
+    .then(snap => {
+      viewerBrackets = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((x, y) => (x.createdAt || '') < (y.createdAt || '') ? -1 : 1);
+    })
+    .catch(e => { console.warn('[viewer] brackets取得失敗:', e); viewerBrackets = []; });
+}
 
 function setViewerTab(tab) {
   viewerActiveTab = tab;
+  if (tab === 'bracket' && viewerTournamentId) {
+    // 最新のブラケット定義を取り直してから再描画
+    refreshViewerBrackets(viewerTournamentId).then(() => {
+      if (viewerLastTData) renderTournamentViewer(viewerLastTData, viewerLastGameDocs);
+    });
+  }
   if (viewerLastTData) renderTournamentViewer(viewerLastTData, viewerLastGameDocs);
 }
 
@@ -6704,12 +7213,15 @@ function renderTournamentViewer(tData, gameDocs) {
   const tabsHTML = `
     <div class="viewer-tabs">
       <button class="viewer-tab ${viewerActiveTab==='games'?'active':''}" onclick="setViewerTab('games')">🏀 試合</button>
+      <button class="viewer-tab ${viewerActiveTab==='bracket'?'active':''}" onclick="setViewerTab('bracket')">🏆 トーナメント</button>
       <button class="viewer-tab ${viewerActiveTab==='stats'?'active':''}" onclick="setViewerTab('stats')">📊 成績</button>
     </div>`;
 
   let bodyHTML;
   if (viewerActiveTab === 'stats') {
     bodyHTML = renderViewerStats(gameDocs);
+  } else if (viewerActiveTab === 'bracket') {
+    bodyHTML = renderViewerBrackets(gameDocs);
   } else {
     bodyHTML = `<div class="vt-game-list">${cards}</div>`;
   }
@@ -6719,6 +7231,25 @@ function renderTournamentViewer(tData, gameDocs) {
     ${metaLine ? `<div class="viewer-game-info">${esc(metaLine)}</div>` : ''}
     ${tabsHTML}
     ${bodyHTML}`;
+}
+
+// 閲覧URL：トーナメントタブのレンダリング（読み取り専用）
+function renderViewerBrackets(gameDocs) {
+  if (!viewerBrackets || viewerBrackets.length === 0) {
+    return `<div class="viewer-error" style="padding:48px 0">
+      <div style="font-size:40px;margin-bottom:8px">🏆</div>
+      <p style="font-size:15px;font-weight:600;color:var(--text-mid)">トーナメント表はまだ公開されていません</p>
+    </div>`;
+  }
+  const games = gameDocs.map(d => ({ id: d.id, ...d.data() }));
+  return viewerBrackets.map(b => `
+    <div class="bracket-block">
+      <div class="bracket-block-head">
+        <span class="bracket-block-name">🏆 ${esc(b.name || 'トーナメント')}</span>
+        <span class="bracket-block-size">${b.size}チーム</span>
+      </div>
+      ${renderBracketHTML(b, games, false)}
+    </div>`).join('');
 }
 
 // 閲覧URL：成績タブのレンダリング（管理画面の renderStatsContent をベースに簡素化）
