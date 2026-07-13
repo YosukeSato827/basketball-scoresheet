@@ -180,7 +180,7 @@ body.not-editor .editor-only { display: none !important; }
 .bracket-hint { font-size: 10.5px; color: var(--text-light); margin-top: 8px; }
 .bracket-wrap {
   display: flex; gap: 18px; overflow-x: auto;
-  -webkit-overflow-scrolling: touch; padding: 6px 2px 10px;
+  -webkit-overflow-scrolling: touch; padding: 12px 2px 10px; /* 上余白はLIVEバッジのはみ出し分 */
 }
 .br-round { flex: 0 0 172px; display: flex; flex-direction: column; }
 .br-round-title {
@@ -194,10 +194,13 @@ body.not-editor .editor-only { display: none !important; }
 }
 .br-match {
   background: var(--bg); border: 1px solid var(--border);
-  border-radius: 8px; overflow: hidden; position: relative;
+  border-radius: 8px; position: relative;
+  /* overflow:hidden にすると LIVE バッジが見切れるため、角丸はスロット側で維持 */
 }
-.br-match.editable { cursor: pointer; transition: border-color .15s, box-shadow .15s; }
-.br-match.editable:hover { border-color: var(--blue); box-shadow: 0 2px 8px rgba(0,100,180,.18); }
+.br-slot:first-child { border-radius: 7px 7px 0 0; }
+.br-slot:last-child  { border-radius: 0 0 7px 7px; }
+.br-match.editable, .br-match.clickable { cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.br-match.editable:hover, .br-match.clickable:hover { border-color: var(--blue); box-shadow: 0 2px 8px rgba(0,100,180,.18); }
 .br-slot {
   display: flex; align-items: center; justify-content: space-between;
   padding: 6px 9px; gap: 6px;
@@ -3130,9 +3133,13 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.07.13-2';
+const APP_VERSION = '2026.07.13-3';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.07.13-3', notes: [
+    'トーナメント表のLIVEバッジが見切れる問題を修正',
+    '閲覧ページ：トーナメントの試合枠タップで、その試合の詳細（スコアシート等）へジャンプ'
+  ] },
   { v: '2026.07.13-2', notes: [
     'トーナメント表の試合枠タップから直接セットアップ可能に：対戦チーム・枠が選択済みの状態でセットアップ画面が開く'
   ] },
@@ -3618,8 +3625,10 @@ function computeBracket(bracket, games) {
   return rounds;
 }
 
-// ブラケットHTML（editable=true で試合枠タップ可能）
-function renderBracketHTML(bracket, games, editable) {
+// ブラケットHTML
+// editable=true: 枠タップで紐付け/セットアップ（管理側）
+// viewerClick=true: 紐付いた試合の枠タップで試合詳細へ（閲覧側）
+function renderBracketHTML(bracket, games, editable, viewerClick) {
   const rounds = computeBracket(bracket, games);
   const totalRounds = rounds.length;
   const cols = rounds.map((matches, ri) => {
@@ -3631,11 +3640,16 @@ function renderBracketHTML(bracket, games, editable) {
           <span class="br-name">${isSeed ? '<span class="br-tbd">（シード）</span>' : (esc(name) || '<span class="br-tbd">未定</span>')}</span>
           <span class="br-score">${score != null ? score : (isWin && m.bye ? '<span class="br-bye-mark">不戦勝</span>' : '')}</span>
         </div>`;
-      const click = editable
-        ? ` onclick="openBracketLinkModal('${bracket.id}','${m.id}')" title="タップして試合を紐付け"`
-        : '';
+      let click = '', cls = '';
+      if (editable) {
+        click = ` onclick="openBracketLinkModal('${bracket.id}','${m.id}')" title="タップして試合を紐付け"`;
+        cls = ' editable';
+      } else if (viewerClick && m.game) {
+        click = ` onclick="viewerOpenGameFromBracket('${m.game.id}')" title="タップして試合詳細を表示"`;
+        cls = ' clickable';
+      }
       const live = m.game && m.game.status !== 'finished' && m.sa != null ? '<span class="br-live">LIVE</span>' : '';
-      return `<div class="br-match${editable ? ' editable' : ''}"${click}>
+      return `<div class="br-match${cls}"${click}>
         ${live}
         ${slot(m.a, m.sa, m.winner && m.winner === m.a, m.bye && !m.a)}
         ${slot(m.b, m.sb, m.winner && m.winner === m.b, m.bye && !m.b)}
@@ -7438,8 +7452,23 @@ function renderViewerBrackets(gameDocs) {
         <span class="bracket-block-name">🏆 ${esc(b.name || 'トーナメント')}</span>
         <span class="bracket-block-size">${b.size}チーム</span>
       </div>
-      ${renderBracketHTML(b, games, false)}
+      ${renderBracketHTML(b, games, false, true)}
+      <div class="bracket-hint">※ スコアの入った試合をタップすると、スコアシート等の詳細を表示します</div>
     </div>`).join('');
+}
+
+// 閲覧：トーナメントの枠タップ → 試合タブへ移動して該当試合を展開
+function viewerOpenGameFromBracket(gameId) {
+  viewerActiveTab = 'games';
+  if (viewerLastTData) renderTournamentViewer(viewerLastTData, viewerLastGameDocs);
+  // 再描画後に該当試合を開いてスクロール
+  requestAnimationFrame(() => {
+    const el = document.querySelector(`.vt-game-detail[data-game-id="${gameId}"]`);
+    if (el) {
+      el.setAttribute('open', '');
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
 }
 
 // 閲覧URL：成績タブのレンダリング（管理画面の renderStatsContent をベースに簡素化）
