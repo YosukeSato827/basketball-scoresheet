@@ -215,6 +215,7 @@ body.not-editor .editor-only { display: none !important; }
 .br-slot.win .br-name { font-weight: 700; color: var(--blue); }
 .br-slot.win .br-score { color: var(--blue); font-weight: 800; }
 .br-tbd { color: var(--text-light); font-size: 10.5px; }
+.br-bye-mark { font-size: 9px; font-weight: 700; color: var(--blue); white-space: nowrap; }
 .br-live {
   position: absolute; top: -7px; right: 6px;
   background: #E53935; color: white; font-size: 8px; font-weight: 800;
@@ -1588,6 +1589,8 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 }
 .setup-manual-btn:hover { border-color: var(--blue); color: var(--blue); }
 .setup-sub-btns { display: flex; gap: 8px; }
+.setup-bracket-selects { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.setup-bracket-selects .members-input { width: 100%; }
 .setup-sub-btns .setup-manual-btn { flex: 1; text-align: center; }
 /* チームを選択トグルボタン */
 .setup-team-toggle-btn {
@@ -2440,7 +2443,10 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
           <option value="16">16チーム</option>
         </select>
       </div>
-      <div class="bracket-form-label" style="margin:10px 0 6px">出場チーム（1回戦の並び順）</div>
+      <div class="bracket-form-label" style="margin:10px 0 2px">出場チーム（1回戦の並び順）</div>
+      <div style="font-size:10.5px;color:var(--text-light);margin-bottom:6px">
+        ※ 相手枠を空欄にすると、そのチームはシード（不戦勝）として自動で次のラウンドへ進みます
+      </div>
       <div id="bracket-slots-wrap"></div>
       <datalist id="bracket-team-datalist"></datalist>
       <div class="modal-btns" style="margin-top:14px">
@@ -3006,6 +3012,21 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   <div class="setup-sheet" onclick="event.stopPropagation()">
     <div class="setup-title">⚙️ 試合セットアップ</div>
 
+    <!-- トーナメント枠の選択（任意・大会にトーナメントがある場合のみ表示） -->
+    <div class="setup-team-section" id="setup-bracket-section" style="display:none">
+      <div class="setup-team-label">
+        <span class="setup-badge" style="background:#F9A825">🏆</span>
+        <span class="setup-selected-name" id="setup-bracket-selected">トーナメント枠（任意）</span>
+      </div>
+      <div class="setup-bracket-selects">
+        <select class="members-input" id="setup-bracket-select" onchange="onSetupBracketChange()"></select>
+        <select class="members-input" id="setup-bracket-match-select" onchange="onSetupBracketMatchChange()" style="display:none"></select>
+      </div>
+      <div style="font-size:10.5px;color:var(--text-light);margin-top:4px">
+        枠を選ぶと対戦チームが自動セットされ、試合結果がトーナメント表に自動反映されます
+      </div>
+    </div>
+
     <!-- HOME（チームA） -->
     <div class="setup-team-section">
       <div class="setup-team-label">
@@ -3093,9 +3114,13 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.07.10-1';
+const APP_VERSION = '2026.07.13-1';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.07.13-1', notes: [
+    'トーナメントのシード対応：1回戦で相手枠が空欄のチームは不戦勝として自動で次ラウンドへ進出',
+    '試合セットアップに「🏆 トーナメント枠」選択を追加：枠を選ぶと対戦チームを自動セットし、ライブ記録の結果がトーナメント表へ自動反映'
+  ] },
   { v: '2026.07.10-1', notes: [
     'トーナメント表機能を追加：大会ごとに4/8/16チームのトーナメントを作成、試合を枠に紐付けるとスコア・勝敗が自動反映（勝者は次ラウンドへ自動進出）',
     '閲覧ページにも「🏆 トーナメント」タブを追加（観客もリアルタイムで確認可能）',
@@ -3550,7 +3575,7 @@ function computeBracket(bracket, games) {
         b = prev[(i - 1) * 2 + 1]?.winner || '';
       }
       const game = games.find(g => g.bracketId === bracket.id && g.bracketMatchId === id) || null;
-      let sa = null, sb = null, winner = '';
+      let sa = null, sb = null, winner = '', bye = false;
       if (game && game.totalA != null && game.totalB != null) {
         // ブラケット上の並びと試合のA/Bチームの向きを名前で合わせる
         const swap = a && game.teamBName === a && game.teamAName !== a;
@@ -3562,8 +3587,12 @@ function computeBracket(bracket, games) {
           b = swap ? game.teamAName : game.teamBName;
         }
         if (sa !== sb) winner = sa > sb ? a : b;
+      } else if (r === 1 && ((a && !b) || (!a && b))) {
+        // シード：1回戦で相手枠が空欄なら不戦勝で次ラウンドへ
+        bye = true;
+        winner = a || b;
       }
-      matches.push({ id, a, b, sa, sb, winner, game });
+      matches.push({ id, a, b, sa, sb, winner, game, bye });
     }
     rounds.push(matches);
   }
@@ -3578,10 +3607,10 @@ function renderBracketHTML(bracket, games, editable) {
     const roundNo = ri + 1;
     const title = bracketRoundName(roundNo, totalRounds);
     const cards = matches.map(m => {
-      const slot = (name, score, isWin) => `
+      const slot = (name, score, isWin, isSeed) => `
         <div class="br-slot${isWin ? ' win' : ''}">
-          <span class="br-name">${esc(name) || '<span class="br-tbd">未定</span>'}</span>
-          <span class="br-score">${score != null ? score : ''}</span>
+          <span class="br-name">${isSeed ? '<span class="br-tbd">（シード）</span>' : (esc(name) || '<span class="br-tbd">未定</span>')}</span>
+          <span class="br-score">${score != null ? score : (isWin && m.bye ? '<span class="br-bye-mark">不戦勝</span>' : '')}</span>
         </div>`;
       const click = editable
         ? ` onclick="openBracketLinkModal('${bracket.id}','${m.id}')" title="タップして試合を紐付け"`
@@ -3589,8 +3618,8 @@ function renderBracketHTML(bracket, games, editable) {
       const live = m.game && m.game.status !== 'finished' && m.sa != null ? '<span class="br-live">LIVE</span>' : '';
       return `<div class="br-match${editable ? ' editable' : ''}"${click}>
         ${live}
-        ${slot(m.a, m.sa, m.winner && m.winner === m.a)}
-        ${slot(m.b, m.sb, m.winner && m.winner === m.b)}
+        ${slot(m.a, m.sa, m.winner && m.winner === m.a, m.bye && !m.a)}
+        ${slot(m.b, m.sb, m.winner && m.winner === m.b, m.bye && !m.b)}
       </div>`;
     }).join('');
     return `<div class="br-round">
@@ -3797,31 +3826,35 @@ function closeBracketLinkModal(event) {
   document.getElementById('bracket-link-overlay').classList.remove('open');
 }
 
+// 試合をトーナメント枠に紐付ける共通処理
+// （同じ枠に紐付いていた他の試合は自動解除。オフライン時はキュー）
+async function applyBracketLink(gameId, bracketId, matchId, knownGames) {
+  const batch = db.batch();
+  (knownGames || []).forEach(g => {
+    if (g.id !== gameId && g.bracketId === bracketId && g.bracketMatchId === matchId) {
+      batch.update(db.collection('games').doc(g.id), {
+        bracketId: firebase.firestore.FieldValue.delete(),
+        bracketMatchId: firebase.firestore.FieldValue.delete(),
+      });
+    }
+  });
+  batch.update(db.collection('games').doc(gameId), {
+    bracketId, bracketMatchId: matchId,
+    updatedAt: new Date().toISOString(),
+  });
+  if (!isOnline) {
+    batch.commit().catch(e => console.error('[offline-queue] 紐付け:', e));
+    return 'queued';
+  }
+  await batch.commit();
+  return 'ok';
+}
+
 async function linkGameToBracket(gameId) {
   if (!linkTargetBracket || !linkTargetMatchId) return;
   try {
-    const batch = db.batch();
-    // 同じ枠に紐付いている他の試合を解除
-    bracketTabGames.forEach(g => {
-      if (g.id !== gameId && g.bracketId === linkTargetBracket.id && g.bracketMatchId === linkTargetMatchId) {
-        batch.update(db.collection('games').doc(g.id), {
-          bracketId: firebase.firestore.FieldValue.delete(),
-          bracketMatchId: firebase.firestore.FieldValue.delete(),
-        });
-      }
-    });
-    batch.update(db.collection('games').doc(gameId), {
-      bracketId: linkTargetBracket.id,
-      bracketMatchId: linkTargetMatchId,
-      updatedAt: new Date().toISOString(),
-    });
-    if (!isOnline) {
-      batch.commit().catch(e => console.error('[offline-queue] 紐付け:', e));
-      showToast('⏳ オフラインで紐付け（再接続時に同期されます）');
-    } else {
-      await batch.commit();
-      showToast('試合を紐付けました');
-    }
+    const result = await applyBracketLink(gameId, linkTargetBracket.id, linkTargetMatchId, bracketTabGames);
+    showToast(result === 'queued' ? '⏳ オフラインで紐付け（再接続時に同期されます）' : '試合を紐付けました');
     document.getElementById('bracket-link-overlay').classList.remove('open');
     loadBrackets();
   } catch (e) { showToast('エラー: ' + e.message); }
@@ -4250,6 +4283,11 @@ let setupTeamB = null;
 let pendingGameMode = 'scoresheet';  // 新規試合作成時の記録モード（'scoresheet' or 'stats'）
 // ユニフォーム選択の完了状態（true=確定済み or 確認不要）
 let setupUniformDone = { a: true, b: true };
+// トーナメント枠の選択（保存時に自動紐付け）
+let setupBrackets     = [];
+let setupBracketGames = [];
+let setupRosterTeams  = [];
+let pendingBracketLink = null;  // { bracketId, matchId }
 
 async function openGameSetupModal() {
   setupTeamA = null;
@@ -4281,7 +4319,7 @@ async function openGameSetupModal() {
     r.checked = (r.value === 'scoresheet');
   });
   document.getElementById('modal-game-setup').classList.remove('hidden');
-  await loadSetupTeamCards();
+  await Promise.all([loadSetupTeamCards(), loadSetupBrackets()]);
 }
 
 async function loadSetupTeamCards() {
@@ -4296,6 +4334,7 @@ async function loadSetupTeamCards() {
     const teams = snap.docs.map(d => ({ teamId: d.id, ...d.data() }));
     // チーム名で文字列順ソート（日本語含む自然順）
     teams.sort((a, b) => (a.teamName || '').localeCompare(b.teamName || '', 'ja'));
+    setupRosterTeams = teams;  // トーナメント枠選択時のチーム自動セットに使用
     if (teams.length === 0) {
       const msg = '<div class="setup-no-roster">登録チームなし<br><small>手入力でご入力ください</small></div>';
       cardsA.innerHTML = msg;
@@ -4319,6 +4358,107 @@ async function loadSetupTeamCards() {
     const err = `<div class="setup-no-roster">エラー: ${esc(e.message)}</div>`;
     cardsA.innerHTML = err;
     cardsB.innerHTML = err;
+  }
+}
+
+// =====================================================
+// セットアップ：トーナメント枠の選択
+// =====================================================
+async function loadSetupBrackets() {
+  pendingBracketLink = null;
+  const section = document.getElementById('setup-bracket-section');
+  const sel  = document.getElementById('setup-bracket-select');
+  const msel = document.getElementById('setup-bracket-match-select');
+  const label = document.getElementById('setup-bracket-selected');
+  section.style.display = 'none';
+  msel.style.display = 'none';
+  msel.innerHTML = '';
+  label.textContent = 'トーナメント枠（任意）';
+  try {
+    const [bSnap, gSnap] = await Promise.all([
+      db.collection('brackets').where('tournamentId', '==', currentTournamentId).get(),
+      db.collection('games').where('tournamentId', '==', currentTournamentId).get(),
+    ]);
+    setupBrackets = bSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((x, y) => (x.createdAt || '') < (y.createdAt || '') ? -1 : 1);
+    setupBracketGames = gSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (setupBrackets.length === 0) return;  // トーナメント未作成なら非表示のまま
+    sel.innerHTML = '<option value="">（トーナメントに紐付けない）</option>'
+      + setupBrackets.map(b => `<option value="${b.id}">🏆 ${esc(b.name || 'トーナメント')}（${b.size}チーム）</option>`).join('');
+    section.style.display = '';
+  } catch (e) {
+    console.warn('[setup] brackets取得失敗:', e);
+  }
+}
+
+function onSetupBracketChange() {
+  const bid  = document.getElementById('setup-bracket-select').value;
+  const msel = document.getElementById('setup-bracket-match-select');
+  const label = document.getElementById('setup-bracket-selected');
+  pendingBracketLink = null;
+  if (!bid) {
+    msel.style.display = 'none';
+    msel.innerHTML = '';
+    label.textContent = 'トーナメント枠（任意）';
+    return;
+  }
+  const b = setupBrackets.find(x => x.id === bid);
+  if (!b) return;
+  const rounds = computeBracket(b, setupBracketGames);
+  let opts = '<option value="">試合枠を選択…</option>';
+  rounds.forEach((matches, ri) => {
+    const rName = bracketRoundName(ri + 1, rounds.length);
+    matches.forEach((m, mi) => {
+      const vs = `${m.a || '未定'} vs ${m.b || '未定'}`;
+      const linked = m.game ? '（紐付済）' : '';
+      const bye = m.bye ? '（シード枠）' : '';
+      opts += `<option value="${m.id}">${esc(`${rName} 第${mi + 1}試合：${vs}${linked}${bye}`)}</option>`;
+    });
+  });
+  msel.innerHTML = opts;
+  msel.style.display = '';
+  label.textContent = `${b.name || 'トーナメント'}：試合枠を選択してください`;
+}
+
+function onSetupBracketMatchChange() {
+  const bid = document.getElementById('setup-bracket-select').value;
+  const mid = document.getElementById('setup-bracket-match-select').value;
+  const label = document.getElementById('setup-bracket-selected');
+  if (!bid || !mid) { pendingBracketLink = null; return; }
+  const b = setupBrackets.find(x => x.id === bid);
+  if (!b) return;
+  pendingBracketLink = { bracketId: bid, matchId: mid };
+  const rounds = computeBracket(b, setupBracketGames);
+  let target = null, roundNo = 1, matchNo = 1;
+  rounds.forEach((ms, ri) => ms.forEach((m, mi) => {
+    if (m.id === mid) { target = m; roundNo = ri + 1; matchNo = mi + 1; }
+  }));
+  const rName = bracketRoundName(roundNo, rounds.length);
+  label.textContent = `${b.name || 'トーナメント'}｜${rName} 第${matchNo}試合`;
+  // 枠の対戦チームを HOME / AWAY に自動セット
+  if (target) {
+    prefillSetupTeamByName('a', target.a);
+    prefillSetupTeamByName('b', target.b);
+    if (target.a || target.b) showToast('対戦チームを自動セットしました');
+  }
+}
+
+// チーム名からロスターを探して自動選択（見つからなければ手入力欄へ）
+function prefillSetupTeamByName(slot, name) {
+  if (!name) return;
+  const t = setupRosterTeams.find(x => x.teamName === name);
+  if (t) {
+    selectSetupTeam(slot, t.teamId, t);
+  } else {
+    if (slot === 'a') setupTeamA = null; else setupTeamB = null;
+    document.querySelectorAll(`#setup-cards-${slot} .setup-team-card`).forEach(btn => {
+      btn.classList.remove('selected-a', 'selected-b');
+    });
+    document.getElementById(`setup-manual-row-${slot}`).style.display = 'flex';
+    document.getElementById(`setup-manual-input-${slot}`).value = name;
+    document.getElementById(`setup-${slot}-selected`).textContent = `${name}（手入力）`;
+    document.getElementById(`setup-uniform-${slot}`).classList.add('hidden');
+    setupUniformDone[slot] = true;
   }
 }
 
@@ -4529,6 +4669,7 @@ async function openGame(id) {
     const d = doc.data();
     currentGameId = id;
     pendingGameMode = d.gameMode || 'scoresheet';  // 既存試合のモードを復元
+    pendingBracketLink = null;  // セットアップ経由でない場合は紐付けしない
     document.getElementById('teamAName').value = d.teamAName || '';
     document.getElementById('teamBName').value = d.teamBName || '';
     document.getElementById('gameNo').value    = d.gameNo    || '';
@@ -4587,6 +4728,14 @@ async function saveGame() {
       const ref = await withTimeout(db.collection('games').add(data));
       currentGameId = ref.id;
       showToast('保存しました');
+    }
+    // セットアップで選択したトーナメント枠へ自動紐付け
+    if (pendingBracketLink && currentGameId) {
+      const pl = pendingBracketLink;
+      pendingBracketLink = null;
+      applyBracketLink(currentGameId, pl.bracketId, pl.matchId, setupBracketGames)
+        .then(r => { if (r === 'ok') showToast('🏆 トーナメント枠に紐付けました'); })
+        .catch(e => showToast('トーナメント紐付けエラー: ' + e.message));
     }
   } catch(e) {
     console.error(e);
