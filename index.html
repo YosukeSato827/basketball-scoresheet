@@ -257,6 +257,22 @@ body.not-editor .editor-only { display: none !important; }
   background: #ffebee; color: #c62828; border: none; border-radius: var(--radius-sm);
   font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
 }
+.bracket-setup-btn {
+  display: flex; flex-direction: column; gap: 3px; width: 100%;
+  padding: 12px 14px; margin-bottom: 4px;
+  background: var(--blue); color: white; border: none; border-radius: var(--radius-sm);
+  font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit;
+  text-align: left;
+}
+.bracket-setup-btn:hover { background: var(--blue-dark); }
+.bracket-setup-btn-sub {
+  font-size: 10.5px; font-weight: 400; color: rgba(255,255,255,.85);
+}
+.bracket-link-divider {
+  font-size: 10.5px; font-weight: 600; color: var(--text-light);
+  margin: 12px 0 8px; padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
 
 /* Molten logo + ScoreLink */
 .logo-block {
@@ -2467,7 +2483,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
     </div>
     <div class="changelog-body">
       <p style="font-size:12px;color:var(--text-mid);margin:0 0 10px">
-        この枠に対応する試合を選択してください。スコアと勝敗が自動でトーナメント表に反映されます。
+        この枠の試合を新しくセットアップするか、既存の試合を紐付けてください。スコアと勝敗は自動でトーナメント表に反映されます。
       </p>
       <div id="bracket-link-list"></div>
     </div>
@@ -3114,9 +3130,12 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.07.13-1';
+const APP_VERSION = '2026.07.13-2';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.07.13-2', notes: [
+    'トーナメント表の試合枠タップから直接セットアップ可能に：対戦チーム・枠が選択済みの状態でセットアップ画面が開く'
+  ] },
   { v: '2026.07.13-1', notes: [
     'トーナメントのシード対応：1回戦で相手枠が空欄のチームは不戦勝として自動で次ラウンドへ進出',
     '試合セットアップに「🏆 トーナメント枠」選択を追加：枠を選ぶと対戦チームを自動セットし、ライブ記録の結果がトーナメント表へ自動反映'
@@ -3678,7 +3697,7 @@ function renderBracketTab() {
         <button class="btn-card btn-delete editor-only" onclick="deleteBracket('${b.id}')">削除</button>
       </div>
       ${renderBracketHTML(b, bracketTabGames, isEditor)}
-      <div class="bracket-hint editor-only">※ 試合枠をタップすると試合を紐付けできます。スコア・勝者は自動反映されます。</div>
+      <div class="bracket-hint editor-only">※ 試合枠をタップ → 新規セットアップ or 既存試合の紐付け。スコア・勝者は自動反映されます。</div>
     </div>`).join('');
   cont.innerHTML = createBtn + blocks;
   applyEditorPermissions();
@@ -3805,6 +3824,11 @@ function openBracketLinkModal(bracketId, matchId) {
   };
   const sorted = bracketTabGames.slice().sort((x, y) => score2(y) - score2(x) || ((x.createdAt || '') < (y.createdAt || '') ? 1 : -1));
   const list = document.getElementById('bracket-link-list');
+  const setupBtn = `<button class="bracket-setup-btn" onclick="setupGameFromBracket('${bracketId}','${matchId}')">
+    ⚙️ この枠で新規試合をセットアップ
+    <span class="bracket-setup-btn-sub">対戦チームが選択された状態でセットアップ画面を開きます</span>
+  </button>
+  <div class="bracket-link-divider">既存の試合を紐付ける場合は以下から選択</div>`;
   const rows = sorted.map(g => {
     const label = [g.gameDate, g.gameNo ? `Game ${g.gameNo}` : ''].filter(Boolean).join(' ');
     const score = (g.totalA != null) ? ` (${g.totalA} - ${g.totalB})` : '';
@@ -3816,9 +3840,26 @@ function openBracketLinkModal(bracketId, matchId) {
       ${isCur ? '<span class="bracket-linked-mark cur">この枠に紐付け中</span>' : linkedElsewhere}
     </button>`;
   }).join('');
-  list.innerHTML = (rows || '<div class="dash-no-data">この大会に試合がありません</div>')
+  list.innerHTML = setupBtn
+    + (rows || '<div class="dash-no-data">この大会に試合がありません</div>')
     + (current ? `<button class="bracket-unlink-btn" onclick="unlinkBracketGame('${current.id}')">🔗 紐付けを解除</button>` : '');
   document.getElementById('bracket-link-overlay').classList.add('open');
+}
+
+// トーナメント枠から直接、試合セットアップを開く
+// （該当チームが選択済み・枠も紐付け済みの状態でセットアップ画面を表示）
+async function setupGameFromBracket(bracketId, matchId) {
+  document.getElementById('bracket-link-overlay').classList.remove('open');
+  await openGameSetupModal();  // リセット＋ロスター/ブラケット読込
+  const sel = document.getElementById('setup-bracket-select');
+  if (!sel || ![...sel.options].some(o => o.value === bracketId)) return;
+  sel.value = bracketId;
+  onSetupBracketChange();
+  const msel = document.getElementById('setup-bracket-match-select');
+  if (msel && [...msel.options].some(o => o.value === matchId)) {
+    msel.value = matchId;
+    onSetupBracketMatchChange();
+  }
 }
 
 function closeBracketLinkModal(event) {
