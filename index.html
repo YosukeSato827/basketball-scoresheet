@@ -2583,6 +2583,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <button class="btn-hdr" onclick="openRosterView()">👥 参加チーム一覧</button>
       <button class="btn-hdr editor-only" onclick="copyRegisterUrl()">📋 登録URL</button>
       <button class="btn-hdr" onclick="copyTournamentViewUrl()">🔗 閲覧URL</button>
+      <button class="btn-hdr editor-only" onclick="exportTournamentArchive()">📦 アーカイブ</button>
       <button class="btn-hdr editor-only" onclick="openTournamentModal(currentTournamentId)">編集</button>
       <button class="btn-hdr-primary editor-only" onclick="newGame()">+ 試合を追加</button>
     </div>
@@ -2590,6 +2591,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <button class="btn-hdr" onclick="openRosterView()">👥 参加チーム一覧</button>
       <button class="btn-hdr editor-only" onclick="copyRegisterUrl()">📋 登録URL</button>
       <button class="btn-hdr" onclick="copyTournamentViewUrl()">🔗 閲覧URL</button>
+      <button class="btn-hdr editor-only" onclick="exportTournamentArchive()">📦 アーカイブ</button>
       <button class="btn-hdr editor-only" onclick="openTournamentModal(currentTournamentId)">編集</button>
       <button class="btn-hdr-primary editor-only" onclick="newGame()">+ 試合を追加</button>
     </div>
@@ -3129,13 +3131,18 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 </div>
 
 
+<!--ARCHIVE:DATA-->
 <script>
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.07.13-3';
+const APP_VERSION = '2026.07.16-1';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.07.16-1', notes: [
+    'アーカイブHTML書き出し機能（大会詳細の「📦 アーカイブ」ボタン、編集者のみ）',
+    '書き出したHTMLは大会データ内蔵の単体ファイルで、サーバー接続なしで閲覧ページを表示できる'
+  ] },
   { v: '2026.07.13-3', notes: [
     'トーナメント表のLIVEバッジが見切れる問題を修正',
     '閲覧ページ：トーナメントの試合枠タップで、その試合の詳細（スコアシート等）へジャンプ'
@@ -3216,24 +3223,29 @@ const firebaseConfig = {
   messagingSenderId: "956502602785",
   appId: "1:956502602785:web:cab678cf57e0c7f5b21f60"
 };
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const auth = firebase.auth();
+// アーカイブHTML（書き出し版）：大会データが焼き込まれており、Firebaseには一切接続しない
+const IS_ARCHIVE = !!window.ARCHIVE_DATA;
+let db = null, auth = null;
+if (!IS_ARCHIVE) {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+  auth = firebase.auth();
 
-// =====================================================
-// オフライン永続化（体育館などWi-Fiが不安定な環境向け）
-// 書き込みは IndexedDB にキューされ、再接続時に自動送信される
-// =====================================================
-db.enablePersistence({ synchronizeTabs: true }).catch(err => {
-  if (err.code === 'failed-precondition') {
-    // 複数タブで開いている場合など。キャッシュなしでも動作は継続
-    console.warn('[offline] persistence無効（複数タブ）:', err.message);
-  } else if (err.code === 'unimplemented') {
-    console.warn('[offline] このブラウザはオフライン永続化に非対応');
-  } else {
-    console.warn('[offline] persistence有効化失敗:', err);
-  }
-});
+  // =====================================================
+  // オフライン永続化（体育館などWi-Fiが不安定な環境向け）
+  // 書き込みは IndexedDB にキューされ、再接続時に自動送信される
+  // =====================================================
+  db.enablePersistence({ synchronizeTabs: true }).catch(err => {
+    if (err.code === 'failed-precondition') {
+      // 複数タブで開いている場合など。キャッシュなしでも動作は継続
+      console.warn('[offline] persistence無効（複数タブ）:', err.message);
+    } else if (err.code === 'unimplemented') {
+      console.warn('[offline] このブラウザはオフライン永続化に非対応');
+    } else {
+      console.warn('[offline] persistence有効化失敗:', err);
+    }
+  });
+}
 
 // =====================================================
 // 接続状態の監視
@@ -3244,11 +3256,14 @@ let isOnline = navigator.onLine;
 function renderNetStatus() {
   const el = document.getElementById('net-status');
   if (!el) return;
+  // アーカイブ版はサーバー接続しないため接続状態の表示自体が不要
+  if (IS_ARCHIVE) { el.style.display = 'none'; return; }
   el.className = 'net-status ' + (isOnline ? 'online' : 'offline');
   el.querySelector('.net-label').textContent = isOnline ? 'オンライン' : 'オフライン';
 }
 
 function updateOnlineStatus() {
+  if (IS_ARCHIVE) return;
   isOnline = navigator.onLine;
   renderNetStatus();
   // 復帰時：未同期があれば自動送信される（Firestoreが処理）
@@ -3648,7 +3663,7 @@ function renderBracketHTML(bracket, games, editable, viewerClick) {
         click = ` onclick="viewerOpenGameFromBracket('${m.game.id}')" title="タップして試合詳細を表示"`;
         cls = ' clickable';
       }
-      const live = m.game && m.game.status !== 'finished' && m.sa != null ? '<span class="br-live">LIVE</span>' : '';
+      const live = !IS_ARCHIVE && m.game && m.game.status !== 'finished' && m.sa != null ? '<span class="br-live">LIVE</span>' : '';
       return `<div class="br-match${cls}"${click}>
         ${live}
         ${slot(m.a, m.sa, m.winner && m.winner === m.a, m.bye && !m.a)}
@@ -7243,6 +7258,87 @@ function copyTournamentViewUrl() {
   }
 }
 
+// =====================================================
+// アーカイブHTML：起動と書き出し
+// =====================================================
+
+// アーカイブ版の起動：埋め込みデータで閲覧ページを直接描画（Firebase不使用）
+function openViewerArchive() {
+  const A = window.ARCHIVE_DATA;
+  document.getElementById('app-frame').style.display = 'none';
+  document.getElementById('view-viewer').classList.add('show');
+
+  const tData = A.tournament || { name: '大会' };
+  viewerTournamentId = tData.id || null;
+  viewerBrackets = (A.brackets || []).slice()
+    .sort((x, y) => (x.createdAt || '') < (y.createdAt || '') ? -1 : 1);
+  document.title = `${tData.name || '大会'} ｜ molten ScoreLink`;
+
+  // ヘッダーをアーカイブ表記に
+  const tag = document.querySelector('.viewer-mode-tag');
+  if (tag) tag.textContent = '大会記録';
+  if (A.exportedAt) {
+    const d = new Date(A.exportedAt);
+    document.getElementById('viewer-updated').textContent =
+      `アーカイブ（${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} 書き出し）`;
+  }
+
+  // Firestoreのドキュメントスナップショットと同じ形（.id / .data()）に包んで既存描画を再利用
+  const fakeDocs = (A.games || []).map(g => ({ id: g.id, data: () => g }));
+  renderTournamentViewer(tData, fakeDocs);
+}
+
+// 大会詳細の「📦 アーカイブ」：大会データを焼き込んだ単体HTMLをダウンロード
+async function exportTournamentArchive() {
+  if (!currentTournamentId) return;
+  if (!isOnline) { showToast('オフラインのため書き出せません（データ取得に接続が必要です）', 4000); return; }
+  showToast('アーカイブを作成中...');
+  try {
+    const [tSnap, gSnap, bSnap, srcRes] = await Promise.all([
+      db.collection('tournaments').doc(currentTournamentId).get(),
+      db.collection('games').where('tournamentId', '==', currentTournamentId).get(),
+      db.collection('brackets').where('tournamentId', '==', currentTournamentId).get(),
+      fetch(location.pathname, { cache: 'no-cache' })
+    ]);
+    if (!tSnap.exists) throw new Error('大会が見つかりません');
+    if (!srcRes.ok) throw new Error('アプリ本体の取得に失敗しました (' + srcRes.status + ')');
+    let src = await srcRes.text();
+
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      appVersion: APP_VERSION,
+      tournament: { id: tSnap.id, ...tSnap.data() },
+      games: gSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+      brackets: bSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+    };
+    // '<' をエスケープし、埋め込みJSONがHTMLとして解釈される事故を防ぐ
+    const json = JSON.stringify(payload).replace(/</g, '\\u003c');
+
+    // 重要：HTMLコメント開始やスクリプト終了タグの生文字列をこのスクリプト内に置くと
+    // ブラウザのHTMLパーサが誤動作するため、'<' は文字コードから組み立てる
+    const LT = String.fromCharCode(60); // '<'
+    const MARKER = LT + '!--ARCHIVE' + ':DATA-->';
+    if (!src.includes(MARKER)) throw new Error('配信中のアプリが旧バージョンです。時間をおいて再度お試しください');
+    // 置換文字列に $ が含まれても誤展開されないよう関数で置換する
+    const inject = LT + 'script>window.ARCHIVE_DATA = ' + json + ';' + LT + '/script>';
+    src = src.replace(MARKER, () => inject);
+
+    const blob = new Blob([src], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const safeName = (tSnap.data().name || 'tournament').replace(/[\\/:*?"<>|]/g, '_');
+    a.download = `${safeName}_アーカイブ.html`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    showToast('📦 アーカイブHTMLを書き出しました（' + payload.games.length + '試合）');
+  } catch (e) {
+    showToast('書き出しエラー: ' + e.message, 4000);
+  }
+}
+
 function openViewer(tournamentId) {
   document.getElementById('app-frame').style.display = 'none';
   document.getElementById('view-viewer').classList.add('show');
@@ -7280,6 +7376,8 @@ let viewerTournamentId = null;
 let viewerBrackets = [];
 
 function refreshViewerBrackets(tournamentId) {
+  // アーカイブ版：埋め込みデータ（viewerBrackets 設定済み）をそのまま使う
+  if (IS_ARCHIVE) return Promise.resolve();
   return db.collection('brackets').where('tournamentId', '==', tournamentId).get()
     .then(snap => {
       viewerBrackets = snap.docs.map(d => ({ id: d.id, ...d.data() }))
@@ -7320,7 +7418,8 @@ function renderTournamentViewer(tData, gameDocs) {
   const now = Date.now();
 
   // LIVE判定：2時間以内に更新 かつ 試合終了していない（status !== 'finished'）
-  const hasLive = sorted.some(doc => {
+  // アーカイブ版は過去記録なので常にLIVEなし
+  const hasLive = !IS_ARCHIVE && sorted.some(doc => {
     const dd = doc.data();
     return dd.updatedAt && (now - new Date(dd.updatedAt).getTime()) < 7200000 && dd.status !== 'finished';
   });
@@ -7331,7 +7430,7 @@ function renderTournamentViewer(tData, gameDocs) {
     const t = doc.data().updatedAt ? new Date(doc.data().updatedAt).getTime() : 0;
     return t > mx ? t : mx;
   }, 0);
-  if (latestMs > 0) {
+  if (latestMs > 0 && !IS_ARCHIVE) {
     const d = new Date(latestMs);
     document.getElementById('viewer-updated').textContent =
       `更新 ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
@@ -7365,7 +7464,7 @@ function renderTournamentViewer(tData, gameDocs) {
     const qLabel = maxQ > 4 ? `延長${maxQ - 4}` : maxQ > 0 ? `${maxQ}Q` : '';
     const label = [d.gameDate, d.gameNo ? `Game ${d.gameNo}` : ''].filter(Boolean).join('　');
     const winner = totalA > totalB ? 'A' : totalB > totalA ? 'B' : null;
-    const isGameLive = d.updatedAt && (now - new Date(d.updatedAt).getTime()) < 7200000 && plays.length > 0 && d.status !== 'finished';
+    const isGameLive = !IS_ARCHIVE && d.updatedAt && (now - new Date(d.updatedAt).getTime()) < 7200000 && plays.length > 0 && d.status !== 'finished';
     const graphSVG = plays.length > 1 ? buildScoreGraphSVG(plays, teamA, teamB) : '';
     const isOpen = expanded.has(gameId);
 
@@ -8028,10 +8127,12 @@ function handlePopState(e) {
 window.addEventListener('popstate', handlePopState);
 
 async function initApp() {
-  updateGeminiApiKeyStatus();
-  initAuth();  // 認証状態の監視を開始
   const verEl = document.getElementById('app-version');
   if (verEl) verEl.textContent = 'ver ' + APP_VERSION;
+  // アーカイブ版：埋め込みデータで閲覧ページを表示して終了（認証・Firestoreは使わない）
+  if (IS_ARCHIVE) { openViewerArchive(); return; }
+  updateGeminiApiKeyStatus();
+  initAuth();  // 認証状態の監視を開始
   const params      = new URLSearchParams(window.location.search);
   const registerTid = params.get('register');
   const viewTid     = params.get('view');

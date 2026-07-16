@@ -8,3 +8,8 @@ Thumbs.db
 # 一時ファイル
 *.tmp
 *.log
+
+# Firebase Hosting デプロイ用コピー（デプロイ時に index.html を複製する作業フォルダ）
+hosting-public/
+.firebase/
+firebase-debug.log
