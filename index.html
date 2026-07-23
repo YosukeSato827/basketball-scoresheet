@@ -2576,7 +2576,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
     <div class="form-group" style="margin-top:12px">
       <label>デバイスIDを直接入力</label>
       <div class="timer-device-manual">
-        <input type="text" id="timer-device-manual" placeholder="例: MoltenTimersyncDev-test">
+        <input type="text" id="timer-device-manual" placeholder="TimerLinkに表示されるデバイスID">
         <button class="btn-modal-save" onclick="selectTimerDevice(document.getElementById('timer-device-manual').value)">接続</button>
       </div>
     </div>
@@ -3184,9 +3184,12 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.07.23-1';
+const APP_VERSION = '2026.07.23-2';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.07.23-2', notes: [
+    'タイマーデバイスID入力欄の説明をTimerLink正式版に合わせて更新'
+  ] },
   { v: '2026.07.23-1', notes: [
     'TimerLink連携：記録画面の🔗ボタンでタイマーデバイスを選択し、試合とリンク（時計・ショットクロック自動反映）',
     '速報ページ：タイマー連携中の試合カードに残り時間とタイマー側スコアをリアルタイム表示'
