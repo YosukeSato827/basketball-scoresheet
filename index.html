@@ -1077,6 +1077,32 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
   border-radius: 10px; padding: 1px 7px;
   font-size: 10px; font-weight: 600;
 }
+/* タイマー速報ストリップ（TimerLink連携） */
+.vt-timer-strip {
+  display: flex; align-items: center; gap: 7px;
+  margin-top: 6px; padding: 3px 12px;
+  background: #37474F; color: #FFD54F;
+  border-radius: 8px; width: fit-content;
+  font-family: 'Poppins', sans-serif;
+  font-size: 13px; font-weight: 600; letter-spacing: 0.5px;
+}
+.vt-timer-live-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #FF7043; flex: 0 0 auto;
+  animation: vtTimerPulse 1.2s infinite;
+}
+@keyframes vtTimerPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+/* タイマーデバイス選択モーダル */
+.timer-device-note { font-size: 12px; color: var(--text-mid); margin: 0 0 10px; line-height: 1.6; }
+.timer-device-list { max-height: 40vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.timer-device-row { border: 1.5px solid #ddd; border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+.timer-device-row:hover, .timer-device-row:active { background: #f0f4f8; border-color: var(--blue); }
+.timer-device-id { font-weight: 600; font-size: 14px; }
+.timer-device-linked { color: var(--blue); font-size: 11px; margin-left: 6px; font-weight: 600; }
+.timer-device-meta { font-size: 12px; color: var(--text-mid); margin-top: 3px; }
+.timer-device-empty { font-size: 13px; color: var(--text-light); padding: 14px 4px; text-align: center; line-height: 1.7; }
+.timer-device-manual { display: flex; gap: 8px; }
+.timer-device-manual input { flex: 1; }
 .vt-scoreline {
   display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
 }
@@ -2539,6 +2565,28 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   </div>
 </div>
 
+<!-- タイマーデバイス選択（TimerLink連携） -->
+<div class="modal-overlay" id="modal-timer-device" onclick="closeTimerDeviceModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h2>⏱ タイマーを選択</h2>
+    <p class="timer-device-note">この試合で使用しているTimerLinkのタイマーを選ぶと、時計・ショットクロックが自動反映され、速報ページにも時間とスコアが表示されます。</p>
+    <div id="timer-device-list" class="timer-device-list">
+      <div class="timer-device-empty">読み込み中...</div>
+    </div>
+    <div class="form-group" style="margin-top:12px">
+      <label>デバイスIDを直接入力</label>
+      <div class="timer-device-manual">
+        <input type="text" id="timer-device-manual" placeholder="例: MoltenTimersyncDev-test">
+        <button class="btn-modal-save" onclick="selectTimerDevice(document.getElementById('timer-device-manual').value)">接続</button>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-modal-cancel" onclick="closeTimerDeviceModal()">キャンセル</button>
+      <button class="btn-modal-cancel" id="timer-device-unlink" style="display:none" onclick="unlinkTimerDevice()">リンク解除</button>
+    </div>
+  </div>
+</div>
+
 <!-- アプリ本体フレーム（スマホプレビュー時に幅制限） -->
 <div id="app-frame">
 
@@ -3136,9 +3184,13 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.07.16-1';
+const APP_VERSION = '2026.07.23-1';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.07.23-1', notes: [
+    'TimerLink連携：記録画面の🔗ボタンでタイマーデバイスを選択し、試合とリンク（時計・ショットクロック自動反映）',
+    '速報ページ：タイマー連携中の試合カードに残り時間とタイマー側スコアをリアルタイム表示'
+  ] },
   { v: '2026.07.16-1', notes: [
     'アーカイブHTML書き出し機能（大会詳細の「📦 アーカイブ」ボタン、編集者のみ）',
     '書き出したHTMLは大会データ内蔵の単体ファイルで、サーバー接続なしで閲覧ページを表示できる'
@@ -5409,6 +5461,9 @@ function openRecorder() {
   updateRecTimerDisplay();
   updateRecTimerBtn();
 
+  // この試合にリンク済みのタイマーデバイスを読み込む（TimerLink連携）
+  loadRecTimerDevice();
+
   // リロード対策：記録中セッションを保存
   saveRecSession();
 
@@ -6330,80 +6385,160 @@ function renderSyncedTimer() {
   }
 }
 
+// ---- タイマーデバイス選択（TimerLink連携） ----
+let recTimerDeviceId = null;   // この試合に紐付いたタイマーデバイスID
+
+// HTML属性用エスケープ（esc はクォート非対応のため）
+const escAttr = s => esc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+// timer_sync ドキュメントの更新時刻（ms）。serverTimestamp を優先
+function _timerDocMs(d) {
+  if (d.updatedAt && d.updatedAt.toDate) return d.updatedAt.toDate().getTime();
+  if (typeof d.deviceTimestamp === 'number') return d.deviceTimestamp;
+  if (typeof d.timestamp === 'number') return d.timestamp;
+  return 0;
+}
+
+// 記録画面に入ったとき、試合にリンク済みのデバイスIDを読み込む（非ブロッキング）
+function loadRecTimerDevice() {
+  recTimerDeviceId = null;
+  if (!recGameId) return;
+  db.collection('games').doc(recGameId).get().then(doc => {
+    if (doc.exists) recTimerDeviceId = doc.data().timerDeviceId || null;
+  }).catch(() => {});
+}
+
+function openTimerDeviceModal() {
+  document.getElementById('modal-timer-device').classList.add('open');
+  document.getElementById('timer-device-unlink').style.display = recTimerDeviceId ? '' : 'none';
+  const listEl = document.getElementById('timer-device-list');
+  listEl.innerHTML = '<div class="timer-device-empty">読み込み中...</div>';
+  db.collection('timer_sync').get().then(snap => {
+    renderTimerDeviceList(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  }).catch(err => {
+    listEl.innerHTML = `<div class="timer-device-empty">読み込みエラー: ${esc(err.message)}</div>`;
+  });
+}
+
+function renderTimerDeviceList(devices) {
+  const listEl = document.getElementById('timer-device-list');
+  if (!devices || devices.length === 0) {
+    listEl.innerHTML = '<div class="timer-device-empty">タイマーが見つかりません。<br>TimerLink側で配信が開始されているか確認してください。<br>（下の欄でデバイスIDを直接入力もできます）</div>';
+    return;
+  }
+  // 更新が新しい順に表示
+  listEl.innerHTML = devices.slice().sort((a, b) => _timerDocMs(b) - _timerDocMs(a)).map(d => {
+    const clock = _rawClockValue(d, 'gameClock', 'gameTime');
+    const sc = d.scores || {};
+    const score = (sc.home != null && sc.guest != null) ? `${sc.home} - ${sc.guest}` : '';
+    const ms = _timerDocMs(d);
+    const ageMs = ms ? Date.now() - ms : null;
+    const ageTxt = ageMs == null ? '更新時刻不明'
+      : ageMs < 15000 ? '🟢 稼働中'
+      : ageMs < 3600000 ? `🟡 ${Math.max(1, Math.floor(ageMs / 60000))}分前`
+      : `⚪ ${Math.floor(ageMs / 3600000)}時間以上前`;
+    const linked = d.id === recTimerDeviceId ? '<span class="timer-device-linked">この試合に登録済み</span>' : '';
+    return `<div class="timer-device-row" data-device="${escAttr(d.id)}" onclick="selectTimerDevice(this.dataset.device)">
+      <div class="timer-device-id">${esc(d.id)}${linked}</div>
+      <div class="timer-device-meta">${clock != null ? '⏱ ' + esc(String(clock)) + '　' : ''}${score ? score + '　' : ''}${ageTxt}</div>
+    </div>`;
+  }).join('');
+}
+
+function selectTimerDevice(deviceId) {
+  deviceId = (deviceId || '').trim();
+  if (!deviceId) { showToast('デバイスIDを入力してください'); return; }
+  recTimerDeviceId = deviceId;
+  closeTimerDeviceModal();
+  // 試合に保存（速報ページのタイマー表示にも使用）。オフライン時は復帰後に自動同期
+  if (recGameId) {
+    db.collection('games').doc(recGameId).update({ timerDeviceId: deviceId })
+      .catch(e => showToast('リンク保存エラー: ' + e.message));
+    if (!isOnline) showToast('オフライン：リンクは復帰時に同期されます');
+  }
+  startTimerSync(deviceId);
+}
+
+function unlinkTimerDevice() {
+  recTimerDeviceId = null;
+  closeTimerDeviceModal();
+  stopTimerSync();
+  document.getElementById('rec-timer-btn').disabled = false;
+  const rstBtn = document.getElementById('rec-timer-reset');
+  if (rstBtn) rstBtn.disabled = false;
+  if (recGameId) {
+    db.collection('games').doc(recGameId).update({ timerDeviceId: firebase.firestore.FieldValue.delete() })
+      .catch(e => showToast('解除エラー: ' + e.message));
+  }
+  showToast('タイマーのリンクを解除しました');
+}
+
+function closeTimerDeviceModal(event) {
+  if (event && event.target !== event.currentTarget) return;
+  document.getElementById('modal-timer-device').classList.remove('open');
+}
+
+// 🔗ボタン：OFF時はデバイス選択モーダル、ON時は同期停止
 function toggleTimerSync() {
-  timerSyncMode = !timerSyncMode;
-  const btn = document.getElementById('timer-sync-btn');
-  btn.classList.toggle('active', timerSyncMode);
   if (timerSyncMode) {
-    clearInterval(recTimerIv);
-    recTimerRunning = false;
-    updateRecTimerBtn();
-    document.getElementById('rec-timer-btn').disabled = true;
-    document.getElementById('rec-timer-reset').disabled = true;
-    timerLastUpdatedAt = null;
-    updateTimerSyncStatus();
-    // 接続テスト：まず1回読み込んでデータ状況を確認
-    db.collection('timer_sync').doc('live').get().then(snap => {
-      if (!snap.exists) {
-        showToast('⚠ timer_sync/live が存在しません');
-        console.warn('[timer_sync] document does not exist');
-      } else {
-        console.log('[timer_sync] initial doc:', snap.data());
-      }
-    }).catch(err => {
-      console.error('[timer_sync] permission/read error:', err);
-      showToast('⚠ 読み込みエラー: ' + err.message);
-    });
-    timerSyncUnsubscribe = db.collection('timer_sync').doc('live').onSnapshot(doc => {
-      if (!doc.exists) {
-        console.warn('[timer_sync] doc does not exist');
-        return;
-      }
-      const data = doc.data();
-      timerLastUpdatedAt = Date.now();
-
-      // 生値を取り出してバリデーション
-      const rawGame = _rawClockValue(data, 'gameClock', 'gameTime');
-      const rawShot = _rawClockValue(data, 'shotClock', 'subTime');
-      const gameSec = _parseGameClockSec(rawGame);
-      const shotSec = _parseShotClockSec(rawShot);
-      const running = _extractRunning(data);
-
-      // 不正値は無視（前回値を維持）。有効値のみ反映。
-      let accepted = false;
-      if (gameSec != null) { timerSyncState.gameSec = gameSec; accepted = true; }
-      if (shotSec != null) { timerSyncState.shotSec = shotSec; accepted = true; }
-      timerSyncState.running = running;
-      if (accepted) timerSyncState.receivedAt = Date.now();
-
-      console.log('[timer_sync] recv',
-        'rawGame=', rawGame, 'rawShot=', rawShot,
-        '→ gameSec=', gameSec, 'shotSec=', shotSec, 'running=', running,
-        accepted ? '' : '(不正値のため無視)');
-
-      renderSyncedTimer();
-      updateTimerSyncStatus();
-    }, err => {
-      console.error('[timer_sync] error:', err);
-      showToast('同期エラー: ' + err.message);
-    });
-    // 補間レンダリング（250msごと、カウント中はローカル減算で滑らかに表示）
-    timerSyncStatusIv = setInterval(() => {
-      renderSyncedTimer();
-      updateTimerSyncStatus();
-    }, 250);
-    showToast('🔗 タイマー同期 ON');
-  } else {
-    if (timerSyncUnsubscribe) { timerSyncUnsubscribe(); timerSyncUnsubscribe = null; }
-    clearInterval(timerSyncStatusIv);
-    timerLastUpdatedAt = null;
-    timerSyncState = { gameSec: null, shotSec: null, running: false, receivedAt: 0 };
-    updateTimerSyncStatus();
+    stopTimerSync();
     document.getElementById('rec-timer-btn').disabled = false;
     const rstBtn = document.getElementById('rec-timer-reset');
     if (rstBtn) rstBtn.disabled = false;
     showToast('タイマー同期 OFF');
+  } else {
+    openTimerDeviceModal();
   }
+}
+
+// 指定デバイスの timer_sync/{deviceId} を購読して時計に反映
+function startTimerSync(deviceId) {
+  stopTimerSync();  // 既存購読があれば解除
+  timerSyncMode = true;
+  const btn = document.getElementById('timer-sync-btn');
+  if (btn) btn.classList.add('active');
+  clearInterval(recTimerIv);
+  recTimerRunning = false;
+  updateRecTimerBtn();
+  document.getElementById('rec-timer-btn').disabled = true;
+  document.getElementById('rec-timer-reset').disabled = true;
+  timerLastUpdatedAt = null;
+  updateTimerSyncStatus();
+  // 接続テスト：まず1回読み込んでデータ状況を確認
+  db.collection('timer_sync').doc(deviceId).get().then(snap => {
+    if (!snap.exists) showToast(`⚠ タイマーデータがまだありません（${deviceId}）`);
+  }).catch(() => {});
+  timerSyncUnsubscribe = db.collection('timer_sync').doc(deviceId).onSnapshot(doc => {
+    if (!doc.exists) { console.warn('[timer_sync] doc does not exist:', deviceId); return; }
+    _applyRecorderTimerData(doc.data());
+  }, err => {
+    console.error('[timer_sync] error:', err);
+    showToast('同期エラー: ' + err.message);
+  });
+  // 補間レンダリング（250msごと、カウント中はローカル減算で滑らかに表示）
+  timerSyncStatusIv = setInterval(() => {
+    renderSyncedTimer();
+    updateTimerSyncStatus();
+  }, 250);
+  showToast(`🔗 タイマー同期 ON（${deviceId}）`);
+}
+
+// 受信データを検証して時計状態に反映（テスト用に単体関数化）
+function _applyRecorderTimerData(data) {
+  timerLastUpdatedAt = Date.now();
+  const rawGame = _rawClockValue(data, 'gameClock', 'gameTime');
+  const rawShot = _rawClockValue(data, 'shotClock', 'subTime');
+  const gameSec = _parseGameClockSec(rawGame);
+  const shotSec = _parseShotClockSec(rawShot);
+  const running = _extractRunning(data);
+  // 不正値は無視（前回値を維持）。有効値のみ反映。
+  let accepted = false;
+  if (gameSec != null) { timerSyncState.gameSec = gameSec; accepted = true; }
+  if (shotSec != null) { timerSyncState.shotSec = shotSec; accepted = true; }
+  timerSyncState.running = running;
+  if (accepted) timerSyncState.receivedAt = Date.now();
+  renderSyncedTimer();
+  updateTimerSyncStatus();
 }
 
 function stopTimerSync() {
@@ -6412,6 +6547,8 @@ function stopTimerSync() {
   timerSyncMode = false;
   timerLastUpdatedAt = null;
   timerSyncState = { gameSec: null, shotSec: null, running: false, receivedAt: 0 };
+  const btn = document.getElementById('timer-sync-btn');
+  if (btn) btn.classList.remove('active');
   updateTimerSyncStatus();
 }
 
@@ -7386,6 +7523,77 @@ function refreshViewerBrackets(tournamentId) {
     .catch(e => { console.warn('[viewer] brackets取得失敗:', e); viewerBrackets = []; });
 }
 
+// =====================================================
+// 速報ページ：タイマー速報（TimerLink連携）
+// タイマー連携中の試合カードに、時計とタイマー側スコアを表示
+// =====================================================
+let viewerTimerUnsubscribe = null;
+let viewerTimerIv = null;
+let viewerTimerData = {};       // deviceId → timer_sync ドキュメント
+let viewerTimerReceivedAt = {}; // deviceId → 受信時刻（Date.now()）
+
+// タイマー連携中の試合があれば購読を開始、なければ停止
+function ensureViewerTimerSync(gameDocs) {
+  if (IS_ARCHIVE) return;
+  const need = (gameDocs || []).some(doc => {
+    const d = doc.data();
+    return d.timerDeviceId && d.status !== 'finished';
+  });
+  if (need && !viewerTimerUnsubscribe) {
+    viewerTimerUnsubscribe = db.collection('timer_sync').onSnapshot(snap => {
+      snap.docChanges().forEach(ch => {
+        if (ch.type === 'removed') {
+          delete viewerTimerData[ch.doc.id];
+          delete viewerTimerReceivedAt[ch.doc.id];
+          return;
+        }
+        _viewerApplyTimerData(ch.doc.id, ch.doc.data());
+      });
+    }, err => console.warn('[viewer timer] error:', err));
+    viewerTimerIv = setInterval(renderViewerTimerStrips, 500);
+  } else if (!need && viewerTimerUnsubscribe) {
+    viewerTimerUnsubscribe(); viewerTimerUnsubscribe = null;
+    clearInterval(viewerTimerIv); viewerTimerIv = null;
+    viewerTimerData = {}; viewerTimerReceivedAt = {};
+    renderViewerTimerStrips();
+  }
+}
+
+// 受信データを保持して表示を更新（テスト用に単体関数化）
+function _viewerApplyTimerData(deviceId, data) {
+  viewerTimerData[deviceId] = data;
+  viewerTimerReceivedAt[deviceId] = Date.now();
+  renderViewerTimerStrips();
+}
+
+// タイマーストリップだけを軽量更新（カード全体は再描画しない）
+function renderViewerTimerStrips() {
+  document.querySelectorAll('.vt-timer-strip').forEach(el => {
+    const dev = el.dataset.timerDevice;
+    const data = viewerTimerData[dev];
+    const recv = viewerTimerReceivedAt[dev];
+    const age = recv ? (Date.now() - recv) / 1000 : Infinity;
+    // データなし・60秒以上更新なしなら非表示（タイマー停止／配信終了とみなす）
+    if (!data || age > 60) { el.style.display = 'none'; return; }
+    let gameSec = _parseGameClockSec(_rawClockValue(data, 'gameClock', 'gameTime'));
+    let shotSec = _parseShotClockSec(_rawClockValue(data, 'shotClock', 'subTime'));
+    const running = _extractRunning(data);
+    if (running && recv) {
+      const elapsed = (Date.now() - recv) / 1000;
+      if (gameSec != null) gameSec = Math.max(0, gameSec - elapsed);
+      if (shotSec != null) shotSec = Math.max(0, shotSec - elapsed);
+    }
+    const sc = data.scores || {};
+    const parts = [];
+    if (gameSec != null) parts.push(`⏱ ${_fmtGameClock(gameSec)}`);
+    if (shotSec != null) parts.push(`SHOT ${Math.ceil(shotSec)}`);
+    if (sc.home != null && sc.guest != null) parts.push(`${sc.home} - ${sc.guest}`);
+    if (parts.length === 0) { el.style.display = 'none'; return; }
+    el.style.display = '';
+    el.innerHTML = '<span class="vt-timer-live-dot"></span>' + esc(parts.join('　'));
+  });
+}
+
 function setViewerTab(tab) {
   viewerActiveTab = tab;
   if (tab === 'bracket' && viewerTournamentId) {
@@ -7467,6 +7675,10 @@ function renderTournamentViewer(tData, gameDocs) {
     const isGameLive = !IS_ARCHIVE && d.updatedAt && (now - new Date(d.updatedAt).getTime()) < 7200000 && plays.length > 0 && d.status !== 'finished';
     const graphSVG = plays.length > 1 ? buildScoreGraphSVG(plays, teamA, teamB) : '';
     const isOpen = expanded.has(gameId);
+    // タイマー速報ストリップ（連携中かつ未終了の試合のみ。表示はデータ受信時に制御）
+    const timerStrip = (!IS_ARCHIVE && d.timerDeviceId && d.status !== 'finished')
+      ? `<div class="vt-timer-strip" data-timer-device="${escAttr(d.timerDeviceId)}" style="display:none"></div>`
+      : '';
 
     const qRow = st.qScore.A.map((s, i) => {
       const lbl = i < 4 ? `${i+1}Q` : 'OT';
@@ -7494,6 +7706,7 @@ function renderTournamentViewer(tData, gameDocs) {
             ${qLabel ? `<span class="vt-qlabel">${qLabel}</span>` : ''}
           </div>
           <div class="vt-qrow">${qRow}</div>
+          ${timerStrip}
         </div>
         <span class="vt-expand-icon">▼</span>
       </summary>
@@ -7534,6 +7747,10 @@ function renderTournamentViewer(tData, gameDocs) {
     ${metaLine ? `<div class="viewer-game-info">${esc(metaLine)}</div>` : ''}
     ${tabsHTML}
     ${bodyHTML}`;
+
+  // タイマー速報：必要に応じて購読を開始/停止し、ストリップを即時反映
+  ensureViewerTimerSync(sorted);
+  renderViewerTimerStrips();
 }
 
 // 閲覧URL：トーナメントタブのレンダリング（読み取り専用）
