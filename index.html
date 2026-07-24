@@ -1103,6 +1103,16 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
 .timer-device-empty { font-size: 13px; color: var(--text-light); padding: 14px 4px; text-align: center; line-height: 1.7; }
 .timer-device-manual { display: flex; gap: 8px; }
 .timer-device-manual input { flex: 1; }
+.timer-section-title { font-size: 12px; font-weight: 600; color: var(--text-mid); margin: 14px 0 6px; padding-top: 10px; border-top: 1px solid #eee; }
+.timer-flip-opts { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.timer-flip-opts label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.timer-result-current { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+.timer-finish-btn { width: 100%; margin-bottom: 10px; }
+.timer-manual-score { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.timer-manual-score input { width: 64px; text-align: center; }
+.timer-manual-team { font-size: 12px; color: var(--text-mid); max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.timer-result-hint { font-size: 11px; color: var(--text-light); margin-top: 6px; }
+.btn-timer.linked { background: var(--blue); color: #fff; border-color: var(--blue); }
 .vt-scoreline {
   display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
 }
@@ -2565,11 +2575,11 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   </div>
 </div>
 
-<!-- タイマーデバイス選択（TimerLink連携） -->
+<!-- タイマーデバイス選択・試合結果（TimerLink連携） -->
 <div class="modal-overlay" id="modal-timer-device" onclick="closeTimerDeviceModal(event)">
   <div class="modal" onclick="event.stopPropagation()">
-    <h2>⏱ タイマーを選択</h2>
-    <p class="timer-device-note">この試合で使用しているTimerLinkのタイマーを選ぶと、時計・ショットクロックが自動反映され、速報ページにも時間とスコアが表示されます。</p>
+    <h2 id="timer-modal-title">⏱ タイマーを選択</h2>
+    <p class="timer-device-note" id="timer-modal-note">この試合で使用しているTimerLinkのタイマーを選ぶと、速報ページに時間とスコアが表示されます。</p>
     <div id="timer-device-list" class="timer-device-list">
       <div class="timer-device-empty">読み込み中...</div>
     </div>
@@ -2580,8 +2590,29 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
         <button class="btn-modal-save" onclick="selectTimerDevice(document.getElementById('timer-device-manual').value)">接続</button>
       </div>
     </div>
+    <div id="timer-flip-section" style="display:none">
+      <div class="timer-section-title">スコアの向き（速報表示・結果保存に反映）</div>
+      <div class="timer-flip-opts">
+        <label><input type="radio" name="timer-flip" value="0" onchange="setTimerScoreFlip(false)"> <span id="timer-flip-label-0"></span></label>
+        <label><input type="radio" name="timer-flip" value="1" onchange="setTimerScoreFlip(true)"> <span id="timer-flip-label-1"></span></label>
+      </div>
+    </div>
+    <div id="timer-result-section" style="display:none">
+      <div class="timer-section-title">試合結果</div>
+      <div class="timer-result-current" id="timer-result-current"></div>
+      <button class="btn-modal-save timer-finish-btn" id="timer-finish-btn" style="display:none" onclick="finishGameWithTimerScore()">🏁 タイマーのスコアで試合終了</button>
+      <div class="timer-manual-score">
+        <span class="timer-manual-team" id="timer-manual-team-a">チームA</span>
+        <input type="number" id="timer-manual-a" min="0" inputmode="numeric">
+        <span>-</span>
+        <input type="number" id="timer-manual-b" min="0" inputmode="numeric">
+        <span class="timer-manual-team" id="timer-manual-team-b">チームB</span>
+        <button class="btn-modal-save" onclick="saveManualFinalScore()">保存</button>
+      </div>
+      <div class="timer-result-hint">タップ忘れ・誤保存は上の欄で直接入力して修正できます</div>
+    </div>
     <div class="modal-btns">
-      <button class="btn-modal-cancel" onclick="closeTimerDeviceModal()">キャンセル</button>
+      <button class="btn-modal-cancel" onclick="closeTimerDeviceModal()">閉じる</button>
       <button class="btn-modal-cancel" id="timer-device-unlink" style="display:none" onclick="unlinkTimerDevice()">リンク解除</button>
     </div>
   </div>
@@ -3184,9 +3215,16 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.07.23-2';
+const APP_VERSION = '2026.07.24-1';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.07.24-1', notes: [
+    '試合一覧に「⏱」ボタン追加：デジタルスコアを取らない試合でもタイマーをリンクして速報表示が可能に',
+    '🏁 タイマーのスコアで試合終了（ワンタップで結果保存、トーナメント表・チーム成績に反映）',
+    '試合結果の手動入力・修正機能（タップ忘れ対策）',
+    'タイマースコアの向き（home側＝チームA/B）を試合ごとに切替可能',
+    '修正：PBP未入力の試合保存時に別試合のスコアが混入することがある問題'
+  ] },
   { v: '2026.07.23-2', notes: [
     'タイマーデバイスID入力欄の説明をTimerLink正式版に合わせて更新'
   ] },
@@ -4051,6 +4089,7 @@ function loadGames() {
               <div class="gc-score">${esc(score)}</div>
               <div class="gc-actions" onclick="event.stopPropagation()">
                 <button class="btn-card btn-open" onclick="openGame('${doc.id}')">開く</button>
+                <button class="btn-card btn-timer editor-only${d.timerDeviceId ? ' linked' : ''}" title="タイマーとスコア" onclick="openGameTimerModal('${doc.id}')">⏱${d.timerDeviceId ? ' リンク中' : ''}</button>
                 <button class="btn-card btn-delete editor-only" onclick="deleteGame('${doc.id}')">削除</button>
               </div>
             </div>`;
@@ -4124,7 +4163,23 @@ function computeStatsFromDocs(docs) {
   const gameList  = [];
   for (const doc of docs) {
     const d = doc.data();
-    if (!d.pbpData) continue;
+    if (!d.pbpData) {
+      // PBP記録なしでもタイマー/手動の確定スコアがあればチーム成績・試合結果に反映（個人成績は対象外）
+      if (d.status === 'finished' && d.totalA != null && d.totalB != null) {
+        const teamA = d.teamAName || 'チームA';
+        const teamB = d.teamBName || 'チームB';
+        gameList.push({ id: doc.id, teamA, teamB, totalA: d.totalA, totalB: d.totalB, gameDate: d.gameDate || '', gameNo: d.gameNo || '' });
+        for (const [tName, pf, pa] of [[teamA, d.totalA, d.totalB], [teamB, d.totalB, d.totalA]]) {
+          if (!teamMap[tName]) teamMap[tName] = {name:tName,wins:0,losses:0,draws:0,pf:0,pa:0,games:0};
+          teamMap[tName].games++;
+          teamMap[tName].pf += pf; teamMap[tName].pa += pa;
+          if (pf > pa) teamMap[tName].wins++;
+          else if (pf < pa) teamMap[tName].losses++;
+          else teamMap[tName].draws++;
+        }
+      }
+      continue;
+    }
     const plays = parsePBP(d.pbpData);
     const st    = buildState(plays);
     const totalA = st.qScore.A.reduce((a,b)=>a+b,0);
@@ -4827,11 +4882,16 @@ async function saveGame() {
       pbpData:    document.getElementById('pbpInput').value,
       playersA:   parsePlayers(document.getElementById('playersA').value),
       playersB:   parsePlayers(document.getElementById('playersB').value),
-      totalA:     lastTotalA,
-      totalB:     lastTotalB,
       gameMode:   pendingGameMode || 'scoresheet',
       updatedAt:  now
     };
+    // 合計スコアは実際のPBP内容から算出（グローバルの lastTotal は別試合の値が残ることがある）。
+    // PBPが空の場合は totalA/B を書かず、タイマー確定スコア等の既存値を保持する。
+    if ((data.pbpData || '').trim()) {
+      const stSave = buildState(parsePBP(data.pbpData));
+      data.totalA = stSave.qScore.A.reduce((a, b) => a + b, 0);
+      data.totalB = stSave.qScore.B.reduce((a, b) => a + b, 0);
+    }
     if (!isOnline) {
       // オフライン：書き込みをキューして即完了扱い（復帰時に自動同期）
       if (currentGameId) {
@@ -6388,8 +6448,11 @@ function renderSyncedTimer() {
   }
 }
 
-// ---- タイマーデバイス選択（TimerLink連携） ----
-let recTimerDeviceId = null;   // この試合に紐付いたタイマーデバイスID
+// ---- タイマーデバイス選択・試合結果（TimerLink連携） ----
+let recTimerDeviceId  = null;   // 記録中の試合に紐付いたタイマーデバイスID
+let recTimerScoreFlip = false;  // 記録中の試合のスコア向き
+// モーダルの対象コンテキスト（mode: 'recorder'=記録画面 / 'game'=試合一覧）
+let timerModalCtx = null;       // { mode, gameId, game, linkedDeviceId, devices }
 
 // HTML属性用エスケープ（esc はクォート非対応のため）
 const escAttr = s => esc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -6402,25 +6465,86 @@ function _timerDocMs(d) {
   return 0;
 }
 
-// 記録画面に入ったとき、試合にリンク済みのデバイスIDを読み込む（非ブロッキング）
+// 記録画面に入ったとき、試合にリンク済みのデバイス情報を読み込む（非ブロッキング）
 function loadRecTimerDevice() {
   recTimerDeviceId = null;
+  recTimerScoreFlip = false;
   if (!recGameId) return;
   db.collection('games').doc(recGameId).get().then(doc => {
-    if (doc.exists) recTimerDeviceId = doc.data().timerDeviceId || null;
+    if (doc.exists) {
+      recTimerDeviceId  = doc.data().timerDeviceId || null;
+      recTimerScoreFlip = !!doc.data().timerScoreFlip;
+    }
   }).catch(() => {});
 }
 
-function openTimerDeviceModal() {
+// 試合一覧の⏱ボタン：試合データを読み込んでモーダルを開く
+async function openGameTimerModal(gameId) {
+  try {
+    const doc = await db.collection('games').doc(gameId).get();
+    if (!doc.exists) { showToast('試合が見つかりません'); return; }
+    openTimerDeviceModalFor({ mode: 'game', gameId, game: doc.data() });
+  } catch (e) { showToast('読み込みエラー: ' + e.message); }
+}
+
+// モーダルを開く（記録画面・試合一覧 共通）
+function openTimerDeviceModalFor(ctx) {
+  ctx.game = ctx.game || {};
+  ctx.linkedDeviceId = ctx.game.timerDeviceId || null;
+  ctx.devices = null;
+  timerModalCtx = ctx;
   document.getElementById('modal-timer-device').classList.add('open');
-  document.getElementById('timer-device-unlink').style.display = recTimerDeviceId ? '' : 'none';
+  renderTimerModalSections();
   const listEl = document.getElementById('timer-device-list');
   listEl.innerHTML = '<div class="timer-device-empty">読み込み中...</div>';
   db.collection('timer_sync').get().then(snap => {
-    renderTimerDeviceList(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    if (timerModalCtx !== ctx) return;  // 既に閉じた/別対象で開き直した場合
+    ctx.devices = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderTimerDeviceList(ctx.devices);
   }).catch(err => {
     listEl.innerHTML = `<div class="timer-device-empty">読み込みエラー: ${esc(err.message)}</div>`;
   });
+}
+
+// モーダル内の各セクション表示を更新
+function renderTimerModalSections() {
+  const ctx = timerModalCtx; if (!ctx) return;
+  const g = ctx.game;
+  const teamA = g.teamAName || 'チームA';
+  const teamB = g.teamBName || 'チームB';
+  const isGameMode = ctx.mode === 'game';
+  document.getElementById('timer-modal-title').textContent = isGameMode ? '⏱ タイマーとスコア' : '⏱ タイマーを選択';
+  document.getElementById('timer-modal-note').textContent = isGameMode
+    ? `${teamA} vs ${teamB}${g.gameNo ? `（Game ${g.gameNo}）` : ''}：タイマーをリンクすると、速報ページに時間とスコアが表示されます。`
+    : 'この試合で使用しているTimerLinkのタイマーを選ぶと、時計・ショットクロックが自動反映されます。';
+
+  // スコアの向き（リンク済みのときのみ表示）
+  document.getElementById('timer-flip-section').style.display = ctx.linkedDeviceId ? '' : 'none';
+  document.getElementById('timer-flip-label-0').textContent = `タイマーhome側 = ${teamA}`;
+  document.getElementById('timer-flip-label-1').textContent = `タイマーhome側 = ${teamB}`;
+  const flip = !!g.timerScoreFlip;
+  const r0 = document.querySelector('input[name="timer-flip"][value="0"]');
+  const r1 = document.querySelector('input[name="timer-flip"][value="1"]');
+  if (r0) r0.checked = !flip;
+  if (r1) r1.checked = flip;
+
+  // 試合結果（試合一覧モードのみ。デジタルスコア記録済みの試合はPBPが正のため非表示）
+  const hasPbp = !!(g.pbpData && g.pbpData.trim());
+  const showResult = isGameMode && !hasPbp;
+  document.getElementById('timer-result-section').style.display = showResult ? '' : 'none';
+  if (showResult) {
+    document.getElementById('timer-result-current').textContent =
+      (g.totalA != null && g.totalB != null)
+        ? `確定スコア：${teamA} ${g.totalA} - ${g.totalB} ${teamB}${g.status === 'finished' ? '（試合終了）' : ''}`
+        : '確定スコア：未確定';
+    document.getElementById('timer-finish-btn').style.display = ctx.linkedDeviceId ? '' : 'none';
+    document.getElementById('timer-manual-team-a').textContent = teamA;
+    document.getElementById('timer-manual-team-b').textContent = teamB;
+    document.getElementById('timer-manual-a').value = g.totalA != null ? g.totalA : '';
+    document.getElementById('timer-manual-b').value = g.totalB != null ? g.totalB : '';
+  }
+
+  document.getElementById('timer-device-unlink').style.display = ctx.linkedDeviceId ? '' : 'none';
 }
 
 function renderTimerDeviceList(devices) {
@@ -6429,6 +6553,7 @@ function renderTimerDeviceList(devices) {
     listEl.innerHTML = '<div class="timer-device-empty">タイマーが見つかりません。<br>TimerLink側で配信が開始されているか確認してください。<br>（下の欄でデバイスIDを直接入力もできます）</div>';
     return;
   }
+  const linkedId = timerModalCtx ? timerModalCtx.linkedDeviceId : null;
   // 更新が新しい順に表示
   listEl.innerHTML = devices.slice().sort((a, b) => _timerDocMs(b) - _timerDocMs(a)).map(d => {
     const clock = _rawClockValue(d, 'gameClock', 'gameTime');
@@ -6440,7 +6565,7 @@ function renderTimerDeviceList(devices) {
       : ageMs < 15000 ? '🟢 稼働中'
       : ageMs < 3600000 ? `🟡 ${Math.max(1, Math.floor(ageMs / 60000))}分前`
       : `⚪ ${Math.floor(ageMs / 3600000)}時間以上前`;
-    const linked = d.id === recTimerDeviceId ? '<span class="timer-device-linked">この試合に登録済み</span>' : '';
+    const linked = d.id === linkedId ? '<span class="timer-device-linked">この試合に登録済み</span>' : '';
     return `<div class="timer-device-row" data-device="${escAttr(d.id)}" onclick="selectTimerDevice(this.dataset.device)">
       <div class="timer-device-id">${esc(d.id)}${linked}</div>
       <div class="timer-device-meta">${clock != null ? '⏱ ' + esc(String(clock)) + '　' : ''}${score ? score + '　' : ''}${ageTxt}</div>
@@ -6451,34 +6576,111 @@ function renderTimerDeviceList(devices) {
 function selectTimerDevice(deviceId) {
   deviceId = (deviceId || '').trim();
   if (!deviceId) { showToast('デバイスIDを入力してください'); return; }
-  recTimerDeviceId = deviceId;
-  closeTimerDeviceModal();
-  // 試合に保存（速報ページのタイマー表示にも使用）。オフライン時は復帰後に自動同期
-  if (recGameId) {
-    db.collection('games').doc(recGameId).update({ timerDeviceId: deviceId })
+  const ctx = timerModalCtx; if (!ctx) return;
+  ctx.linkedDeviceId = deviceId;
+  ctx.game.timerDeviceId = deviceId;
+  // 試合に保存（速報ページのタイマー表示に使用）。オフライン時は復帰後に自動同期
+  if (ctx.gameId) {
+    db.collection('games').doc(ctx.gameId).update({ timerDeviceId: deviceId })
       .catch(e => showToast('リンク保存エラー: ' + e.message));
     if (!isOnline) showToast('オフライン：リンクは復帰時に同期されます');
   }
-  startTimerSync(deviceId);
+  if (ctx.mode === 'recorder') {
+    recTimerDeviceId = deviceId;
+    closeTimerDeviceModal();
+    startTimerSync(deviceId);
+  } else {
+    showToast(`🔗 タイマーをリンクしました（${deviceId}）`);
+    renderTimerModalSections();
+    if (ctx.devices) renderTimerDeviceList(ctx.devices);
+  }
 }
 
 function unlinkTimerDevice() {
-  recTimerDeviceId = null;
-  closeTimerDeviceModal();
-  stopTimerSync();
-  document.getElementById('rec-timer-btn').disabled = false;
-  const rstBtn = document.getElementById('rec-timer-reset');
-  if (rstBtn) rstBtn.disabled = false;
-  if (recGameId) {
-    db.collection('games').doc(recGameId).update({ timerDeviceId: firebase.firestore.FieldValue.delete() })
+  const ctx = timerModalCtx; if (!ctx) return;
+  ctx.linkedDeviceId = null;
+  ctx.game.timerDeviceId = null;
+  if (ctx.mode === 'recorder') {
+    recTimerDeviceId = null;
+    stopTimerSync();
+    document.getElementById('rec-timer-btn').disabled = false;
+    const rstBtn = document.getElementById('rec-timer-reset');
+    if (rstBtn) rstBtn.disabled = false;
+    closeTimerDeviceModal();
+  } else {
+    renderTimerModalSections();
+    if (ctx.devices) renderTimerDeviceList(ctx.devices);
+  }
+  if (ctx.gameId) {
+    db.collection('games').doc(ctx.gameId).update({ timerDeviceId: firebase.firestore.FieldValue.delete() })
       .catch(e => showToast('解除エラー: ' + e.message));
   }
   showToast('タイマーのリンクを解除しました');
 }
 
+// スコアの向きを保存（速報ストリップと🏁保存の両方に反映）
+function setTimerScoreFlip(flip) {
+  const ctx = timerModalCtx; if (!ctx || !ctx.gameId) return;
+  ctx.game.timerScoreFlip = flip;
+  if (ctx.mode === 'recorder') recTimerScoreFlip = flip;
+  db.collection('games').doc(ctx.gameId).update({ timerScoreFlip: flip })
+    .catch(e => showToast('保存エラー: ' + e.message));
+  showToast(flip ? '⇄ スコアの向きを入れ替えました' : 'スコアの向きを標準に戻しました');
+}
+
+// 🏁 現在のタイマースコアを試合結果として保存（試合終了）
+async function finishGameWithTimerScore() {
+  const ctx = timerModalCtx;
+  if (!ctx || !ctx.gameId || !ctx.linkedDeviceId) return;
+  try {
+    const snap = await db.collection('timer_sync').doc(ctx.linkedDeviceId).get();
+    if (!snap.exists) throw new Error('タイマーデータが見つかりません');
+    const sc = snap.data().scores || {};
+    if (sc.home == null || sc.guest == null) throw new Error('タイマーにスコア情報がありません');
+    const flip = !!ctx.game.timerScoreFlip;
+    const a = flip ? sc.guest : sc.home;
+    const b = flip ? sc.home : sc.guest;
+    const teamA = ctx.game.teamAName || 'チームA';
+    const teamB = ctx.game.teamBName || 'チームB';
+    if (!confirm(`${teamA} ${a} - ${b} ${teamB}\nこのスコアで試合終了として保存しますか？`)) return;
+    saveFinalScore(a, b);
+  } catch (e) {
+    showToast('保存エラー: ' + e.message, 4000);
+  }
+}
+
+// 手動入力のスコアを試合結果として保存
+function saveManualFinalScore() {
+  const ctx = timerModalCtx; if (!ctx || !ctx.gameId) return;
+  const a = parseInt(document.getElementById('timer-manual-a').value, 10);
+  const b = parseInt(document.getElementById('timer-manual-b').value, 10);
+  if (isNaN(a) || isNaN(b) || a < 0 || b < 0) { showToast('スコアを両方入力してください'); return; }
+  saveFinalScore(a, b);
+}
+
+// 試合結果の共通保存処理（totalA/B ＋ 試合終了ステータス）
+function saveFinalScore(a, b) {
+  const ctx = timerModalCtx; if (!ctx || !ctx.gameId) return;
+  const p = db.collection('games').doc(ctx.gameId).update({
+    totalA: a, totalB: b, status: 'finished', updatedAt: new Date().toISOString()
+  });
+  if (!isOnline) {
+    p.catch(e => console.error('[offline-queue] スコア保存エラー:', e));
+    showToast('⏳ オフライン保存（再接続時に同期されます）');
+  } else {
+    p.then(() => showToast(`🏁 試合結果を保存しました：${a} - ${b}`))
+     .catch(e => showToast('保存エラー: ' + e.message, 4000));
+  }
+  ctx.game.totalA = a;
+  ctx.game.totalB = b;
+  ctx.game.status = 'finished';
+  renderTimerModalSections();
+}
+
 function closeTimerDeviceModal(event) {
   if (event && event.target !== event.currentTarget) return;
   document.getElementById('modal-timer-device').classList.remove('open');
+  timerModalCtx = null;
 }
 
 // 🔗ボタン：OFF時はデバイス選択モーダル、ON時は同期停止
@@ -6490,7 +6692,17 @@ function toggleTimerSync() {
     if (rstBtn) rstBtn.disabled = false;
     showToast('タイマー同期 OFF');
   } else {
-    openTimerDeviceModal();
+    openTimerDeviceModalFor({
+      mode: 'recorder',
+      gameId: recGameId,
+      game: {
+        teamAName: recTeamAName,
+        teamBName: recTeamBName,
+        timerDeviceId: recTimerDeviceId,
+        timerScoreFlip: recTimerScoreFlip,
+        pbpData: recPbpData
+      }
+    });
   }
 }
 
@@ -7590,7 +7802,11 @@ function renderViewerTimerStrips() {
     const parts = [];
     if (gameSec != null) parts.push(`⏱ ${_fmtGameClock(gameSec)}`);
     if (shotSec != null) parts.push(`SHOT ${Math.ceil(shotSec)}`);
-    if (sc.home != null && sc.guest != null) parts.push(`${sc.home} - ${sc.guest}`);
+    if (sc.home != null && sc.guest != null) {
+      // 試合ごとのスコア向き設定（home側をチームA/Bどちらに表示するか）
+      const flip = el.dataset.timerFlip === '1';
+      parts.push(flip ? `${sc.guest} - ${sc.home}` : `${sc.home} - ${sc.guest}`);
+    }
     if (parts.length === 0) { el.style.display = 'none'; return; }
     el.style.display = '';
     el.innerHTML = '<span class="vt-timer-live-dot"></span>' + esc(parts.join('　'));
@@ -7669,10 +7885,14 @@ function renderTournamentViewer(tData, gameDocs) {
     const teamB = d.teamBName || 'チームB';
     const plays = parsePBP(d.pbpData || '');
     const st = buildState(plays);
-    const totalA = st.qScore.A.reduce((a, b) => a + b, 0);
-    const totalB = st.qScore.B.reduce((a, b) => a + b, 0);
+    let totalA = st.qScore.A.reduce((a, b) => a + b, 0);
+    let totalB = st.qScore.B.reduce((a, b) => a + b, 0);
+    // PBP記録なしの試合：タイマー/手動で確定した保存スコア（totalA/B）を表示に使う
+    const usingFinalScore = plays.length === 0 && d.totalA != null && d.totalB != null;
+    if (usingFinalScore) { totalA = d.totalA; totalB = d.totalB; }
     const maxQ = plays.length > 0 ? Math.max(...plays.map(p => p.quarter)) : 0;
-    const qLabel = maxQ > 4 ? `延長${maxQ - 4}` : maxQ > 0 ? `${maxQ}Q` : '';
+    const qLabel = maxQ > 4 ? `延長${maxQ - 4}` : maxQ > 0 ? `${maxQ}Q`
+      : (usingFinalScore && d.status === 'finished' ? '終了' : '');
     const label = [d.gameDate, d.gameNo ? `Game ${d.gameNo}` : ''].filter(Boolean).join('　');
     const winner = totalA > totalB ? 'A' : totalB > totalA ? 'B' : null;
     const isGameLive = !IS_ARCHIVE && d.updatedAt && (now - new Date(d.updatedAt).getTime()) < 7200000 && plays.length > 0 && d.status !== 'finished';
@@ -7680,7 +7900,7 @@ function renderTournamentViewer(tData, gameDocs) {
     const isOpen = expanded.has(gameId);
     // タイマー速報ストリップ（連携中かつ未終了の試合のみ。表示はデータ受信時に制御）
     const timerStrip = (!IS_ARCHIVE && d.timerDeviceId && d.status !== 'finished')
-      ? `<div class="vt-timer-strip" data-timer-device="${escAttr(d.timerDeviceId)}" style="display:none"></div>`
+      ? `<div class="vt-timer-strip" data-timer-device="${escAttr(d.timerDeviceId)}" data-timer-flip="${d.timerScoreFlip ? 1 : 0}" style="display:none"></div>`
       : '';
 
     const qRow = st.qScore.A.map((s, i) => {
@@ -7692,6 +7912,8 @@ function renderTournamentViewer(tData, gameDocs) {
         <span class="vt-qcell-b">${st.qScore.B[i]||0}</span>
       </span>`;
     }).join('');
+    // 確定スコアのみの試合はクォーター内訳（全て0）を出さない
+    const qRowHTML = usingFinalScore ? '' : `<div class="vt-qrow">${qRow}</div>`;
 
     return `<details class="vt-game-detail" data-game-id="${gameId}"${isOpen ? ' open' : ''}>
       <summary class="vt-game-summary">
@@ -7708,7 +7930,7 @@ function renderTournamentViewer(tData, gameDocs) {
             <span class="vt-team-name${winner==='B' ? ' vt-winner' : ''}">${esc(teamB)}</span>
             ${qLabel ? `<span class="vt-qlabel">${qLabel}</span>` : ''}
           </div>
-          <div class="vt-qrow">${qRow}</div>
+          ${qRowHTML}
           ${timerStrip}
         </div>
         <span class="vt-expand-icon">▼</span>
