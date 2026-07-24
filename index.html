@@ -1081,7 +1081,8 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
 .vt-timer-strip {
   display: flex; align-items: center; gap: 7px;
   margin-top: 6px; padding: 3px 12px;
-  background: #37474F; color: #FFD54F;
+  background: #f2f6fb; color: #33475b;
+  border: 1px solid #dbe6f1;
   border-radius: 8px; width: fit-content;
   font-family: 'Poppins', sans-serif;
   font-size: 13px; font-weight: 600; letter-spacing: 0.5px;
@@ -1114,12 +1115,17 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
 .timer-result-hint { font-size: 11px; color: var(--text-light); margin-top: 6px; }
 .btn-timer.linked { background: var(--blue); color: #fff; border-color: var(--blue); }
 .gc-timer-strip { margin-top: 5px; font-size: 12px; padding: 2px 10px; }
-.bracket-timer-btn { background: #37474F; }
-.bracket-timer-btn:hover { background: #263238; }
+.bracket-timer-btn {
+  background: #fff; color: var(--blue);
+  border: 1.5px solid var(--blue);
+}
+.bracket-timer-btn:hover { background: #f0f6fc; }
+.bracket-timer-btn .bracket-setup-btn-sub { color: var(--text-mid); }
 /* タイマー取得試合：正規スコア欄へのライブ表示 */
 .vt-live-clock {
   font-family: 'Poppins', sans-serif; font-size: 15px; font-weight: 600;
-  background: #37474F; color: #FFD54F; padding: 4px 12px; border-radius: 8px;
+  background: #f2f6fb; color: var(--blue); padding: 4px 12px; border-radius: 8px;
+  border: 1px solid #dbe6f1;
   letter-spacing: 0.5px; align-self: center;
 }
 .vt-live-note {
@@ -1129,10 +1135,14 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
 .gc-score-live { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
 .gc-live-clock {
   font-family: 'Poppins', sans-serif; font-size: 11px; font-weight: 600;
-  background: #37474F; color: #FFD54F; padding: 1px 8px; border-radius: 6px;
+  background: #f2f6fb; color: var(--blue); padding: 1px 8px; border-radius: 6px;
+  border: 1px solid #dbe6f1;
 }
 .gc-live-tag { font-size: 10px; font-weight: 600; color: #FF7043; }
-.br-timer-clock { background: #37474F; }
+.br-timer-clock {
+  background: #fff; color: var(--blue);
+  border: 1px solid #c8d8e8; font-size: 9px; font-weight: 700;
+}
 .vt-scoreline {
   display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
 }
@@ -3235,9 +3245,12 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.07.24-4';
+const APP_VERSION = '2026.07.24-5';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.07.24-5', notes: [
+    'タイマー表示のデザイン変更：黒背景をやめ、白ベース＋ブルーのライトなチップに統一'
+  ] },
   { v: '2026.07.24-4', notes: [
     'タイマー速報：クォーター内訳（全て0の行）を非表示に',
     'タイマーのQ情報を時計と一緒に表示（例：2Q 7:23）— 速報・編集者一覧・トーナメント表すべて'
