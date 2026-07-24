@@ -3235,9 +3235,13 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.07.24-3';
+const APP_VERSION = '2026.07.24-4';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.07.24-4', notes: [
+    'タイマー速報：クォーター内訳（全て0の行）を非表示に',
+    'タイマーのQ情報を時計と一緒に表示（例：2Q 7:23）— 速報・編集者一覧・トーナメント表すべて'
+  ] },
   { v: '2026.07.24-3', notes: [
     'タイマー取得試合：タイマーのスコアを正規のスコア欄に表示（チーム名の横にスコア・中央に時計、「タイマー速報（未確定）」表記）',
     'トーナメント表にもライブのスコアと残り時間を表示',
@@ -6523,6 +6527,19 @@ function _fmtGameClock(sec) {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+// タイマーの period 値 → 表示用（"2" → "2Q"、"5" → "OT"、その他はそのまま）
+function _fmtPeriod(p) {
+  if (p == null) return '';
+  const s = String(p).trim();
+  if (!s) return '';
+  const n = parseInt(s, 10);
+  if (!isNaN(n) && String(n) === s) {
+    if (n <= 4) return `${n}Q`;
+    return n === 5 ? 'OT' : `OT${n - 4}`;
+  }
+  return s;
+}
+
 // running フラグ抽出
 function _extractRunning(data) {
   if (!data) return false;
@@ -7913,19 +7930,24 @@ function renderViewerTimerStrips() {
       if (shotSec != null) shotSec = Math.max(0, shotSec - elapsed);
     }
     const sc = data.scores || {};
-    return { gameSec, shotSec, home: sc.home, guest: sc.guest };
+    return { gameSec, shotSec, home: sc.home, guest: sc.guest, period: _fmtPeriod(data.period) };
   };
   // 試合ごとのスコア向き設定（home側をチームA/Bどちらに表示するか）を適用
   const teamScores = (live, flipped) => flipped
     ? { a: live.guest, b: live.home }
     : { a: live.home, b: live.guest };
+  // 「2Q 7:23」形式（period が無ければ時間のみ）
+  const clockText = (live) => live.gameSec != null
+    ? (live.period ? `${live.period} ${_fmtGameClock(live.gameSec)}` : _fmtGameClock(live.gameSec))
+    : null;
 
   // 1) 黒ストリップ（デジタルスコア記録中の試合の補助表示）
   document.querySelectorAll('.vt-timer-strip').forEach(el => {
     const live = getLive(el.dataset.timerDevice);
     if (!live) { el.style.display = 'none'; return; }
     const parts = [];
-    if (live.gameSec != null) parts.push(`⏱ ${_fmtGameClock(live.gameSec)}`);
+    const ct = clockText(live);
+    if (ct) parts.push(`⏱ ${ct}`);
     if (live.shotSec != null) parts.push(`SHOT ${Math.ceil(live.shotSec)}`);
     const ts = teamScores(live, el.dataset.timerFlip === '1');
     if (ts.a != null && ts.b != null) parts.push(`${ts.a} - ${ts.b}`);
@@ -7944,7 +7966,8 @@ function renderViewerTimerStrips() {
     const bEl = el.querySelector('[data-live="b"]');
     if (aEl && ts.a != null) aEl.textContent = ts.a;
     if (bEl && ts.b != null) bEl.textContent = ts.b;
-    if (cEl && live.gameSec != null) cEl.textContent = _fmtGameClock(live.gameSec);
+    const ct = clockText(live);
+    if (cEl && ct) cEl.textContent = ct;
   });
 
   // 3) 編集者の試合一覧のライブスコア欄
@@ -7955,7 +7978,8 @@ function renderViewerTimerStrips() {
     const ts = teamScores(live, el.dataset.timerFlip === '1');
     const sEl = el.querySelector('[data-live="score"]');
     if (sEl && ts.a != null && ts.b != null) sEl.textContent = `${ts.a} - ${ts.b}`;
-    if (cEl && live.gameSec != null) cEl.textContent = `⏱ ${_fmtGameClock(live.gameSec)}`;
+    const ct = clockText(live);
+    if (cEl && ct) cEl.textContent = `⏱ ${ct}`;
   });
 
   // 4) トーナメント表のライブスコアと時計
@@ -7969,7 +7993,8 @@ function renderViewerTimerStrips() {
   document.querySelectorAll('.br-timer-clock').forEach(el => {
     const live = getLive(el.dataset.timerDevice);
     if (!live) { el.textContent = '⏱ --:--'; return; }
-    if (live.gameSec != null) el.textContent = `⏱ ${_fmtGameClock(live.gameSec)}`;
+    const ct = clockText(live);
+    if (ct) el.textContent = `⏱ ${ct}`;
   });
 }
 
@@ -8091,8 +8116,8 @@ function renderTournamentViewer(tData, gameDocs) {
         <span class="vt-qcell-b">${st.qScore.B[i]||0}</span>
       </span>`;
     }).join('');
-    // 確定スコアのみの試合はクォーター内訳（全て0）を出さない
-    const qRowHTML = usingFinalScore ? '' : `<div class="vt-qrow">${qRow}</div>`;
+    // 確定スコアのみ／タイマー速報の試合はクォーター内訳（全て0）を出さない
+    const qRowHTML = (usingFinalScore || isTimerLiveGame) ? '' : `<div class="vt-qrow">${qRow}</div>`;
 
     return `<details class="vt-game-detail" data-game-id="${gameId}"${isOpen ? ' open' : ''}>
       <summary class="vt-game-summary">
