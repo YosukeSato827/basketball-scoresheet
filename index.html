@@ -1122,6 +1122,13 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
 .bracket-timer-btn:hover { background: #f0f6fc; }
 .bracket-timer-btn .bracket-setup-btn-sub { color: var(--text-mid); }
 /* タイマー取得試合：正規スコア欄へのライブ表示 */
+/* チーム名は改行させない（長い場合は末尾を省略）。時計は常に中央 */
+.vt-scoreline.vt-live { flex-wrap: nowrap; }
+.vt-scoreline.vt-live .vt-team-name {
+  flex: 1 1 0; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.vt-scoreline.vt-live .vt-team-name:last-child { text-align: right; }
 .vt-live-clock {
   font-family: 'Poppins', sans-serif; font-size: 15px; font-weight: 600;
   background: #f2f6fb; color: var(--blue); padding: 4px 12px; border-radius: 8px;
@@ -3245,9 +3252,13 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.07.24-5';
+const APP_VERSION = '2026.07.24-6';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.07.24-6', notes: [
+    'タイマー連携中の試合にLIVEバッジを表示（配信が生きている間だけ点灯）',
+    'タイマー速報カードのチーム名を改行させない（長い場合は末尾を省略表示）'
+  ] },
   { v: '2026.07.24-5', notes: [
     'タイマー表示のデザイン変更：黒背景をやめ、白ベース＋ブルーのライトなチップに統一'
   ] },
@@ -8009,6 +8020,11 @@ function renderViewerTimerStrips() {
     const ct = clockText(live);
     if (ct) el.textContent = `⏱ ${ct}`;
   });
+
+  // 5) タイマー取得試合のLIVEバッジ（配信が生きている間だけ点灯）
+  document.querySelectorAll('.vt-chip-timer').forEach(el => {
+    el.style.display = getLive(el.dataset.timerDevice) ? '' : 'none';
+  });
 }
 
 function setViewerTab(tab) {
@@ -8138,6 +8154,7 @@ function renderTournamentViewer(tData, gameDocs) {
           <div class="vt-game-label">
             ${esc(label) || '試合'}
             ${isGameLive ? '<span class="vt-live-chip">LIVE</span>' : ''}
+            ${isTimerLiveGame ? `<span class="vt-live-chip vt-chip-timer" data-timer-device="${escAttr(d.timerDeviceId)}" style="display:none">LIVE</span>` : ''}
           </div>
           ${scorelineHTML}
           ${qRowHTML}
