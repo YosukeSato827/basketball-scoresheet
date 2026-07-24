@@ -1113,6 +1113,9 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
 .timer-manual-team { font-size: 12px; color: var(--text-mid); max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .timer-result-hint { font-size: 11px; color: var(--text-light); margin-top: 6px; }
 .btn-timer.linked { background: var(--blue); color: #fff; border-color: var(--blue); }
+.gc-timer-strip { margin-top: 5px; font-size: 12px; padding: 2px 10px; }
+.bracket-timer-btn { background: #37474F; }
+.bracket-timer-btn:hover { background: #263238; }
 .vt-scoreline {
   display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
 }
@@ -3215,9 +3218,13 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.07.24-1';
+const APP_VERSION = '2026.07.24-2';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.07.24-2', notes: [
+    '編集者の試合一覧カードにもタイマー速報（時計・スコア）をリアルタイム表示',
+    'トーナメント表の枠タップに「⏱ タイマー情報を取得（記録なし）」を追加：試合を自動作成してタイマーをリンク'
+  ] },
   { v: '2026.07.24-1', notes: [
     '試合一覧に「⏱」ボタン追加：デジタルスコアを取らない試合でもタイマーをリンクして速報表示が可能に',
     '🏁 タイマーのスコアで試合終了（ワンタップで結果保存、トーナメント表・チーム成績に反映）',
@@ -3947,8 +3954,12 @@ function openBracketLinkModal(bracketId, matchId) {
   const sorted = bracketTabGames.slice().sort((x, y) => score2(y) - score2(x) || ((x.createdAt || '') < (y.createdAt || '') ? 1 : -1));
   const list = document.getElementById('bracket-link-list');
   const setupBtn = `<button class="bracket-setup-btn" onclick="setupGameFromBracket('${bracketId}','${matchId}')">
-    ⚙️ この枠で新規試合をセットアップ
-    <span class="bracket-setup-btn-sub">対戦チームが選択された状態でセットアップ画面を開きます</span>
+    ⚙️ ライブ記録を開始（試合セットアップ）
+    <span class="bracket-setup-btn-sub">デジタルスコアを取る場合。対戦チーム選択済みでセットアップ画面を開きます</span>
+  </button>
+  <button class="bracket-setup-btn bracket-timer-btn" onclick="timerGameFromBracket('${bracketId}','${matchId}')">
+    ⏱ タイマー情報を取得（記録なし）
+    <span class="bracket-setup-btn-sub">スコアは取らず、TimerLinkの時間・スコアを速報ページに表示します</span>
   </button>
   <div class="bracket-link-divider">既存の試合を紐付ける場合は以下から選択</div>`;
   const rows = sorted.map(g => {
@@ -3987,6 +3998,51 @@ async function setupGameFromBracket(bracketId, matchId) {
 function closeBracketLinkModal(event) {
   if (event && event.target !== event.currentTarget) return;
   document.getElementById('bracket-link-overlay').classList.remove('open');
+}
+
+// トーナメント枠から「タイマー情報を取得」（記録なし試合）
+// 枠に紐付いた試合があればその試合の⏱モーダルを開き、
+// なければ対戦チーム入りの試合を自動作成して枠に紐付けたうえで開く
+async function timerGameFromBracket(bracketId, matchId) {
+  document.getElementById('bracket-link-overlay').classList.remove('open');
+  const current = bracketTabGames.find(g => g.bracketId === bracketId && g.bracketMatchId === matchId);
+  if (current) { openGameTimerModal(current.id); return; }
+
+  // 枠の対戦チーム名を解決
+  const bracket = bracketTabBrackets.find(b => b.id === bracketId);
+  let teamA = '', teamB = '';
+  if (bracket) {
+    const rounds = computeBracket(bracket, bracketTabGames);
+    rounds.forEach(ms => ms.forEach(m => {
+      if (m.id === matchId) { teamA = m.a || ''; teamB = m.b || ''; }
+    }));
+  }
+  try {
+    const now = new Date().toISOString();
+    const data = {
+      tournamentId: currentTournamentId,
+      teamAName: teamA, teamBName: teamB,
+      gameNo: '', gameDate: now.slice(0, 10), venue: '',
+      pbpData: '', playersA: [], playersB: [],
+      gameMode: 'scoresheet',
+      bracketId, bracketMatchId: matchId,
+      createdAt: now, updatedAt: now
+    };
+    // doc() はクライアント側でIDを生成するためオフラインでも即完了する
+    const ref = db.collection('games').doc();
+    const p = ref.set(data);
+    if (!isOnline) {
+      p.catch(e => console.error('[offline-queue] 試合作成エラー:', e));
+      showToast('⏳ オフライン保存（再接続時に同期されます）');
+    } else {
+      await p;
+    }
+    showToast(`試合を作成しました（${teamA || '未定'} vs ${teamB || '未定'}）`);
+    loadBrackets();  // トーナメント表を最新化
+    openGameTimerModal(ref.id);
+  } catch (e) {
+    showToast('試合の作成エラー: ' + e.message, 4000);
+  }
 }
 
 // 試合をトーナメント枠に紐付ける共通処理
@@ -4080,11 +4136,16 @@ function loadGames() {
           const teamB = d.teamBName || 'チームB';
           const score = (d.totalA != null) ? `${d.totalA} - ${d.totalB}` : '- - -';
           const label = [d.gameDate, d.gameNo ? `Game ${d.gameNo}` : ''].filter(Boolean).join('　');
+          // タイマー連携中（未終了）はライブ時計・スコアのストリップを表示（速報ページと同じ仕組み）
+          const timerStrip = (d.timerDeviceId && d.status !== 'finished')
+            ? `<div class="vt-timer-strip gc-timer-strip" data-timer-device="${escAttr(d.timerDeviceId)}" data-timer-flip="${d.timerScoreFlip ? 1 : 0}" style="display:none"></div>`
+            : '';
           return `
             <div class="game-card" onclick="openGame('${doc.id}')">
               <div class="gc-info">
                 <div class="gc-title">${esc(label) || '試合'}</div>
                 <div class="gc-teams">${esc(teamA)} <span style="color:#999;font-weight:normal">vs</span> ${esc(teamB)}</div>
+                ${timerStrip}
               </div>
               <div class="gc-score">${esc(score)}</div>
               <div class="gc-actions" onclick="event.stopPropagation()">
@@ -4094,6 +4155,9 @@ function loadGames() {
               </div>
             </div>`;
         }).join('');
+        // タイマー連携中の試合があればライブ表示を開始（速報ページと共通の仕組み）
+        ensureViewerTimerSync(sortedDocs);
+        renderViewerTimerStrips();
       }, err => {
         console.error('試合一覧の読み込みエラー:', err);
         cont.innerHTML = `<div class="loading-msg" style="color:red">読み込みエラー: ${err.message}</div>`;
