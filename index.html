@@ -1181,7 +1181,21 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
 .league-group-edit { border: 1px solid #e0e7ee; border-radius: 8px; padding: 10px; margin-bottom: 8px; }
 .league-group-edit-head { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
 .league-group-name { flex: 1; }
-.league-group-teams { width: 100%; font-family: inherit; resize: vertical; }
+.league-team-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; min-height: 26px; align-items: center; }
+.league-team-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: #f2f6fb; border: 1px solid #dbe6f1; border-radius: 14px;
+  padding: 3px 6px 3px 10px; font-size: 12px; color: var(--text);
+}
+.league-chip-x {
+  border: none; background: transparent; cursor: pointer;
+  color: var(--text-light); font-size: 14px; line-height: 1; padding: 0 2px;
+}
+.league-chip-x:hover { color: #c62828; }
+.league-team-empty { font-size: 11px; color: var(--text-light); }
+.league-team-add { display: flex; gap: 8px; align-items: center; }
+.league-team-add select { flex: 1; min-width: 0; }
+.league-team-add button { white-space: nowrap; }
 .vt-scoreline {
   display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
 }
@@ -2587,7 +2601,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <div id="bracket-league-fields" style="display:none">
         <div class="bracket-form-label" style="margin:10px 0 2px">ブロック（総当たり）</div>
         <div style="font-size:10.5px;color:var(--text-light);margin-bottom:6px">
-          ※ 各ブロックのチームを1行に1チームずつ入力してください（3〜6チーム程度）
+          ※ 参加チーム一覧から選ぶか、未登録のチームは「手入力で追加」から登録できます
         </div>
         <div id="league-groups-wrap"></div>
         <button class="btn btn-secondary" style="margin-top:6px" onclick="addLeagueGroup()">＋ ブロックを追加</button>
@@ -3304,9 +3318,13 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.07.31-1';
+const APP_VERSION = '2026.07.31-2';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.07.31-2', notes: [
+    'リーグのブロック編集：参加チーム一覧から選択する方式に変更（未登録チームは「手入力で追加」）',
+    'トーナメントの出場枠入力に、予選リーグの通過枠（Aブロック1位 等）を候補表示'
+  ] },
   { v: '2026.07.31-1', notes: [
     '予選リーグ（総当たり）機能を追加：ブロックごとの星取表・勝敗・順位を自動集計',
     'リーグの順位を決勝トーナメントに自動反映（出場枠に「Aブロック1位」と入力）',
@@ -4216,14 +4234,23 @@ async function openBracketEditModal(bracketId) {
   renderBracketSlotInputs(b && !isLeague ? b.entries : null);
   renderLeagueGroupInputs(b && isLeague ? b.groups : null);
   onBracketTypeChange();
-  // ロスターから候補（datalist）
+  // ロスターから候補を取得（リーグのチーム選択・トーナメントの入力補完に使用）
   try {
     const snap = await db.collection('roster_teams').where('tournamentId', '==', currentTournamentId).get();
-    const names = snap.docs.map(d => d.data().teamName).filter(Boolean)
+    bracketRosterNames = snap.docs.map(d => d.data().teamName).filter(Boolean)
       .sort((a, b2) => a.localeCompare(b2, 'ja'));
-    document.getElementById('bracket-team-datalist').innerHTML =
-      names.map(n => `<option value="${esc(n)}">`).join('');
-  } catch (e) { /* 候補なしでも入力可 */ }
+  } catch (e) { bracketRosterNames = []; /* 候補なしでも入力可 */ }
+  // トーナメント入力欄の候補には、予選リーグの通過枠（Aブロック1位 等）も並べる
+  const leaguePlaceholders = [];
+  bracketTabBrackets.filter(x => x.type === 'league').forEach(lg => {
+    (lg.groups || []).forEach(g => {
+      const teamCount = (g.teams || []).length;
+      for (let r = 1; r <= Math.min(teamCount, 3); r++) leaguePlaceholders.push(`${g.name}${r}位`);
+    });
+  });
+  document.getElementById('bracket-team-datalist').innerHTML =
+    [...leaguePlaceholders, ...bracketRosterNames].map(n => `<option value="${esc(n)}">`).join('');
+  drawLeagueGroupInputs();
   document.getElementById('bracket-edit-overlay').classList.add('open');
 }
 
@@ -4237,21 +4264,36 @@ function onBracketTypeChange() {
 }
 
 // ---- リーグ：ブロック入力 ----
-let leagueGroupDraft = [];   // [{ name, teamsText }]
+let leagueGroupDraft = [];      // [{ name, teams: [] }]
+let bracketRosterNames = [];    // 参加チーム一覧（ロスター）
 
 function renderLeagueGroupInputs(groups) {
   if (groups) {
-    leagueGroupDraft = groups.map(g => ({
-      name: g.name || '', teamsText: (g.teams || []).join('\n')
-    }));
+    leagueGroupDraft = groups.map(g => ({ name: g.name || '', teams: (g.teams || []).slice() }));
   } else if (!leagueGroupDraft.length) {
-    leagueGroupDraft = [{ name: 'Aブロック', teamsText: '' }];
+    leagueGroupDraft = [{ name: 'Aブロック', teams: [] }];
   }
   drawLeagueGroupInputs();
 }
 
 function drawLeagueGroupInputs() {
-  document.getElementById('league-groups-wrap').innerHTML = leagueGroupDraft.map((g, i) => `
+  const wrap = document.getElementById('league-groups-wrap');
+  if (!wrap) return;
+  // 他ブロックで既に使われているチームは選択肢から外す（重複登録の防止）
+  const usedElsewhere = (idx) => new Set(
+    leagueGroupDraft.flatMap((g, i) => i === idx ? [] : g.teams)
+  );
+  wrap.innerHTML = leagueGroupDraft.map((g, i) => {
+    const used = usedElsewhere(i);
+    const chips = g.teams.length
+      ? g.teams.map((t, j) => `<span class="league-team-chip">${esc(t)}
+          <button class="league-chip-x" title="削除" onclick="removeTeamFromGroup(${i},${j})">×</button>
+        </span>`).join('')
+      : '<span class="league-team-empty">チーム未選択</span>';
+    const options = bracketRosterNames
+      .filter(n => !used.has(n) && !g.teams.includes(n))
+      .map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    return `
     <div class="league-group-edit">
       <div class="league-group-edit-head">
         <input class="members-input league-group-name" id="league-group-name-${i}"
@@ -4259,22 +4301,51 @@ function drawLeagueGroupInputs() {
           oninput="leagueGroupDraft[${i}].name = this.value">
         <button class="btn-card btn-delete" onclick="removeLeagueGroup(${i})">削除</button>
       </div>
-      <textarea class="members-input league-group-teams" id="league-group-teams-${i}" rows="4"
-        placeholder="1行に1チーム&#10;例:&#10;松江高専&#10;仙台高専名取&#10;鈴鹿高専"
-        oninput="leagueGroupDraft[${i}].teamsText = this.value">${esc(g.teamsText)}</textarea>
-    </div>`).join('');
+      <div class="league-team-chips">${chips}</div>
+      <div class="league-team-add">
+        <select class="members-input" onchange="addTeamToGroup(${i}, this.value); this.value='';">
+          <option value="">＋ 参加チームから選択…</option>
+          ${options}
+        </select>
+        <button class="btn btn-secondary" onclick="addManualTeamToGroup(${i})">✎ 手入力で追加</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function addTeamToGroup(idx, name) {
+  name = (name || '').trim();
+  if (!name) return;
+  const g = leagueGroupDraft[idx];
+  if (!g || g.teams.includes(name)) return;
+  g.teams.push(name);
+  drawLeagueGroupInputs();
+}
+
+// 参加チーム一覧に無いチームを手入力で追加
+function addManualTeamToGroup(idx) {
+  const name = prompt('チーム名を入力してください（参加チーム一覧に未登録のチーム）');
+  if (name == null) return;
+  addTeamToGroup(idx, name);
+}
+
+function removeTeamFromGroup(gi, ti) {
+  const g = leagueGroupDraft[gi];
+  if (!g) return;
+  g.teams.splice(ti, 1);
+  drawLeagueGroupInputs();
 }
 
 function addLeagueGroup() {
   // A, B, C... の順で自動命名
   const next = String.fromCharCode(65 + leagueGroupDraft.length);
-  leagueGroupDraft.push({ name: `${next}ブロック`, teamsText: '' });
+  leagueGroupDraft.push({ name: `${next}ブロック`, teams: [] });
   drawLeagueGroupInputs();
 }
 
 function removeLeagueGroup(idx) {
   leagueGroupDraft.splice(idx, 1);
-  if (!leagueGroupDraft.length) leagueGroupDraft = [{ name: 'Aブロック', teamsText: '' }];
+  if (!leagueGroupDraft.length) leagueGroupDraft = [{ name: 'Aブロック', teams: [] }];
   drawLeagueGroupInputs();
 }
 
@@ -4310,9 +4381,9 @@ async function saveBracket() {
   if (isLeague) {
     const groups = leagueGroupDraft.map(g => ({
       name: (g.name || '').trim() || 'ブロック',
-      teams: (g.teamsText || '').split('\n').map(s => s.trim()).filter(Boolean)
+      teams: (g.teams || []).map(s => String(s).trim()).filter(Boolean)
     })).filter(g => g.teams.length > 0);
-    if (!groups.length) { showToast('ブロックにチームを入力してください'); return; }
+    if (!groups.length) { showToast('ブロックにチームを追加してください'); return; }
     updatePayload = { name, groups, updatedAt: now };
     createPayload = { tournamentId: currentTournamentId, type: 'league', name, groups, createdAt: now, updatedAt: now };
   } else {
