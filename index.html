@@ -1184,6 +1184,7 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
 .bracket-count-row { display: flex; align-items: center; gap: 8px; flex: 1; }
 .bracket-count-row input { width: 90px; }
 .bracket-count-note { font-size: 11px; color: var(--text-mid); white-space: nowrap; }
+.bracket-slot-pair-top { margin-top: 8px; }
 .league-team-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; min-height: 26px; align-items: center; }
 .league-team-chip {
   display: inline-flex; align-items: center; gap: 4px;
@@ -2593,8 +2594,9 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
             <span class="bracket-count-note" id="bracket-count-note"></span>
           </div>
         </div>
-        <div class="bracket-form-label" style="margin:10px 0 2px">出場チーム（上から順に配置）</div>
+        <div class="bracket-form-label" style="margin:10px 0 2px">出場チームの配置（組合せ表どおりに）</div>
         <div style="font-size:10.5px;color:var(--text-light);margin-bottom:6px" id="bracket-slot-hint"></div>
+        <button class="btn btn-secondary" style="margin-bottom:8px" onclick="autoSeedBracketSlots()">⚙ シードを自動配置</button>
         <div id="bracket-slots-wrap"></div>
       </div>
       <!-- リーグ設定 -->
@@ -3318,9 +3320,13 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.07.31-3';
+const APP_VERSION = '2026.07.31-4';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.07.31-4', notes: [
+    'トーナメントの配置を組合せ表どおりに自由設定可能に（どの枠が1回戦か・どのチームがシードかを指定できます）',
+    '「⚙ シードを自動配置」ボタンで標準的な配置に並べ替えることも可能'
+  ] },
   { v: '2026.07.31-3', notes: [
     'トーナメントの参加チーム数を自由に指定可能に（9チーム等、2の累乗でない大会に対応）',
     'シード（不戦勝）を自動配置：余ったチームは2回戦から出場する標準的な組み方で展開',
@@ -3893,8 +3899,12 @@ function computeBracket(bracket, games, allBrackets) {
         bye = true;
         winner = a || b;
       }
-      // 両側とも空で試合も無い枠は、9チーム等で生じる余り枠。表には出さない
-      const empty = !a && !b && !game;
+      // その枠に到達しうるチームが1つも居なければ「使わない枠」として表には出さない。
+      // （勝者未定でも、下位ラウンドに出場チームが居れば表示する）
+      const from = (i - 1) * Math.pow(2, r);
+      const to   = i * Math.pow(2, r);
+      const hasTeam = entries.slice(from, to).some(Boolean);
+      const empty = !hasTeam && !game;
       matches.push({ id, a, b, sa, sb, winner, game, bye, empty });
     }
     rounds.push(matches);
@@ -4240,7 +4250,7 @@ async function openBracketEditModal(bracketId) {
   countEl.value = b && !isLeague
     ? String(b.teamCount || (b.entries || []).filter(Boolean).length || b.size || 8)
     : '8';
-  countEl.disabled = !!b;  // 規模変更は作り直しで対応（紐付け崩れ防止）
+  countEl.disabled = !!b;  // 枠数変更は作り直しで対応（紐付け崩れ防止）
   document.getElementById('bracket-delete-btn').style.display = b ? '' : 'none';
   renderBracketSlotInputs(b && !isLeague ? b.entries : null);
   renderLeagueGroupInputs(b && isLeague ? b.groups : null);
@@ -4385,48 +4395,53 @@ function expandEntriesToBracket(teams, size) {
   return slots;
 }
 
-// 参加チーム数の変更に合わせて入力欄を作り直す（入力済みの名前は引き継ぐ）
+// 参加チーム数の変更に合わせて枠を作り直す（入力済みの配置は維持）
 function onBracketCountChange() {
   const current = [];
   document.querySelectorAll('#bracket-slots-wrap .bracket-slot-input').forEach(el => current.push(el.value));
-  renderBracketSlotInputs(null, current);
+  renderBracketSlotInputs(current.some(Boolean) ? current : null);
 }
 
-// 出場チームの入力欄（参加チーム数ぶんだけ表示）
-// entries: 保存済みの枠配列（size個）／ presetTeams: 引き継ぐチーム名の配列
-function renderBracketSlotInputs(entries, presetTeams) {
+// 「⚙ シードを自動配置」：入力済みのチームを標準的なシード配置に並べ替える
+function autoSeedBracketSlots() {
+  const teams = [];
+  document.querySelectorAll('#bracket-slots-wrap .bracket-slot-input').forEach(el => {
+    const v = (el.value || '').trim();
+    if (v) teams.push(v);
+  });
+  if (!teams.length) { showToast('先にチーム名を入力してください'); return; }
+  const size = bracketSizeForCount(Math.max(teams.length,
+    parseInt(document.getElementById('bracket-count-input').value, 10) || teams.length));
+  renderBracketSlotInputs(expandEntriesToBracket(teams, size));
+  showToast('シードを自動配置しました（必要に応じて調整してください）');
+}
+
+// 出場チームの配置欄（表の枠数ぶん＝組合せ表どおりに自由配置できる）
+// entries: 枠配列（size個。空欄＝シードまたは未使用）
+function renderBracketSlotInputs(entries) {
   const countEl = document.getElementById('bracket-count-input');
-  const n = Math.max(2, Math.min(64, parseInt(countEl.value, 10) || 8));
-  const size = bracketSizeForCount(n);
-  const byes = size - n;
-  const firstRoundMatches = Math.max(0, (n - byes) / 2);
-  // 表示する初期値：保存済み entries があれば空欄を除いた並び、なければ引き継ぎ値
-  const teams = entries
-    ? entries.filter(Boolean)
-    : (presetTeams || []).filter(Boolean);
+  const filled = (entries || []).filter(Boolean).length;
+  const n = Math.max(2, Math.min(64, parseInt(countEl.value, 10) || filled || 8));
+  const size = bracketSizeForCount(Math.max(n, filled));
 
   const wrap = document.getElementById('bracket-slots-wrap');
   let html = '';
-  for (let i = 0; i < n; i++) {
-    const v = teams[i] || '';
-    const isFirstRound = i < firstRoundMatches * 2;
-    const label = isFirstRound
-      ? (i % 2 === 0 ? `1回戦 第${Math.floor(i / 2) + 1}試合` : '')
-      : (i === firstRoundMatches * 2 ? 'シード' : '');
-    html += `<div class="bracket-slot-row">
-      <span class="bracket-slot-label">${label}</span>
+  for (let i = 0; i < size; i++) {
+    const v = (entries && entries[i]) || '';
+    const matchNo = Math.floor(i / 2) + 1;
+    html += `<div class="bracket-slot-row${i % 2 === 0 ? ' bracket-slot-pair-top' : ''}">
+      <span class="bracket-slot-label">${i % 2 === 0 ? `第${matchNo}試合` : ''}</span>
       <input class="bracket-slot-input" id="bracket-slot-${i}" list="bracket-team-datalist"
-        placeholder="${isFirstRound ? '1回戦から出場' : 'シード（2回戦から）'} ${i + 1}" value="${esc(v)}">
+        placeholder="${i % 2 === 0 ? '上のチーム' : '下のチーム'}（空欄可）" value="${esc(v)}">
     </div>`;
   }
   wrap.innerHTML = html;
 
-  document.getElementById('bracket-count-note').textContent = `→ ${size}枠の表`;
-  document.getElementById('bracket-slot-hint').innerHTML = byes > 0
-    ? `※ ${n}チームのため、上から${firstRoundMatches * 2}チームが1回戦を戦い、残り${byes}チームはシード（2回戦から）になります<br>
-       ※ 予選リーグの通過チームは「Aブロック1位」のように入力すると、リーグ確定後に自動でチーム名へ置き換わります`
-    : `※ 上から順に、1回戦の対戦カード（①②／③④…）として配置されます<br>
-       ※ 予選リーグの通過チームは「Aブロック1位」のように入力すると、リーグ確定後に自動でチーム名へ置き換わります`;
+  document.getElementById('bracket-count-note').textContent = `→ ${size}枠の表（1回戦 ${size / 2}枠）`;
+  document.getElementById('bracket-slot-hint').innerHTML =
+    `※ 組合せ表と同じ並びで入力してください。<b>相手を空欄にするとそのチームはシード</b>（不戦勝で次のラウンドへ）、両方空欄の枠は表示されません<br>
+     ※ 並びが決まっていない場合は「⚙ シードを自動配置」で標準的な配置に並べ替えられます<br>
+     ※ 予選リーグの通過チームは「Aブロック1位」のように入力すると、リーグ確定後に自動でチーム名へ置き換わります`;
 }
 
 function closeBracketEditModal(event) {
@@ -4450,14 +4465,14 @@ async function saveBracket() {
     updatePayload = { name, groups, updatedAt: now };
     createPayload = { tournamentId: currentTournamentId, type: 'league', name, groups, createdAt: now, updatedAt: now };
   } else {
-    const teamCount = Math.max(2, Math.min(64, parseInt(document.getElementById('bracket-count-input').value, 10) || 8));
-    const size = bracketSizeForCount(teamCount);
-    const teams = [];
-    for (let i = 0; i < teamCount; i++) {
-      teams.push((document.getElementById(`bracket-slot-${i}`)?.value || '').trim());
-    }
-    // 参加チームを標準のシード配置で枠へ展開（9チーム等の2の累乗でない大会に対応）
-    const entries = expandEntriesToBracket(teams, size);
+    // 配置欄（表の枠数ぶん）をそのまま保存。空欄＝シードまたは未使用枠
+    const entries = [];
+    document.querySelectorAll('#bracket-slots-wrap .bracket-slot-input').forEach(el => {
+      entries.push((el.value || '').trim());
+    });
+    const size = bracketSizeForCount(entries.length);
+    const teamCount = entries.filter(Boolean).length;
+    if (!teamCount) { showToast('出場チームを入力してください'); return; }
     updatePayload = { name, entries, teamCount, updatedAt: now };
     createPayload = { tournamentId: currentTournamentId, type: 'tournament', name, size, teamCount, entries, createdAt: now, updatedAt: now };
   }
