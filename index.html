@@ -3384,9 +3384,12 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.02-5';
+const APP_VERSION = '2026.08.02-6';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.02-6', notes: [
+    '閲覧ページの対戦表の注釈を修正（デジタル記録がない試合にも当てはまる表現に）'
+  ] },
   { v: '2026.08.02-5', notes: [
     '対戦表（トーナメント表・リーグ星取表）に進行中の試合のLIVEマークを表示',
     'タイマー連携中は「LIVE ⏱ 2Q 7:23」、デジタル記録中は星取表のマスにもLIVE表示'
@@ -8960,7 +8963,7 @@ function renderViewerBrackets(gameDocs) {
       ${isLeague
         ? renderLeagueHTML(b, games, false, true)
         : renderBracketHTML(b, games, false, true, viewerBrackets)}
-      <div class="bracket-hint">※ スコアの入った試合をタップすると、スコアシート等の詳細を表示します</div>
+      <div class="bracket-hint">※ 記録のある試合をタップすると詳細を表示します（デジタル記録の試合はスコアシートも表示されます）</div>
     </div>`;
   }).join('');
 }
