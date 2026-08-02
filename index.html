@@ -1147,8 +1147,17 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
 }
 .gc-live-tag { font-size: 10px; font-weight: 600; color: #FF7043; }
 .br-timer-clock {
-  background: #fff; color: var(--blue);
-  border: 1px solid #c8d8e8; font-size: 9px; font-weight: 700;
+  background: #E53935; color: #fff;
+  border: none; font-size: 8px; font-weight: 800;
+  letter-spacing: .04em; animation: liveBlink 2s ease-in-out infinite;
+}
+@keyframes liveBlink { 0%, 100% { opacity: 1; } 50% { opacity: .65; } }
+/* 星取表のLIVEバッジ */
+.lg-live-badge {
+  display: inline-block; background: #E53935; color: #fff;
+  border-radius: 8px; padding: 0 5px; margin-right: 3px;
+  font-size: 9px; font-weight: 800; letter-spacing: .04em;
+  animation: liveBlink 2s ease-in-out infinite;
 }
 /* 予選リーグ（総当たり）表 */
 .league-block { margin-bottom: 18px; }
@@ -3375,9 +3384,13 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.02-4';
+const APP_VERSION = '2026.08.02-5';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.02-5', notes: [
+    '対戦表（トーナメント表・リーグ星取表）に進行中の試合のLIVEマークを表示',
+    'タイマー連携中は「LIVE ⏱ 2Q 7:23」、デジタル記録中は星取表のマスにもLIVE表示'
+  ] },
   { v: '2026.08.02-4', notes: [
     '対戦表に試合予定（日付・開始時刻・コート名）を設定できるように',
     '予定は組み合わせ表・リーグ星取表に表示され、試合が始まると自動的にスコア表示へ切り替わります'
@@ -4150,10 +4163,12 @@ function renderLeagueHTML(bracket, games, editable, viewerClick) {
         if (c.own == null && g && g.timerDeviceId && g.status !== 'finished' && !IS_ARCHIVE) {
           const swap = g.teamBName === t && g.teamAName !== t;
           const flip = g.timerScoreFlip ? 1 : 0;
+          const dev = escAttr(g.timerDeviceId);
           return `<td class="lg-cell lg-live${cls}"${click}>
-            <span class="br-live-score" data-timer-device="${escAttr(g.timerDeviceId)}" data-timer-flip="${flip}" data-side="${swap ? 'b' : 'a'}">–</span>
+            <span class="lg-live-badge" data-timer-device="${dev}" style="display:none">LIVE</span>
+            <span class="br-live-score" data-timer-device="${dev}" data-timer-flip="${flip}" data-side="${swap ? 'b' : 'a'}">–</span>
             <span class="lg-dash">-</span>
-            <span class="br-live-score" data-timer-device="${escAttr(g.timerDeviceId)}" data-timer-flip="${flip}" data-side="${swap ? 'a' : 'b'}">–</span>
+            <span class="br-live-score" data-timer-device="${dev}" data-timer-flip="${flip}" data-side="${swap ? 'a' : 'b'}">–</span>
           </td>`;
         }
         if (c.own == null) {
@@ -4162,8 +4177,11 @@ function renderLeagueHTML(bracket, games, editable, viewerClick) {
           return `<td class="lg-cell${cls}"${click}>${sch ? `<span class="lg-sched">${esc(sch)}</span>` : ''}</td>`;
         }
         const win = c.own > c.opp, lose = c.own < c.opp;
-        return `<td class="lg-cell${cls}${win ? ' lg-win' : lose ? ' lg-lose' : ''}"${click}>
-          <span class="lg-mark">${win ? '○' : lose ? '●' : '△'}</span>
+        // デジタル記録中（2時間以内に更新があり未終了）はLIVE表示
+        const isRecLive = !IS_ARCHIVE && g && g.status !== 'finished' && g.updatedAt &&
+          (Date.now() - new Date(g.updatedAt).getTime()) < 7200000;
+        return `<td class="lg-cell${cls}${win ? ' lg-win' : lose ? ' lg-lose' : ''}${isRecLive ? ' lg-live' : ''}"${click}>
+          ${isRecLive ? '<span class="lg-live-badge">LIVE</span>' : `<span class="lg-mark">${win ? '○' : lose ? '●' : '△'}</span>`}
           <span class="lg-score">${c.own}-${c.opp}</span>
         </td>`;
       }).join('');
@@ -4241,7 +4259,7 @@ function renderBracketHTML(bracket, games, editable, viewerClick, allBrackets, s
         const swap = m.a && g.teamBName === m.a && g.teamAName !== m.a;
         scoreA = `<span class="br-live-score" data-timer-device="${dev}" data-timer-flip="${tflip}" data-side="${swap ? 'b' : 'a'}">–</span>`;
         scoreB = `<span class="br-live-score" data-timer-device="${dev}" data-timer-flip="${tflip}" data-side="${swap ? 'a' : 'b'}">–</span>`;
-        chip = `<span class="br-live br-timer-clock" data-timer-device="${dev}">⏱ --:--</span>`;
+        chip = `<span class="br-live br-timer-clock" data-timer-device="${dev}" style="display:none">LIVE</span>`;
       } else if (!IS_ARCHIVE && g && g.status !== 'finished' && m.sa != null) {
         chip = '<span class="br-live">LIVE</span>';
       }
@@ -8720,11 +8738,18 @@ function renderViewerTimerStrips() {
     const v = el.dataset.side === 'b' ? ts.b : ts.a;
     if (v != null) el.textContent = v;
   });
+  // 配信中のみ「LIVE ⏱ 2Q 7:23」を表示（止まったら非表示）
   document.querySelectorAll('.br-timer-clock').forEach(el => {
     const live = getLive(el.dataset.timerDevice);
-    if (!live) { el.textContent = '⏱ --:--'; return; }
+    if (!live) { el.style.display = 'none'; return; }
+    el.style.display = '';
     const ct = clockText(live);
-    if (ct) el.textContent = `⏱ ${ct}`;
+    el.textContent = ct ? `LIVE ⏱ ${ct}` : 'LIVE';
+  });
+
+  // 5) リーグ星取表のLIVEバッジ（タイマー連携中の対戦）
+  document.querySelectorAll('.lg-live-badge[data-timer-device]').forEach(el => {
+    el.style.display = getLive(el.dataset.timerDevice) ? '' : 'none';
   });
 
   // 5) タイマー取得試合のLIVEバッジ（配信が生きている間だけ点灯）
