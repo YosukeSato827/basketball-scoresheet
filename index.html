@@ -3350,9 +3350,13 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.02-2';
+const APP_VERSION = '2026.08.02-3';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.02-3', notes: [
+    '観戦ビュー：試合が未登録でも組み合わせ（リーグ表・トーナメント表）を閲覧できるように',
+    '試合がまだ無い大会では「対戦表」タブを自動で初期表示'
+  ] },
   { v: '2026.08.02-2', notes: [
     '修正：トーナメントの「＋ チームを配置」でチーム選択画面が編集画面の背後に隠れて見えない問題'
   ] },
@@ -8470,8 +8474,12 @@ function openViewer(tournamentId) {
     '<div class="viewer-loading"><div class="viewer-spinner"></div><div>読み込み中...</div></div>';
 
   viewerTournamentId = tournamentId;
-  // トーナメント表を取得（変更頻度が低いので1回＋タブ切替時に再取得）
-  refreshViewerBrackets(tournamentId);
+  viewerTabTouched = false;
+  // 対戦表を取得（変更頻度が低いので1回＋タブ切替時に再取得）。
+  // 試合より先に描画が走ることがあるため、取得後に一度描き直す
+  refreshViewerBrackets(tournamentId).then(() => {
+    if (viewerLastTData) renderTournamentViewer(viewerLastTData, viewerLastGameDocs);
+  });
 
   // 大会情報を1回取得し、試合一覧をリアルタイム監視
   db.collection('tournaments').doc(tournamentId).get().then(tSnap => {
@@ -8494,6 +8502,7 @@ function openViewer(tournamentId) {
 
 // 閲覧URL：タブ状態
 let viewerActiveTab = 'games'; // 'games' | 'bracket' | 'stats'
+let viewerTabTouched = false;  // 閲覧者がタブを操作したか（初期表示の自動選択に使用）
 let viewerLastGameDocs = [];
 let viewerLastTData = null;
 let viewerTournamentId = null;
@@ -8647,6 +8656,7 @@ function renderViewerTimerStrips() {
 
 function setViewerTab(tab) {
   viewerActiveTab = tab;
+  viewerTabTouched = true;
   if (tab === 'bracket' && viewerTournamentId) {
     // 最新のブラケット定義を取り直してから再描画
     refreshViewerBrackets(viewerTournamentId).then(() => {
@@ -8698,16 +8708,10 @@ function renderTournamentViewer(tData, gameDocs) {
   const period = [tData.startDate, tData.endDate].filter(Boolean).join(' 〜 ');
   const metaLine = [period, tData.venue ? '📍 ' + tData.venue : ''].filter(Boolean).join('　');
 
-  if (sorted.length === 0) {
-    document.getElementById('viewer-content').innerHTML = `
-      <div class="viewer-tournament-name">${esc(tData.name || '大会')}</div>
-      ${metaLine ? `<div class="viewer-game-info">${esc(metaLine)}</div>` : ''}
-      <div class="viewer-error" style="padding:56px 0">
-        <div style="font-size:40px;margin-bottom:8px">🏀</div>
-        <p style="font-size:15px;font-weight:600;color:var(--text-mid)">試合がまだ登録されていません</p>
-        <p style="font-size:12px;color:var(--text-light);margin-top:4px">試合が始まると、ここにスコアが表示されます</p>
-      </div>`;
-    return;
+  // 試合が未登録でも、対戦表（リーグ／トーナメント）は閲覧できるようにする。
+  // まだタブを操作していない状態で試合が無ければ、対戦表タブを初期表示にする。
+  if (!viewerTabTouched && sorted.length === 0 && viewerBrackets.length > 0) {
+    viewerActiveTab = 'bracket';
   }
 
   const cards = sorted.map(doc => {
@@ -8808,6 +8812,15 @@ function renderTournamentViewer(tData, gameDocs) {
     bodyHTML = renderViewerStats(gameDocs);
   } else if (viewerActiveTab === 'bracket') {
     bodyHTML = renderViewerBrackets(gameDocs);
+  } else if (sorted.length === 0) {
+    bodyHTML = `<div class="viewer-error" style="padding:56px 0">
+      <div style="font-size:40px;margin-bottom:8px">🏀</div>
+      <p style="font-size:15px;font-weight:600;color:var(--text-mid)">試合がまだ登録されていません</p>
+      <p style="font-size:12px;color:var(--text-light);margin-top:4px">試合が始まると、ここにスコアが表示されます</p>
+      ${viewerBrackets.length > 0
+        ? '<p style="font-size:12px;color:var(--text-light);margin-top:10px">「🏆 対戦表」タブで組み合わせを確認できます</p>'
+        : ''}
+    </div>`;
   } else {
     bodyHTML = `<div class="vt-game-list">${cards}</div>`;
   }
@@ -8828,7 +8841,7 @@ function renderViewerBrackets(gameDocs) {
   if (!viewerBrackets || viewerBrackets.length === 0) {
     return `<div class="viewer-error" style="padding:48px 0">
       <div style="font-size:40px;margin-bottom:8px">🏆</div>
-      <p style="font-size:15px;font-weight:600;color:var(--text-mid)">トーナメント表はまだ公開されていません</p>
+      <p style="font-size:15px;font-weight:600;color:var(--text-mid)">組み合わせはまだ公開されていません</p>
     </div>`;
   }
   const games = gameDocs.map(d => ({ id: d.id, ...d.data() }));
