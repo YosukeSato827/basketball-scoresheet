@@ -1185,6 +1185,8 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
 .bracket-count-row input { width: 90px; }
 .bracket-count-note { font-size: 11px; color: var(--text-mid); white-space: nowrap; }
 /* 対戦表エディタ：枠タップでチーム配置 */
+/* チーム選択は対戦表編集モーダル（.changelog-overlay: z-index 10000）より前面に出す */
+#modal-slot-team { z-index: 10001; }
 #bracket-slots-wrap .bracket-wrap { padding: 6px 2px; background: #fafcfe; border: 1px solid #e3ebf3; border-radius: 8px; }
 .br-match.slot-editing { cursor: default; }
 .br-slot-edit { cursor: pointer; }
@@ -3348,9 +3350,12 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.02-1';
+const APP_VERSION = '2026.08.02-2';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.02-2', notes: [
+    '修正：トーナメントの「＋ チームを配置」でチーム選択画面が編集画面の背後に隠れて見えない問題'
+  ] },
   { v: '2026.08.02-1', notes: [
     'トーナメント作成を「表を作ってから枠にチームを当てはめる」方式に変更',
     '編集画面にトーナメント表を表示し、枠をタップして出場チームを選べるように（配置クリア機能も追加）'
