@@ -3416,9 +3416,13 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.03-1';
+const APP_VERSION = '2026.08.03-2';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.03-2', notes: [
+    '修正：対戦表の見出しのチーム数が表の枠数（16など）になっていた問題（実際の出場チーム数を表示）',
+    '予選リーグの見出しにブロック数とチーム数を表示'
+  ] },
   { v: '2026.08.03-1', notes: [
     'トーナメント表を一般的な「線でつなぐ」デザインに変更（勝ち上がりの流れが一目で分かります）',
     'シード枠は縦線を半分だけ描画、使わない枠は線ごと非表示'
@@ -4141,6 +4145,24 @@ function leagueMatchId(groupIdx, i, j) {
   return `g${groupIdx + 1}p${lo + 1}-${hi + 1}`;
 }
 
+// 対戦表に出場するチーム数（トーナメントは表の枠数ではなく実際の出場数）
+function bracketTeamCount(b) {
+  if (!b) return 0;
+  if (b.type === 'league') {
+    return (b.groups || []).reduce((n, g) => n + (g.teams || []).length, 0);
+  }
+  return b.teamCount || (b.entries || []).filter(Boolean).length || 0;
+}
+
+// 対戦表の見出しに出す規模の表記（例「9チーム」「4ブロック・12チーム」）
+function bracketSizeLabel(b) {
+  const n = bracketTeamCount(b);
+  if (b.type === 'league') {
+    return `${(b.groups || []).length}ブロック${n ? `・${n}チーム` : ''}`;
+  }
+  return n ? `${n}チーム` : `${b.size || 0}枠`;
+}
+
 // 対戦表の枠一覧（トーナメント／リーグ共通）
 // 返値: [{ id, label, a, b, game, bye }]
 function listBracketSlots(bracket, games, allBrackets) {
@@ -4376,14 +4398,12 @@ function renderBracketTab() {
   }
   const blocks = bracketTabBrackets.map(b => {
     const isLeague = b.type === 'league';
-    const sizeLabel = isLeague
-      ? `${(b.groups || []).length}ブロック`
-      : `${b.size}チーム`;
+    const sizeLabel = bracketSizeLabel(b);
     return `
     <div class="bracket-block">
       <div class="bracket-block-head">
         <span class="bracket-block-name">${isLeague ? '📋' : '🏆'} ${esc(b.name || (isLeague ? '予選リーグ' : 'トーナメント'))}</span>
-        <span class="bracket-block-size">${sizeLabel}</span>
+        <span class="bracket-block-size">${esc(sizeLabel)}</span>
         <span style="flex:1"></span>
         <button class="btn-card btn-edit editor-only" onclick="openBracketEditModal('${b.id}')">編集</button>
         <button class="btn-card btn-delete editor-only" onclick="deleteBracket('${b.id}')">削除</button>
@@ -9010,7 +9030,7 @@ function renderViewerBrackets(gameDocs) {
     <div class="bracket-block">
       <div class="bracket-block-head">
         <span class="bracket-block-name">${isLeague ? '📋' : '🏆'} ${esc(b.name || (isLeague ? '予選リーグ' : 'トーナメント'))}</span>
-        <span class="bracket-block-size">${isLeague ? `${(b.groups || []).length}ブロック` : `${b.size}チーム`}</span>
+        <span class="bracket-block-size">${esc(bracketSizeLabel(b))}</span>
       </div>
       ${isLeague
         ? renderLeagueHTML(b, games, false, true)
