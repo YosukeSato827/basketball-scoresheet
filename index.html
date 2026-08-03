@@ -178,11 +178,20 @@ body.not-editor .editor-only { display: none !important; }
   background: var(--blue-dim); border-radius: 10px; padding: 2px 8px;
 }
 .bracket-hint { font-size: 10.5px; color: var(--text-light); margin-top: 8px; }
+/* トーナメント表：ラウンドを線でつなぐ一般的なブラケット表示
+   各ラウンドは2試合ずつ .br-pair にまとめ、
+   「試合→右の水平線」「ペアを結ぶ縦線」「ペア中央→次ラウンドの水平線」を疑似要素で描く */
 .bracket-wrap {
-  display: flex; gap: 18px; overflow-x: auto;
+  --br-line: #c3d0dc;     /* 接続線の色 */
+  --br-arm: 13px;         /* 水平線1本の長さ */
+  display: flex; gap: 0; align-items: stretch; overflow-x: auto;
   -webkit-overflow-scrolling: touch; padding: 12px 2px 10px; /* 上余白はLIVEバッジのはみ出し分 */
 }
-.br-round { flex: 0 0 172px; display: flex; flex-direction: column; }
+.br-round {
+  flex: 0 0 168px; display: flex; flex-direction: column;
+  padding-right: calc(var(--br-arm) * 2);
+}
+.br-round:last-child { padding-right: 0; }
 .br-round-title {
   font-size: 10px; font-weight: 700; color: var(--text-light);
   letter-spacing: .08em; text-align: center; margin-bottom: 8px;
@@ -190,11 +199,34 @@ body.not-editor .editor-only { display: none !important; }
 }
 .br-round-matches {
   flex: 1; display: flex; flex-direction: column;
-  justify-content: space-around; gap: 10px;
+  justify-content: space-around; gap: 0;
+}
+.br-pair {
+  flex: 1; display: flex; flex-direction: column;
+  justify-content: space-around; position: relative; min-height: 0;
+}
+.br-pair.br-pair-empty { visibility: hidden; }
+.br-match.br-empty { visibility: hidden; }
+/* 試合から右へ伸びる線 */
+.br-round:not(:last-child) .br-match:not(.br-empty)::after {
+  content: ''; position: absolute; left: 100%; top: 50%;
+  width: var(--br-arm); border-top: 1.5px solid var(--br-line);
+}
+/* ペアを結ぶ縦線（上下どちらかだけ使う枠は半分だけ引く） */
+.br-round:not(:last-child) .br-pair:not(.br-pair-single):not(.br-pair-empty)::before {
+  content: ''; position: absolute; left: 100%; margin-left: var(--br-arm);
+  top: 25%; height: 50%; border-left: 1.5px solid var(--br-line);
+}
+.br-round:not(:last-child) .br-pair-top::before    { top: 25%; height: 25%; }
+.br-round:not(:last-child) .br-pair-bottom::before { top: 50%; height: 25%; }
+/* ペア中央から次のラウンドへ伸びる線 */
+.br-round:not(:last-child) .br-pair:not(.br-pair-empty)::after {
+  content: ''; position: absolute; left: 100%; margin-left: var(--br-arm);
+  top: 50%; width: var(--br-arm); border-top: 1.5px solid var(--br-line);
 }
 .br-match {
   background: var(--bg); border: 1px solid var(--border);
-  border-radius: 8px; position: relative;
+  border-radius: 8px; position: relative; margin: 5px 0;
   /* overflow:hidden にすると LIVE バッジが見切れるため、角丸はスロット側で維持 */
 }
 .br-slot:first-child { border-radius: 7px 7px 0 0; }
@@ -3384,9 +3416,13 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.02-6';
+const APP_VERSION = '2026.08.03-1';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.03-1', notes: [
+    'トーナメント表を一般的な「線でつなぐ」デザインに変更（勝ち上がりの流れが一目で分かります）',
+    'シード枠は縦線を半分だけ描画、使わない枠は線ごと非表示'
+  ] },
   { v: '2026.08.02-6', notes: [
     '閲覧ページの対戦表の注釈を修正（デジタル記録がない試合にも当てはまる表現に）'
   ] },
@@ -4222,8 +4258,9 @@ function renderBracketHTML(bracket, games, editable, viewerClick, allBrackets, s
   const cols = rounds.map((matches, ri) => {
     const roundNo = ri + 1;
     const title = bracketRoundName(roundNo, totalRounds);
-    // 配置編集中は「使わない枠」も表示する（そこにチームを置けるように）
-    const cards = matches.filter(m => slotEdit || !m.empty).map(m => {
+    // 線でつなぐため、枠は常に描画してレイアウト位置を保つ
+    // （使わない枠は非表示にするが、配置編集中はチームを置けるよう表示する）
+    const cardOf = (m) => {
       // 1回戦の枠には entries のインデックスを割り当てる（r1m3 → 4, 5 番目）
       const matchNo = parseInt((m.id.match(/m(\d+)$/) || [])[1], 10) || 1;
       const slotIdxA = (ri === 0 && slotEdit) ? (matchNo - 1) * 2     : null;
@@ -4269,24 +4306,39 @@ function renderBracketHTML(bracket, games, editable, viewerClick, allBrackets, s
       // 予定（日付・開始時刻・コート）は試合開始前のみ表示
       const schText = (!slotEdit && m.sa == null && !timerLive && !(g && g.status === 'finished'))
         ? fmtSchedule((bracket.schedule || {})[m.id]) : '';
-      return `<div class="br-match${cls}"${click}>
+      // 使わない枠は場所だけ確保して隠す（線の位置がずれないように）
+      const hidden = (m.empty && !slotEdit) ? ' br-empty' : '';
+      return `<div class="br-match${cls}${hidden}"${click}>
         ${chip}
         ${slot(m.a, scoreA, m.winner && m.winner === m.a, m.bye && !m.a, slotIdxA)}
         ${slot(m.b, scoreB, m.winner && m.winner === m.b, m.bye && !m.b, slotIdxB)}
         ${schText ? `<div class="br-sched">📅 ${esc(schText)}</div>` : ''}
       </div>`;
-    }).join('');
+    };
+
+    // 2試合ずつ「ペア」にまとめる。ペアの中央から次のラウンドへ線が伸びる
+    const pairs = [];
+    for (let p = 0; p < matches.length; p += 2) {
+      const pm = matches.slice(p, p + 2);
+      const used = pm.map(m => slotEdit || !m.empty);
+      let pcls = '';
+      if (pm.length === 1)            pcls = ' br-pair-single';   // 決勝など1試合のみ
+      else if (!used[0] && !used[1])  pcls = ' br-pair-empty';    // 両方未使用
+      else if (used[0] && !used[1])   pcls = ' br-pair-top';      // 上だけ使用
+      else if (!used[0] && used[1])   pcls = ' br-pair-bottom';   // 下だけ使用
+      pairs.push(`<div class="br-pair${pcls}">${pm.map(cardOf).join('')}</div>`);
+    }
     return `<div class="br-round">
       <div class="br-round-title">${esc(title)}</div>
-      <div class="br-round-matches">${cards}</div>
+      <div class="br-round-matches">${pairs.join('')}</div>
     </div>`;
   }).join('');
   // 優勝者表示
   const finalMatch = rounds[totalRounds - 1][0];
   const champion = finalMatch.winner
-    ? `<div class="br-round">
+    ? `<div class="br-round br-round-champion">
         <div class="br-round-title">優勝</div>
-        <div class="br-round-matches"><div class="br-champion">🏆 ${esc(finalMatch.winner)}</div></div>
+        <div class="br-round-matches"><div class="br-pair br-pair-single"><div class="br-champion">🏆 ${esc(finalMatch.winner)}</div></div></div>
       </div>`
     : '';
   return `<div class="bracket-wrap">${cols}${champion}</div>`;
