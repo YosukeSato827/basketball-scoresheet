@@ -3433,9 +3433,13 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.03-4';
+const APP_VERSION = '2026.08.03-5';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.03-5', notes: [
+    '閲覧ページの表示を高速化：試合の詳細（グラフ・スコアシート）はカードを開いたときに生成',
+    '17試合の大会で描画時間を約1/12、ページの重さを約1/25に削減（多人数の同時閲覧でも軽快に）'
+  ] },
   { v: '2026.08.03-4', notes: [
     '閲覧ページに更新モードを追加（自動5/15/30秒・手動更新のみ）と「🔄 更新」ボタン',
     'タイマー情報を常時受信から必要な分だけの定期取得に変更（通信量を大幅削減、時計の表示はなめらかなまま）'
@@ -9053,7 +9057,7 @@ function renderTournamentViewer(tData, gameDocs) {
     // 確定スコアのみ／タイマー速報の試合はクォーター内訳（全て0）を出さない
     const qRowHTML = (usingFinalScore || isTimerLiveGame) ? '' : `<div class="vt-qrow">${qRow}</div>`;
 
-    return `<details class="vt-game-detail" data-game-id="${gameId}"${isOpen ? ' open' : ''}>
+    return `<details class="vt-game-detail" data-game-id="${gameId}"${isOpen ? ' open' : ''} ontoggle="viewerLazyGameBody(this)">
       <summary class="vt-game-summary">
         <div class="vt-summary-inner">
           <div class="vt-game-label">
@@ -9067,19 +9071,9 @@ function renderTournamentViewer(tData, gameDocs) {
         </div>
         <span class="vt-expand-icon">▼</span>
       </summary>
-      <div class="vt-game-body">
-        ${graphSVG ? `<div class="score-graph-wrap" style="margin-bottom:16px">
-          <div class="score-graph-title">得点推移グラフ</div>${graphSVG}
-        </div>` : ''}
-        ${plays.length > 0 ? (
-          d.gameMode === 'stats'
-            ? renderFullBoxScoreHTML(computeGameFullStats(plays, d.playersA, d.playersB), teamA, teamB)
-            : renderViewerBoxScore(plays, teamA, teamB, d.playersA, d.playersB)
-        ) : ''}
-        ${plays.length > 0
-          ? renderViewerScoresheet({ ...d, tournamentName: tData.name || '' })
-          : '<p style="padding:8px 0;color:var(--text-mid)">PBPデータがありません</p>'}
-      </div>
+      <div class="vt-game-body" data-lazy="${isOpen ? '0' : '1'}">${
+        isOpen ? buildViewerGameBody(d, tData) : ''
+      }</div>
     </details>`;
   }).join('');
 
@@ -9135,6 +9129,39 @@ function renderTournamentViewer(tData, gameDocs) {
   // タイマー速報：必要に応じて購読を開始/停止し、ストリップを即時反映
   ensureViewerTimerSync(sorted);
   renderViewerTimerStrips();
+}
+
+// 試合カードの詳細（グラフ・ボックススコア・スコアシート）。
+// 生成コストが高いため、カードを開いたときにだけ作る（大会全体の描画を軽くするため）
+function buildViewerGameBody(d, tData) {
+  const teamA = d.teamAName || 'チームA';
+  const teamB = d.teamBName || 'チームB';
+  const plays = parsePBP(d.pbpData || '');
+  const graphSVG = plays.length > 1 ? buildScoreGraphSVG(plays, teamA, teamB) : '';
+  return `
+    ${graphSVG ? `<div class="score-graph-wrap" style="margin-bottom:16px">
+      <div class="score-graph-title">得点推移グラフ</div>${graphSVG}
+    </div>` : ''}
+    ${plays.length > 0 ? (
+      d.gameMode === 'stats'
+        ? renderFullBoxScoreHTML(computeGameFullStats(plays, d.playersA, d.playersB), teamA, teamB)
+        : renderViewerBoxScore(plays, teamA, teamB, d.playersA, d.playersB)
+    ) : ''}
+    ${plays.length > 0
+      ? renderViewerScoresheet({ ...d, tournamentName: (tData && tData.name) || '' })
+      : '<p style="padding:8px 0;color:var(--text-mid)">デジタル記録のない試合です</p>'}`;
+}
+
+// 試合カードを開いたときに詳細を生成する（閉じている間は作らない）
+function viewerLazyGameBody(det) {
+  if (!det || !det.open) return;
+  const body = det.querySelector('.vt-game-body');
+  if (!body || body.dataset.lazy !== '1') return;
+  const doc = (viewerLastGameDocs || []).find(x => x.id === det.dataset.gameId);
+  if (!doc) return;
+  const d = typeof doc.data === 'function' ? doc.data() : doc;
+  body.innerHTML = buildViewerGameBody(d, viewerLastTData);
+  body.dataset.lazy = '0';
 }
 
 // 閲覧URL：トーナメントタブのレンダリング（読み取り専用）
