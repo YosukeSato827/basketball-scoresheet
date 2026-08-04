@@ -1016,6 +1016,21 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
 /* min-width:0 と width:100% がないと、リーグ表など横長の中身に押し広げられて
    ヘッダー・フッターだけが画面幅に取り残される（スマホで右側が切れて見える） */
 .viewer-body { padding: 24px; max-width: 920px; margin: 0 auto; min-width: 0; width: 100%; }
+/* 更新バー（自動更新の間隔切替・手動更新） */
+.viewer-refresh-bar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin: 0 0 12px; font-size: 12px;
+}
+.viewer-refresh-btn {
+  background: var(--blue); color: #fff; border: none; border-radius: 14px;
+  padding: 5px 14px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit;
+}
+.viewer-refresh-btn:disabled { opacity: .6; cursor: default; }
+.viewer-refresh-mode {
+  border: 1px solid var(--border); border-radius: 12px; padding: 4px 8px;
+  font-size: 11.5px; font-family: inherit; color: var(--text-mid); background: #fff;
+}
+.viewer-fetched-at { font-size: 11px; color: var(--text-light); margin-left: auto; }
 .viewer-game-info {
   text-align: center; margin-bottom: 16px;
   color: var(--text-mid); font-size: 13px;
@@ -3418,9 +3433,13 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.03-3';
+const APP_VERSION = '2026.08.03-4';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.03-4', notes: [
+    '閲覧ページに更新モードを追加（自動5/15/30秒・手動更新のみ）と「🔄 更新」ボタン',
+    'タイマー情報を常時受信から必要な分だけの定期取得に変更（通信量を大幅削減、時計の表示はなめらかなまま）'
+  ] },
   { v: '2026.08.03-3', notes: [
     '修正：スマホの閲覧ページでヘッダー・フッターの右側が切れる問題（リーグ表・トーナメント表は枠内で横スクロール）'
   ] },
@@ -8658,28 +8677,90 @@ function openViewer(tournamentId) {
     if (viewerLastTData) renderTournamentViewer(viewerLastTData, viewerLastGameDocs);
   });
 
-  // 大会情報を1回取得し、試合一覧をリアルタイム監視
+  // 大会情報を1回取得し、試合一覧を購読（更新モードに従う）
   db.collection('tournaments').doc(tournamentId).get().then(tSnap => {
     const tData = tSnap.exists ? tSnap.data() : { name: '大会' };
+    viewerLastTData = tData;
     // ページタイトルを大会名に
     document.title = `${tData.name || '大会'} ｜ molten ScoreLink`;
-    viewerUnsubscribe = db.collection('games')
-      .where('tournamentId', '==', tournamentId)
-      .onSnapshot(snap => {
-        renderTournamentViewer(tData, snap.docs);
-      }, err => {
-        document.getElementById('viewer-content').innerHTML = `
-          <div class="viewer-error"><h2>読み込みエラー</h2><p>${esc(err.message)}</p></div>`;
-      });
+    if (viewerRefreshSec > 0) {
+      startViewerGamesListener();
+    } else {
+      // 手動更新モード：開いたときに1回だけ読み込む
+      db.collection('games').where('tournamentId', '==', tournamentId).get()
+        .then(snap => { viewerLastFetchAt = Date.now(); renderTournamentViewer(tData, snap.docs); })
+        .catch(err => {
+          document.getElementById('viewer-content').innerHTML = `
+            <div class="viewer-error"><h2>読み込みエラー</h2><p>${esc(err.message)}</p></div>`;
+        });
+    }
   }).catch(() => {
     document.getElementById('viewer-content').innerHTML = `
       <div class="viewer-error"><h2>大会が見つかりません</h2><p>URLをご確認ください。</p></div>`;
   });
 }
 
+// 試合一覧のリアルタイム購読（自動更新モードのみ）
+function startViewerGamesListener() {
+  if (viewerUnsubscribe || !viewerTournamentId) return;
+  viewerUnsubscribe = db.collection('games')
+    .where('tournamentId', '==', viewerTournamentId)
+    .onSnapshot(snap => {
+      viewerLastFetchAt = Date.now();
+      renderTournamentViewer(viewerLastTData || { name: '大会' }, snap.docs);
+    }, err => {
+      document.getElementById('viewer-content').innerHTML = `
+        <div class="viewer-error"><h2>読み込みエラー</h2><p>${esc(err.message)}</p></div>`;
+    });
+}
+
+// 更新モードの変更（自動◯秒／手動）。端末に記憶する
+function setViewerRefreshMode(sec) {
+  viewerRefreshSec = parseInt(sec, 10) || 0;
+  try { localStorage.setItem('viewerRefreshSec', String(viewerRefreshSec)); } catch (e) {}
+  if (viewerRefreshSec > 0) {
+    startViewerGamesListener();
+  } else if (viewerUnsubscribe) {
+    viewerUnsubscribe(); viewerUnsubscribe = null;
+  }
+  ensureViewerTimerSync(viewerLastGameDocs);   // タイマー取得の間隔も切り替え
+  if (viewerLastTData) renderTournamentViewer(viewerLastTData, viewerLastGameDocs);
+  showToast(viewerRefreshSec > 0 ? `自動更新：${viewerRefreshSec}秒ごと` : '手動更新に切り替えました');
+}
+
+// 「🔄 更新」：その時点の最新データを1回だけ取得する
+async function viewerManualRefresh() {
+  if (!viewerTournamentId || IS_ARCHIVE) return;
+  const btn = document.getElementById('viewer-refresh-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '更新中…'; }
+  try {
+    const [gSnap] = await Promise.all([
+      db.collection('games').where('tournamentId', '==', viewerTournamentId).get(),
+      refreshViewerBrackets(viewerTournamentId),
+    ]);
+    viewerLastFetchAt = Date.now();
+    viewerLastGameDocs = gSnap.docs;
+    await fetchViewerTimers();
+    renderTournamentViewer(viewerLastTData || { name: '大会' }, gSnap.docs);
+  } catch (e) {
+    showToast('更新エラー: ' + e.message);
+  } finally {
+    const b = document.getElementById('viewer-refresh-btn');
+    if (b) { b.disabled = false; b.textContent = '🔄 更新'; }
+  }
+}
+
 // 閲覧URL：タブ状態
 let viewerActiveTab = 'games'; // 'games' | 'bracket' | 'stats'
 let viewerTabTouched = false;  // 閲覧者がタブを操作したか（初期表示の自動選択に使用）
+// 更新モード：秒数（0 = 手動更新のみ）。通信量と表示の鮮度のバランスを閲覧者が選べる
+let viewerRefreshSec = (() => {
+  try {
+    const v = localStorage.getItem('viewerRefreshSec');
+    return v == null ? 5 : (parseInt(v, 10) || 0);
+  } catch (e) { return 5; }
+})();
+let viewerLastFetchAt = 0;
 let viewerLastGameDocs = [];
 let viewerLastTData = null;
 let viewerTournamentId = null;
@@ -8700,37 +8781,53 @@ function refreshViewerBrackets(tournamentId) {
 // 速報ページ：タイマー速報（TimerLink連携）
 // タイマー連携中の試合カードに、時計とタイマー側スコアを表示
 // =====================================================
-let viewerTimerUnsubscribe = null;
-let viewerTimerIv = null;
+let viewerTimerPollIv = null;   // タイマー取得の間隔タイマー
+let viewerTimerIv = null;       // 表示補間（通信なし）
 let viewerTimerData = {};       // deviceId → timer_sync ドキュメント
 let viewerTimerReceivedAt = {}; // deviceId → 受信時刻（Date.now()）
 
-// タイマー連携中の試合があれば購読を開始、なければ停止
-function ensureViewerTimerSync(gameDocs) {
-  if (IS_ARCHIVE) return;
-  const need = (gameDocs || []).some(doc => {
+// 表示中の試合に紐づくタイマーだけを取得する
+// （毎秒更新されるタイマーを常時購読すると通信量が跳ね上がるため、必要な分だけ間隔をあけて取得）
+function viewerActiveTimerDevices(gameDocs) {
+  const devs = new Set();
+  (gameDocs || []).forEach(doc => {
     // Firestoreドキュメントとプレーンオブジェクト（bracketTabGames等）の両対応
     const d = typeof doc.data === 'function' ? doc.data() : doc;
-    return d.timerDeviceId && d.status !== 'finished';
+    if (d.timerDeviceId && d.status !== 'finished') devs.add(d.timerDeviceId);
   });
-  if (need && !viewerTimerUnsubscribe) {
-    viewerTimerUnsubscribe = db.collection('timer_sync').onSnapshot(snap => {
-      snap.docChanges().forEach(ch => {
-        if (ch.type === 'removed') {
-          delete viewerTimerData[ch.doc.id];
-          delete viewerTimerReceivedAt[ch.doc.id];
-          return;
-        }
-        _viewerApplyTimerData(ch.doc.id, ch.doc.data());
-      });
-    }, err => console.warn('[viewer timer] error:', err));
-    viewerTimerIv = setInterval(renderViewerTimerStrips, 500);
-  } else if (!need && viewerTimerUnsubscribe) {
-    viewerTimerUnsubscribe(); viewerTimerUnsubscribe = null;
+  return [...devs];
+}
+
+async function fetchViewerTimers() {
+  if (IS_ARCHIVE) return;
+  const devs = viewerActiveTimerDevices(viewerLastGameDocs);
+  if (!devs.length) return;
+  try {
+    const snaps = await Promise.all(devs.map(id => db.collection('timer_sync').doc(id).get()));
+    snaps.forEach((s, i) => { if (s.exists) _viewerApplyTimerData(devs[i], s.data()); });
+  } catch (e) {
+    console.warn('[viewer timer] 取得エラー:', e);
+  }
+  renderViewerTimerStrips();
+}
+
+// タイマー連携中の試合があれば定期取得を開始、なければ停止
+function ensureViewerTimerSync(gameDocs) {
+  if (IS_ARCHIVE) return;
+  const need = viewerActiveTimerDevices(gameDocs).length > 0;
+  clearInterval(viewerTimerPollIv); viewerTimerPollIv = null;
+  if (!need) {
     clearInterval(viewerTimerIv); viewerTimerIv = null;
     viewerTimerData = {}; viewerTimerReceivedAt = {};
     renderViewerTimerStrips();
+    return;
   }
+  fetchViewerTimers();   // まず1回取得
+  if (viewerRefreshSec > 0) {
+    viewerTimerPollIv = setInterval(fetchViewerTimers, viewerRefreshSec * 1000);
+  }
+  // 表示の補間（通信なし・ローカル計算のみ）で時計はなめらかに進む
+  if (!viewerTimerIv) viewerTimerIv = setInterval(renderViewerTimerStrips, 500);
 }
 
 // 受信データを保持して表示を更新（テスト用に単体関数化）
@@ -8749,7 +8846,9 @@ function renderViewerTimerStrips() {
     const data = viewerTimerData[dev];
     const recv = viewerTimerReceivedAt[dev];
     const age = recv ? (now - recv) / 1000 : Infinity;
-    if (!data || age > 60) return null;
+    // 手動更新モードでは取得間隔が長くなるため、鮮度の判定もゆるめる
+    const staleSec = viewerRefreshSec > 0 ? Math.max(60, viewerRefreshSec * 4) : 900;
+    if (!data || age > staleSec) return null;
     let gameSec = _parseGameClockSec(_rawClockValue(data, 'gameClock', 'gameTime'));
     let shotSec = _parseShotClockSec(_rawClockValue(data, 'shotClock', 'subTime'));
     if (_extractRunning(data) && recv) {
@@ -8991,6 +9090,23 @@ function renderTournamentViewer(tData, gameDocs) {
       <button class="viewer-tab ${viewerActiveTab==='stats'?'active':''}" onclick="setViewerTab('stats')">📊 成績</button>
     </div>`;
 
+  // 更新バー（アーカイブHTMLは常に固定データのため出さない）
+  const fetchedAt = viewerLastFetchAt ? new Date(viewerLastFetchAt) : null;
+  const refreshHTML = IS_ARCHIVE ? '' : `
+    <div class="viewer-refresh-bar">
+      <button class="viewer-refresh-btn" id="viewer-refresh-btn" onclick="viewerManualRefresh()">🔄 更新</button>
+      <select class="viewer-refresh-mode" onchange="setViewerRefreshMode(this.value)" title="更新のしかた">
+        <option value="5"  ${viewerRefreshSec === 5  ? 'selected' : ''}>自動更新：5秒ごと</option>
+        <option value="15" ${viewerRefreshSec === 15 ? 'selected' : ''}>自動更新：15秒ごと</option>
+        <option value="30" ${viewerRefreshSec === 30 ? 'selected' : ''}>自動更新：30秒ごと</option>
+        <option value="0"  ${viewerRefreshSec === 0  ? 'selected' : ''}>手動更新のみ</option>
+      </select>
+      ${fetchedAt ? `<span class="viewer-fetched-at">最終取得 ${
+        fetchedAt.getHours().toString().padStart(2,'0')}:${
+        fetchedAt.getMinutes().toString().padStart(2,'0')}:${
+        fetchedAt.getSeconds().toString().padStart(2,'0')}</span>` : ''}
+    </div>`;
+
   let bodyHTML;
   if (viewerActiveTab === 'stats') {
     bodyHTML = renderViewerStats(gameDocs);
@@ -9013,6 +9129,7 @@ function renderTournamentViewer(tData, gameDocs) {
     <div class="viewer-tournament-name">${esc(tData.name || '大会')}</div>
     ${metaLine ? `<div class="viewer-game-info">${esc(metaLine)}</div>` : ''}
     ${tabsHTML}
+    ${refreshHTML}
     ${bodyHTML}`;
 
   // タイマー速報：必要に応じて購読を開始/停止し、ストリップを即時反映
