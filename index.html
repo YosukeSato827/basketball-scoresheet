@@ -948,7 +948,7 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
 /* =====================================================
    閲覧専用ビュー（?view=GAME_ID）
    ===================================================== */
-#view-viewer { display: none; min-height: 100vh; flex-direction: column; }
+#view-viewer { display: none; min-height: 100vh; flex-direction: column; overflow-x: hidden; }
 #view-viewer.show { display: flex; }
 
 .viewer-header {
@@ -1013,7 +1013,9 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
 .viewer-updated {
   font-size: 11px; color: rgba(255,255,255,.6); margin-left: auto;
 }
-.viewer-body { padding: 24px; max-width: 920px; margin: 0 auto; }
+/* min-width:0 と width:100% がないと、リーグ表など横長の中身に押し広げられて
+   ヘッダー・フッターだけが画面幅に取り残される（スマホで右側が切れて見える） */
+.viewer-body { padding: 24px; max-width: 920px; margin: 0 auto; min-width: 0; width: 100%; }
 .viewer-game-info {
   text-align: center; margin-bottom: 16px;
   color: var(--text-mid); font-size: 13px;
@@ -3416,9 +3418,12 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.03-2';
+const APP_VERSION = '2026.08.03-3';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.03-3', notes: [
+    '修正：スマホの閲覧ページでヘッダー・フッターの右側が切れる問題（リーグ表・トーナメント表は枠内で横スクロール）'
+  ] },
   { v: '2026.08.03-2', notes: [
     '修正：対戦表の見出しのチーム数が表の枠数（16など）になっていた問題（実際の出場チーム数を表示）',
     '予選リーグの見出しにブロック数とチーム数を表示'
