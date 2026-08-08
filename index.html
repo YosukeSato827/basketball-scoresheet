@@ -17,6 +17,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics-compat.js"></script>
 <!-- Tesseract.js removed: replaced by Gemini Vision API -->
 <style>
 /* =====================================================
@@ -3433,9 +3434,13 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.03-6';
+const APP_VERSION = '2026.08.03-7';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.03-7', notes: [
+    '利用状況の分析機能を追加（Googleアナリティクス）：閲覧者数・タブの利用状況・記録やタイマー連携の利用実績を後から確認できます',
+    '※ 個人が特定される情報（氏名・選手データ）は送信していません'
+  ] },
   { v: '2026.08.03-6', notes: [
     '修正：運営画面の試合一覧でタイマー情報が表示されない問題',
     '自動更新の間隔を 1秒／5秒／10秒／30秒／手動 に変更（既定は10秒）'
@@ -3615,15 +3620,20 @@ const firebaseConfig = {
   projectId: "molten-scorelink",
   storageBucket: "molten-scorelink.firebasestorage.app",
   messagingSenderId: "956502602785",
-  appId: "1:956502602785:web:cab678cf57e0c7f5b21f60"
+  appId: "1:956502602785:web:cab678cf57e0c7f5b21f60",
+  measurementId: "G-NZ2EWG5D79"
 };
 // アーカイブHTML（書き出し版）：大会データが焼き込まれており、Firebaseには一切接続しない
 const IS_ARCHIVE = !!window.ARCHIVE_DATA;
-let db = null, auth = null;
+let db = null, auth = null, analytics = null;
 if (!IS_ARCHIVE) {
   firebase.initializeApp(firebaseConfig);
   db = firebase.firestore();
   auth = firebase.auth();
+  // 利用状況の分析（Googleアナリティクス）。読み込めない環境でもアプリは通常どおり動く
+  try {
+    if (firebase.analytics) analytics = firebase.analytics();
+  } catch (e) { console.warn('[analytics] 利用できません:', e && e.message); }
 
   // =====================================================
   // オフライン永続化（体育館などWi-Fiが不安定な環境向け）
@@ -3836,6 +3846,13 @@ function closeChangelogModal(event) {
 // =====================================================
 // ユーティリティ
 // =====================================================
+// 利用状況の記録（Googleアナリティクス）。個人が特定される情報は送らない。
+// 失敗してもアプリの動作には影響させない
+function track(name, params) {
+  if (!analytics) return;
+  try { analytics.logEvent(name, params || {}); } catch (e) { /* 計測失敗は無視 */ }
+}
+
 const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const qClass = q => q===1||q===3 ? 'q1' : q===2||q===4 ? 'q2' : 'qot';
 
@@ -4757,6 +4774,10 @@ async function saveBracket() {
         showToast(isLeague ? '予選リーグを作成しました' : 'トーナメントを作成しました');
       }
     }
+    track(editingBracketId ? 'edit_bracket' : 'create_bracket', {
+      type: isLeague ? 'league' : 'tournament',
+      tournament_id: currentTournamentId || '',
+    });
     leagueGroupDraft = [];
     document.getElementById('bracket-edit-overlay').classList.remove('open');
     loadBrackets();
@@ -6493,6 +6514,7 @@ function openRecorder() {
 
   // この試合にリンク済みのタイマーデバイスを読み込む（TimerLink連携）
   loadRecTimerDevice();
+  track('start_recording', { mode: recGameMode, tournament_id: currentTournamentId || '' });
 
   // リロード対策：記録中セッションを保存
   saveRecSession();
@@ -7565,6 +7587,7 @@ function selectTimerDevice(deviceId) {
       .catch(e => showToast('リンク保存エラー: ' + e.message));
     if (!isOnline) showToast('オフライン：リンクは復帰時に同期されます');
   }
+  track('link_timer', { mode: ctx.mode, tournament_id: currentTournamentId || '' });
   if (ctx.mode === 'recorder') {
     recTimerDeviceId = deviceId;
     closeTimerDeviceModal();
@@ -7654,6 +7677,7 @@ function saveFinalScore(a, b) {
   ctx.game.totalA = a;
   ctx.game.totalB = b;
   ctx.game.status = 'finished';
+  track('finish_game', { source: 'timer_modal', tournament_id: currentTournamentId || '' });
   renderTimerModalSections();
 }
 
@@ -8665,6 +8689,7 @@ async function exportTournamentArchive() {
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 10000);
+    track('export_archive', { tournament_id: currentTournamentId || '', games: payload.games.length });
     showToast('📦 アーカイブHTMLを書き出しました（' + payload.games.length + '試合）');
   } catch (e) {
     showToast('書き出しエラー: ' + e.message, 4000);
@@ -8691,6 +8716,11 @@ function openViewer(tournamentId) {
     viewerLastTData = tData;
     // ページタイトルを大会名に
     document.title = `${tData.name || '大会'} ｜ molten ScoreLink`;
+    track('view_tournament', {
+      tournament_id: tournamentId,
+      tournament_name: (tData.name || '').slice(0, 100),
+      refresh_sec: viewerRefreshSec,
+    });
     if (viewerRefreshSec > 0) {
       startViewerGamesListener();
     } else {
@@ -8733,12 +8763,14 @@ function setViewerRefreshMode(sec) {
   }
   ensureViewerTimerSync(viewerLastGameDocs);   // タイマー取得の間隔も切り替え
   if (viewerLastTData) renderTournamentViewer(viewerLastTData, viewerLastGameDocs);
+  track('set_refresh_mode', { seconds: viewerRefreshSec });
   showToast(viewerRefreshSec > 0 ? `自動更新：${viewerRefreshSec}秒ごと` : '手動更新に切り替えました');
 }
 
 // 「🔄 更新」：その時点の最新データを1回だけ取得する
 async function viewerManualRefresh() {
   if (!viewerTournamentId || IS_ARCHIVE) return;
+  track('manual_refresh', { tournament_id: viewerTournamentId });
   const btn = document.getElementById('viewer-refresh-btn');
   if (btn) { btn.disabled = true; btn.textContent = '更新中…'; }
   try {
@@ -8956,6 +8988,7 @@ function renderViewerTimerStrips() {
 function setViewerTab(tab) {
   viewerActiveTab = tab;
   viewerTabTouched = true;
+  track('viewer_tab', { tab, tournament_id: viewerTournamentId || '' });
   if (tab === 'bracket' && viewerTournamentId) {
     // 最新のブラケット定義を取り直してから再描画
     refreshViewerBrackets(viewerTournamentId).then(() => {
@@ -9175,6 +9208,10 @@ function viewerLazyGameBody(det) {
   const d = typeof doc.data === 'function' ? doc.data() : doc;
   body.innerHTML = buildViewerGameBody(d, viewerLastTData);
   body.dataset.lazy = '0';
+  track('open_game_detail', {
+    tournament_id: viewerTournamentId || '',
+    has_scoresheet: !!(d.pbpData && d.pbpData.trim()),
+  });
 }
 
 // 閲覧URL：トーナメントタブのレンダリング（読み取り専用）
