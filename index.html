@@ -3433,9 +3433,13 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.03-5';
+const APP_VERSION = '2026.08.03-6';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.03-6', notes: [
+    '修正：運営画面の試合一覧でタイマー情報が表示されない問題',
+    '自動更新の間隔を 1秒／5秒／10秒／30秒／手動 に変更（既定は10秒）'
+  ] },
   { v: '2026.08.03-5', notes: [
     '閲覧ページの表示を高速化：試合の詳細（グラフ・スコアシート）はカードを開いたときに生成',
     '17試合の大会で描画時間を約1/12、ページの重さを約1/25に削減（多人数の同時閲覧でも軽快に）'
@@ -4445,7 +4449,7 @@ function renderBracketTab() {
   cont.innerHTML = createBtn + blocks;
   applyEditorPermissions();
   // タイマー連携中の試合があればトーナメント表にもライブ表示
-  ensureViewerTimerSync(bracketTabGames);
+  ensureViewerTimerSync(bracketTabGames, { alwaysPoll: true });
   renderViewerTimerStrips();
 }
 
@@ -5065,7 +5069,7 @@ function loadGames() {
             </div>`;
         }).join('');
         // タイマー連携中の試合があればライブ表示を開始（速報ページと共通の仕組み）
-        ensureViewerTimerSync(sortedDocs);
+        ensureViewerTimerSync(sortedDocs, { alwaysPoll: true });
         renderViewerTimerStrips();
       }, err => {
         console.error('試合一覧の読み込みエラー:', err);
@@ -8759,10 +8763,13 @@ let viewerActiveTab = 'games'; // 'games' | 'bracket' | 'stats'
 let viewerTabTouched = false;  // 閲覧者がタブを操作したか（初期表示の自動選択に使用）
 // 更新モード：秒数（0 = 手動更新のみ）。通信量と表示の鮮度のバランスを閲覧者が選べる
 let viewerRefreshSec = (() => {
+  const ALLOWED = [0, 1, 5, 10, 30];
   try {
     const v = localStorage.getItem('viewerRefreshSec');
-    return v == null ? 5 : (parseInt(v, 10) || 0);
-  } catch (e) { return 5; }
+    if (v == null) return 10;                       // 既定は10秒
+    const n = parseInt(v, 10);
+    return ALLOWED.includes(n) ? n : 10;            // 旧設定（15秒など）は既定に戻す
+  } catch (e) { return 10; }
 })();
 let viewerLastFetchAt = 0;
 let viewerLastGameDocs = [];
@@ -8787,6 +8794,7 @@ function refreshViewerBrackets(tournamentId) {
 // =====================================================
 let viewerTimerPollIv = null;   // タイマー取得の間隔タイマー
 let viewerTimerIv = null;       // 表示補間（通信なし）
+let viewerTimerSourceDocs = []; // タイマー取得の対象試合（閲覧ページ／運営画面で共通）
 let viewerTimerData = {};       // deviceId → timer_sync ドキュメント
 let viewerTimerReceivedAt = {}; // deviceId → 受信時刻（Date.now()）
 
@@ -8804,7 +8812,8 @@ function viewerActiveTimerDevices(gameDocs) {
 
 async function fetchViewerTimers() {
   if (IS_ARCHIVE) return;
-  const devs = viewerActiveTimerDevices(viewerLastGameDocs);
+  // 対象は「最後に ensureViewerTimerSync に渡された試合」（閲覧ページ／編集者一覧の両方に対応）
+  const devs = viewerActiveTimerDevices(viewerTimerSourceDocs);
   if (!devs.length) return;
   try {
     const snaps = await Promise.all(devs.map(id => db.collection('timer_sync').doc(id).get()));
@@ -8816,9 +8825,11 @@ async function fetchViewerTimers() {
 }
 
 // タイマー連携中の試合があれば定期取得を開始、なければ停止
-function ensureViewerTimerSync(gameDocs) {
+// opts.alwaysPoll: 運営画面など、閲覧設定が「手動」でも定期取得したい場合に true
+function ensureViewerTimerSync(gameDocs, opts) {
   if (IS_ARCHIVE) return;
-  const need = viewerActiveTimerDevices(gameDocs).length > 0;
+  viewerTimerSourceDocs = gameDocs || [];
+  const need = viewerActiveTimerDevices(viewerTimerSourceDocs).length > 0;
   clearInterval(viewerTimerPollIv); viewerTimerPollIv = null;
   if (!need) {
     clearInterval(viewerTimerIv); viewerTimerIv = null;
@@ -8827,8 +8838,9 @@ function ensureViewerTimerSync(gameDocs) {
     return;
   }
   fetchViewerTimers();   // まず1回取得
-  if (viewerRefreshSec > 0) {
-    viewerTimerPollIv = setInterval(fetchViewerTimers, viewerRefreshSec * 1000);
+  const sec = viewerRefreshSec > 0 ? viewerRefreshSec : ((opts && opts.alwaysPoll) ? 10 : 0);
+  if (sec > 0) {
+    viewerTimerPollIv = setInterval(fetchViewerTimers, sec * 1000);
   }
   // 表示の補間（通信なし・ローカル計算のみ）で時計はなめらかに進む
   if (!viewerTimerIv) viewerTimerIv = setInterval(renderViewerTimerStrips, 500);
@@ -9090,9 +9102,10 @@ function renderTournamentViewer(tData, gameDocs) {
     <div class="viewer-refresh-bar">
       <button class="viewer-refresh-btn" id="viewer-refresh-btn" onclick="viewerManualRefresh()">🔄 更新</button>
       <select class="viewer-refresh-mode" onchange="setViewerRefreshMode(this.value)" title="更新のしかた">
+        <option value="1"  ${viewerRefreshSec === 1  ? 'selected' : ''}>自動更新：1秒ごと（通信量 多）</option>
         <option value="5"  ${viewerRefreshSec === 5  ? 'selected' : ''}>自動更新：5秒ごと</option>
-        <option value="15" ${viewerRefreshSec === 15 ? 'selected' : ''}>自動更新：15秒ごと</option>
-        <option value="30" ${viewerRefreshSec === 30 ? 'selected' : ''}>自動更新：30秒ごと</option>
+        <option value="10" ${viewerRefreshSec === 10 ? 'selected' : ''}>自動更新：10秒ごと（標準）</option>
+        <option value="30" ${viewerRefreshSec === 30 ? 'selected' : ''}>自動更新：30秒ごと（通信量 少）</option>
         <option value="0"  ${viewerRefreshSec === 0  ? 'selected' : ''}>手動更新のみ</option>
       </select>
       ${fetchedAt ? `<span class="viewer-fetched-at">最終取得 ${
