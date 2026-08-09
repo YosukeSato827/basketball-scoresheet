@@ -3434,9 +3434,12 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.03-7';
+const APP_VERSION = '2026.08.03-8';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.03-8', notes: [
+    '分析の集計先をScoreLink専用のアナリティクスアカウントに変更'
+  ] },
   { v: '2026.08.03-7', notes: [
     '利用状況の分析機能を追加（Googleアナリティクス）：閲覧者数・タブの利用状況・記録やタイマー連携の利用実績を後から確認できます',
     '※ 個人が特定される情報（氏名・選手データ）は送信していません'
@@ -3621,7 +3624,7 @@ const firebaseConfig = {
   storageBucket: "molten-scorelink.firebasestorage.app",
   messagingSenderId: "956502602785",
   appId: "1:956502602785:web:cab678cf57e0c7f5b21f60",
-  measurementId: "G-NZ2EWG5D79"
+  measurementId: "G-QB7HSCG2Z5"
 };
 // アーカイブHTML（書き出し版）：大会データが焼き込まれており、Firebaseには一切接続しない
 const IS_ARCHIVE = !!window.ARCHIVE_DATA;
