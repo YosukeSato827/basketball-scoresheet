@@ -17,7 +17,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics-compat.js"></script>
+<!-- 分析は Google アナリティクス(gtag) を直接使う。
+     Firebase Analytics SDK はサーバー側の設定を優先するため、送信先を明示できる gtag を採用 -->
 <!-- Tesseract.js removed: replaced by Gemini Vision API -->
 <style>
 /* =====================================================
@@ -3434,11 +3435,12 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.03-8';
+const APP_VERSION = '2026.08.03-9';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
-  { v: '2026.08.03-8', notes: [
-    '分析の集計先をScoreLink専用のアナリティクスアカウントに変更'
+  { v: '2026.08.03-9', notes: [
+    '分析の集計先をScoreLink専用のアナリティクスアカウントに変更（送信先を明示指定する方式へ）',
+    'Firebase Analytics SDKの読み込みを廃止し、ページの読み込みを軽量化'
   ] },
   { v: '2026.08.03-7', notes: [
     '利用状況の分析機能を追加（Googleアナリティクス）：閲覧者数・タブの利用状況・記録やタイマー連携の利用実績を後から確認できます',
@@ -3623,9 +3625,10 @@ const firebaseConfig = {
   projectId: "molten-scorelink",
   storageBucket: "molten-scorelink.firebasestorage.app",
   messagingSenderId: "956502602785",
-  appId: "1:956502602785:web:cab678cf57e0c7f5b21f60",
-  measurementId: "G-QB7HSCG2Z5"
+  appId: "1:956502602785:web:cab678cf57e0c7f5b21f60"
 };
+// 分析の送信先（Googleアナリティクス GA4 の測定ID）
+const GA_MEASUREMENT_ID = 'G-QB7HSCG2Z5';
 // アーカイブHTML（書き出し版）：大会データが焼き込まれており、Firebaseには一切接続しない
 const IS_ARCHIVE = !!window.ARCHIVE_DATA;
 let db = null, auth = null, analytics = null;
@@ -3633,9 +3636,18 @@ if (!IS_ARCHIVE) {
   firebase.initializeApp(firebaseConfig);
   db = firebase.firestore();
   auth = firebase.auth();
-  // 利用状況の分析（Googleアナリティクス）。読み込めない環境でもアプリは通常どおり動く
+  // 利用状況の分析（Googleアナリティクス）。読み込めない環境でもアプリは通常どおり動く。
+  // アーカイブHTML（オフライン配布物）では読み込まない
   try {
-    if (firebase.analytics) analytics = firebase.analytics();
+    const s = document.createElement('script');
+    s.async = true;
+    s.src = 'https://www.googletagmanager.com/gtag/js?id=' + GA_MEASUREMENT_ID;
+    document.head.appendChild(s);
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function () { window.dataLayer.push(arguments); };
+    gtag('js', new Date());
+    gtag('config', GA_MEASUREMENT_ID);
+    analytics = true;
   } catch (e) { console.warn('[analytics] 利用できません:', e && e.message); }
 
   // =====================================================
@@ -3852,8 +3864,8 @@ function closeChangelogModal(event) {
 // 利用状況の記録（Googleアナリティクス）。個人が特定される情報は送らない。
 // 失敗してもアプリの動作には影響させない
 function track(name, params) {
-  if (!analytics) return;
-  try { analytics.logEvent(name, params || {}); } catch (e) { /* 計測失敗は無視 */ }
+  if (!analytics || typeof gtag !== 'function') return;
+  try { gtag('event', name, params || {}); } catch (e) { /* 計測失敗は無視 */ }
 }
 
 const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
