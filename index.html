@@ -3513,9 +3513,12 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.03-12';
+const APP_VERSION = '2026.08.03-13';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.03-13', notes: [
+    'スコアシートの写真を詳細URL限定の表示に変更（記録用紙には選手名が写るため）'
+  ] },
   { v: '2026.08.03-12', notes: [
     '紙のスコアシートを撮影して試合に保存できるように（試合一覧の📷ボタン／編集者のみ）',
     '保存した写真は観戦ページの試合詳細で閲覧可能（速報URLでも表示、タップで拡大）'
@@ -9374,10 +9377,9 @@ function renderTournamentViewer(tData, gameDocs) {
     }).join('');
     // 確定スコアのみ／タイマー速報の試合はクォーター内訳（全て0）を出さない
     const qRowHTML = (usingFinalScore || isTimerLiveGame) ? '' : `<div class="vt-qrow">${qRow}</div>`;
-    // 速報URLでは個人データを出さないためカードを開けない。
-    // ただし紙のスコアシート写真がある試合は、その写真を見せるために開けるようにする
-    const hasSheetPhotos = (d.sheetPhotos || []).length > 0;
-    const showDetail = viewerCanSee('detail') || hasSheetPhotos;
+    // 速報URLでは個人データ（スコアシート・記録用紙の写真とも）を出さないため、カードを開けない
+    const hasSheetPhotos = viewerCanSee('detail') && (d.sheetPhotos || []).length > 0;
+    const showDetail = viewerCanSee('detail');
 
     // 詳細を見せない場合は details ではなく通常の枠として描画（開けない）
     if (!showDetail) {
@@ -9482,8 +9484,8 @@ function buildViewerGameBody(d, tData) {
   const teamA = d.teamAName || 'チームA';
   const teamB = d.teamBName || 'チームB';
   const plays = parsePBP(d.pbpData || '');
-  // 紙のスコアシート写真は、速報URL（個人データ非公開）でも表示する
-  const photos = d.sheetPhotos || [];
+  // 紙のスコアシート写真には選手名が写り込むため、詳細URLでのみ表示する
+  const photos = viewerCanSee('detail') ? (d.sheetPhotos || []) : [];
   const photosHTML = photos.length ? `
     <div class="vt-photo-section">
       <div class="vt-photo-title">📷 スコアシート（記録用紙）</div>
