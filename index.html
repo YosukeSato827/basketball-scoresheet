@@ -17,6 +17,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
 <!-- 分析は Google アナリティクス(gtag) を直接使う。
      Firebase Analytics SDK はサーバー側の設定を優先するため、送信先を明示できる gtag を採用 -->
 <!-- Tesseract.js removed: replaced by Gemini Vision API -->
@@ -1040,6 +1041,46 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
   background: #FFF8E1; border: 1px solid #F9A825; border-radius: 8px;
   padding: 6px 12px; margin-bottom: 12px;
   font-size: 12px; font-weight: 600; color: #8a6d00; text-align: center;
+}
+/* 紙のスコアシート写真 */
+.vt-photo-chip {
+  background: #eef4fb; color: var(--blue); border: 1px solid #d6e4f2;
+  border-radius: 10px; padding: 1px 7px; font-size: 10px; font-weight: 600;
+}
+.vt-photo-section { margin-bottom: 16px; }
+.vt-photo-title { font-size: 13px; font-weight: 700; color: var(--blue); margin-bottom: 8px; }
+.vt-photo-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.vt-photo-thumb {
+  width: 140px; height: 105px; object-fit: cover;
+  border: 1px solid var(--border); border-radius: 8px; cursor: pointer; background: #f5f7fa;
+}
+.vt-photo-thumb:hover { border-color: var(--blue); }
+.vt-photo-hint { font-size: 10.5px; color: var(--text-light); margin-top: 5px; }
+/* 写真の管理（編集者） */
+.sheet-photo-list { display: flex; flex-wrap: wrap; gap: 10px; max-height: 46vh; overflow-y: auto; }
+.sheet-photo-item { position: relative; }
+.sheet-photo-item img {
+  width: 132px; height: 99px; object-fit: cover;
+  border: 1px solid var(--border); border-radius: 8px; cursor: pointer; background: #f5f7fa;
+}
+.sheet-photo-del {
+  position: absolute; top: 4px; right: 4px;
+  background: rgba(198,40,40,.92); color: #fff; border: none; border-radius: 10px;
+  padding: 2px 8px; font-size: 10px; font-weight: 700; cursor: pointer; font-family: inherit;
+}
+.sheet-photo-progress { font-size: 12px; color: var(--blue); font-weight: 600; margin-top: 6px; }
+.btn-photo.has-photo { background: var(--blue); color: #fff; border-color: var(--blue); }
+/* 拡大表示 */
+.photo-lightbox {
+  display: none; position: fixed; inset: 0; z-index: 10002;
+  background: rgba(0,0,0,.88); align-items: center; justify-content: center;
+  padding: 16px; overflow: auto;
+}
+.photo-lightbox.open { display: flex; }
+.photo-lightbox img { max-width: 100%; max-height: 92vh; object-fit: contain; }
+.photo-lightbox-hint {
+  position: fixed; bottom: 14px; left: 0; right: 0; text-align: center;
+  color: rgba(255,255,255,.75); font-size: 11px;
 }
 .viewer-game-info {
   text-align: center; margin-bottom: 16px;
@@ -2846,6 +2887,33 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   </div>
 </div>
 
+<!-- 紙のスコアシート写真（編集者が撮影・保存する） -->
+<div class="modal-overlay" id="modal-sheet-photo" onclick="closeSheetPhotoModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h2>📷 スコアシートの写真</h2>
+    <p class="timer-device-note" id="sheet-photo-note"></p>
+    <div id="sheet-photo-list" class="sheet-photo-list"></div>
+    <div class="form-group" style="margin-top:12px">
+      <label>写真を追加（複数選択できます）</label>
+      <input type="file" id="sheet-photo-input" accept="image/*" multiple
+        onchange="uploadSheetPhotos(this.files); this.value='';">
+      <div style="font-size:10.5px;color:var(--text-light);margin-top:4px">
+        ※ スマホではカメラで撮影できます。保存時に自動で圧縮されます
+      </div>
+      <div id="sheet-photo-progress" class="sheet-photo-progress" style="display:none"></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-modal-cancel" onclick="closeSheetPhotoModal()">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- 写真の拡大表示 -->
+<div class="photo-lightbox" id="photo-lightbox" onclick="closePhotoLightbox()">
+  <img id="photo-lightbox-img" alt="スコアシート写真">
+  <div class="photo-lightbox-hint">タップで閉じる（ピンチで拡大できます）</div>
+</div>
+
 <!-- アプリ本体フレーム（スマホプレビュー時に幅制限） -->
 <div id="app-frame">
 
@@ -3445,9 +3513,13 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.03-11';
+const APP_VERSION = '2026.08.03-12';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.03-12', notes: [
+    '紙のスコアシートを撮影して試合に保存できるように（試合一覧の📷ボタン／編集者のみ）',
+    '保存した写真は観戦ページの試合詳細で閲覧可能（速報URLでも表示、タップで拡大）'
+  ] },
   { v: '2026.08.03-11', notes: [
     '閲覧URLを2種類に：「🔗 速報URL」（合計スコア・対戦表・タイマー速報まで）と「🔓 詳細URL」（個人名・個人スコア・スコアシートまで）',
     '配布先に応じて、大会運営側でどちらのURLを共有するか選べます'
@@ -3645,11 +3717,14 @@ const firebaseConfig = {
 const GA_MEASUREMENT_ID = 'G-QB7HSCG2Z5';
 // アーカイブHTML（書き出し版）：大会データが焼き込まれており、Firebaseには一切接続しない
 const IS_ARCHIVE = !!window.ARCHIVE_DATA;
-let db = null, auth = null, analytics = null;
+let db = null, auth = null, analytics = null, storage = null;
 if (!IS_ARCHIVE) {
   firebase.initializeApp(firebaseConfig);
   db = firebase.firestore();
   auth = firebase.auth();
+  // 紙のスコアシート写真の保存先
+  try { if (firebase.storage) storage = firebase.storage(); }
+  catch (e) { console.warn('[storage] 利用できません:', e && e.message); }
   // 利用状況の分析（Googleアナリティクス）。読み込めない環境でもアプリは通常どおり動く。
   // アーカイブHTML（オフライン配布物）では読み込まない
   try {
@@ -5114,6 +5189,7 @@ function loadGames() {
               <div class="gc-actions" onclick="event.stopPropagation()">
                 <button class="btn-card btn-open" onclick="openGame('${doc.id}')">開く</button>
                 <button class="btn-card btn-timer editor-only${d.timerDeviceId ? ' linked' : ''}" title="タイマーとスコア" onclick="openGameTimerModal('${doc.id}')">⏱${d.timerDeviceId ? ' リンク中' : ''}</button>
+                <button class="btn-card btn-photo editor-only${(d.sheetPhotos || []).length ? ' has-photo' : ''}" title="スコアシートの写真" onclick="openSheetPhotoModal('${doc.id}')">📷${(d.sheetPhotos || []).length ? ' ' + d.sheetPhotos.length : ''}</button>
                 <button class="btn-card btn-delete editor-only" onclick="deleteGame('${doc.id}')">削除</button>
               </div>
             </div>`;
@@ -8628,6 +8704,133 @@ async function applyRosterToGame(teamId) {
 
 
 // =====================================================
+// 紙のスコアシート写真（撮影して試合に保存する）
+// =====================================================
+let sheetPhotoGameId = null;   // 編集中の試合
+let sheetPhotoGame   = null;   // その試合データ
+
+// 大きすぎる写真は縮小してから保存する（通信量と保存容量を抑える）
+function compressImageFile(file, maxSide = 2000, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      const scale = Math.min(1, maxSide / Math.max(width, height));
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      canvas.toBlob(b => b ? resolve(b) : reject(new Error('画像の変換に失敗しました')), 'image/jpeg', quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('画像を読み込めませんでした')); };
+    img.src = url;
+  });
+}
+
+async function openSheetPhotoModal(gameId) {
+  sheetPhotoGameId = gameId;
+  document.getElementById('modal-sheet-photo').classList.add('open');
+  document.getElementById('sheet-photo-list').innerHTML =
+    '<div class="timer-device-empty">読み込み中...</div>';
+  try {
+    const doc = await db.collection('games').doc(gameId).get();
+    if (!doc.exists) { showToast('試合が見つかりません'); return; }
+    sheetPhotoGame = doc.data();
+    const g = sheetPhotoGame;
+    document.getElementById('sheet-photo-note').textContent =
+      `${g.teamAName || 'チームA'} vs ${g.teamBName || 'チームB'}${g.gameNo ? `（Game ${g.gameNo}）` : ''}`;
+    renderSheetPhotoList();
+  } catch (e) {
+    document.getElementById('sheet-photo-list').innerHTML =
+      `<div class="timer-device-empty">読み込みエラー: ${esc(e.message)}</div>`;
+  }
+}
+
+function renderSheetPhotoList() {
+  const photos = (sheetPhotoGame && sheetPhotoGame.sheetPhotos) || [];
+  const el = document.getElementById('sheet-photo-list');
+  if (!photos.length) {
+    el.innerHTML = '<div class="timer-device-empty">まだ写真がありません。<br>下の欄から撮影・選択してください。</div>';
+    return;
+  }
+  el.innerHTML = photos.map((p, i) => `
+    <div class="sheet-photo-item">
+      <img src="${escAttr(p.url)}" alt="スコアシート${i + 1}" onclick="openPhotoLightbox('${escAttr(p.url)}')">
+      <button class="sheet-photo-del" onclick="deleteSheetPhoto(${i})">削除</button>
+    </div>`).join('');
+}
+
+async function uploadSheetPhotos(files) {
+  if (!files || !files.length || !sheetPhotoGameId) return;
+  if (!storage) { showToast('写真の保存機能が利用できません'); return; }
+  if (!isOnline) { showToast('オフラインのため写真を保存できません', 4000); return; }
+  const prog = document.getElementById('sheet-photo-progress');
+  prog.style.display = '';
+  const added = [];
+  try {
+    for (let i = 0; i < files.length; i++) {
+      prog.textContent = `アップロード中... (${i + 1}/${files.length})`;
+      const blob = await compressImageFile(files[i]);
+      const name = `${Date.now()}_${i}.jpg`;
+      const path = `score_sheets/${sheetPhotoGameId}/${name}`;
+      const ref = storage.ref(path);
+      await ref.put(blob, { contentType: 'image/jpeg' });
+      const url = await ref.getDownloadURL();
+      added.push({ url, path, uploadedAt: new Date().toISOString() });
+    }
+    const photos = ((sheetPhotoGame && sheetPhotoGame.sheetPhotos) || []).concat(added);
+    await db.collection('games').doc(sheetPhotoGameId).update({ sheetPhotos: photos });
+    sheetPhotoGame.sheetPhotos = photos;
+    renderSheetPhotoList();
+    track('upload_score_sheet', { count: added.length, tournament_id: currentTournamentId || '' });
+    showToast(`📷 写真を${added.length}枚保存しました`);
+  } catch (e) {
+    showToast('保存エラー: ' + e.message, 5000);
+  } finally {
+    prog.style.display = 'none';
+  }
+}
+
+async function deleteSheetPhoto(index) {
+  const photos = (sheetPhotoGame && sheetPhotoGame.sheetPhotos) || [];
+  const target = photos[index];
+  if (!target) return;
+  if (!confirm('この写真を削除しますか？')) return;
+  try {
+    // 保存先のファイルを消してから試合データの一覧を更新する
+    if (target.path && storage) {
+      await storage.ref(target.path).delete().catch(() => { /* 既に無い場合は無視 */ });
+    }
+    const rest = photos.filter((_, i) => i !== index);
+    await db.collection('games').doc(sheetPhotoGameId).update({ sheetPhotos: rest });
+    sheetPhotoGame.sheetPhotos = rest;
+    renderSheetPhotoList();
+    showToast('写真を削除しました');
+  } catch (e) { showToast('削除エラー: ' + e.message); }
+}
+
+function closeSheetPhotoModal(event) {
+  if (event && event.target !== event.currentTarget) return;
+  document.getElementById('modal-sheet-photo').classList.remove('open');
+  sheetPhotoGameId = null;
+  sheetPhotoGame = null;
+  if (currentTournamentId) loadGames();   // 一覧のバッジを更新
+}
+
+function openPhotoLightbox(url) {
+  document.getElementById('photo-lightbox-img').src = url;
+  document.getElementById('photo-lightbox').classList.add('open');
+}
+
+function closePhotoLightbox() {
+  document.getElementById('photo-lightbox').classList.remove('open');
+  document.getElementById('photo-lightbox-img').src = '';
+}
+
+// =====================================================
 // 閲覧専用ビュー（大会単位）
 // =====================================================
 let viewerUnsubscribe = null;
@@ -9171,8 +9374,10 @@ function renderTournamentViewer(tData, gameDocs) {
     }).join('');
     // 確定スコアのみ／タイマー速報の試合はクォーター内訳（全て0）を出さない
     const qRowHTML = (usingFinalScore || isTimerLiveGame) ? '' : `<div class="vt-qrow">${qRow}</div>`;
-    // 速報URLでは個人データ（スコアシート等）を出さないため、カードを開けないようにする
-    const showDetail = viewerCanSee('detail');
+    // 速報URLでは個人データを出さないためカードを開けない。
+    // ただし紙のスコアシート写真がある試合は、その写真を見せるために開けるようにする
+    const hasSheetPhotos = (d.sheetPhotos || []).length > 0;
+    const showDetail = viewerCanSee('detail') || hasSheetPhotos;
 
     // 詳細を見せない場合は details ではなく通常の枠として描画（開けない）
     if (!showDetail) {
@@ -9197,6 +9402,7 @@ function renderTournamentViewer(tData, gameDocs) {
             ${esc(label) || '試合'}
             ${isGameLive ? '<span class="vt-live-chip">LIVE</span>' : ''}
             ${isTimerLiveGame ? `<span class="vt-live-chip vt-chip-timer" data-timer-device="${escAttr(d.timerDeviceId)}" style="display:none">LIVE</span>` : ''}
+            ${hasSheetPhotos ? '<span class="vt-photo-chip">📷 記録用紙</span>' : ''}
           </div>
           ${scorelineHTML}
           ${qRowHTML}
@@ -9276,8 +9482,25 @@ function buildViewerGameBody(d, tData) {
   const teamA = d.teamAName || 'チームA';
   const teamB = d.teamBName || 'チームB';
   const plays = parsePBP(d.pbpData || '');
+  // 紙のスコアシート写真は、速報URL（個人データ非公開）でも表示する
+  const photos = d.sheetPhotos || [];
+  const photosHTML = photos.length ? `
+    <div class="vt-photo-section">
+      <div class="vt-photo-title">📷 スコアシート（記録用紙）</div>
+      <div class="vt-photo-grid">
+        ${photos.map((p, i) => `<img class="vt-photo-thumb" src="${escAttr(p.url)}"
+            alt="スコアシート${i + 1}" loading="lazy" onclick="openPhotoLightbox('${escAttr(p.url)}')">`).join('')}
+      </div>
+      <div class="vt-photo-hint">タップすると拡大表示できます</div>
+    </div>` : '';
+
+  // デジタル記録の中身（個人名・個人成績）は詳細URLのときだけ
+  if (!viewerCanSee('detail')) {
+    return photosHTML || '<p style="padding:8px 0;color:var(--text-mid)">この試合の詳細は公開されていません</p>';
+  }
   const graphSVG = plays.length > 1 ? buildScoreGraphSVG(plays, teamA, teamB) : '';
   return `
+    ${photosHTML}
     ${graphSVG ? `<div class="score-graph-wrap" style="margin-bottom:16px">
       <div class="score-graph-title">得点推移グラフ</div>${graphSVG}
     </div>` : ''}
@@ -9288,7 +9511,7 @@ function buildViewerGameBody(d, tData) {
     ) : ''}
     ${plays.length > 0
       ? renderViewerScoresheet({ ...d, tournamentName: (tData && tData.name) || '' })
-      : '<p style="padding:8px 0;color:var(--text-mid)">デジタル記録のない試合です</p>'}`;
+      : (photosHTML ? '' : '<p style="padding:8px 0;color:var(--text-mid)">デジタル記録のない試合です</p>')}`;
 }
 
 // 試合カードを開いたときに詳細を生成する（閉じている間は作らない）
