@@ -1033,6 +1033,15 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
   font-size: 11.5px; font-family: inherit; color: var(--text-mid); background: #fff;
 }
 .viewer-fetched-at { font-size: 11px; color: var(--text-light); margin-left: auto; }
+/* 公開設定：スコア非公開時の表示 */
+.vt-score-hidden { font-size: 15px; color: var(--text-light); font-weight: 600; padding: 0 6px; }
+.vt-no-detail .vt-game-summary { cursor: default; }
+.vt-no-detail .vt-game-summary:hover { background: transparent; }
+.viewer-staff-note {
+  background: #FFF8E1; border: 1px solid #F9A825; border-radius: 8px;
+  padding: 6px 12px; margin-bottom: 12px;
+  font-size: 12px; font-weight: 600; color: #8a6d00; text-align: center;
+}
 .viewer-game-info {
   text-align: center; margin-bottom: 16px;
   color: var(--text-mid); font-size: 13px;
@@ -2768,6 +2777,18 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <label>備考</label>
       <textarea id="m-note" placeholder="カテゴリや補足情報など"></textarea>
     </div>
+    <div class="form-group">
+      <label>公開設定（観戦ページで一般の方に見せる範囲）</label>
+      <select id="m-visibility">
+        <option value="public">すべて公開（スコア・スコアシート・成績）</option>
+        <option value="scores_only">スコアまで公開（スコアシート・個人成績は非公開）</option>
+        <option value="timer_only">タイマー速報と対戦表のみ公開（確定スコアは非公開）</option>
+        <option value="private">非公開（関係者URLを知っている人のみ）</option>
+      </select>
+      <div style="font-size:10.5px;color:var(--text-light);margin-top:4px">
+        ※ 制限しても「🔐 関係者URL」を開いた方にはすべて表示されます
+      </div>
+    </div>
     <div class="modal-btns">
       <button class="btn-modal-cancel" onclick="closeTournamentModal()">キャンセル</button>
       <button class="btn-modal-save" onclick="saveTournament()">保存</button>
@@ -2882,6 +2903,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <button class="btn-hdr" onclick="openRosterView()">👥 参加チーム一覧</button>
       <button class="btn-hdr editor-only" onclick="copyRegisterUrl()">📋 登録URL</button>
       <button class="btn-hdr" onclick="copyTournamentViewUrl()">🔗 閲覧URL</button>
+      <button class="btn-hdr editor-only" onclick="copyTournamentStaffUrl()">🔐 関係者URL</button>
       <button class="btn-hdr editor-only" onclick="exportTournamentArchive()">📦 アーカイブ</button>
       <button class="btn-hdr editor-only" onclick="openTournamentModal(currentTournamentId)">編集</button>
       <button class="btn-hdr-primary editor-only" onclick="newGame()">+ 試合を追加</button>
@@ -2890,6 +2912,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <button class="btn-hdr" onclick="openRosterView()">👥 参加チーム一覧</button>
       <button class="btn-hdr editor-only" onclick="copyRegisterUrl()">📋 登録URL</button>
       <button class="btn-hdr" onclick="copyTournamentViewUrl()">🔗 閲覧URL</button>
+      <button class="btn-hdr editor-only" onclick="copyTournamentStaffUrl()">🔐 関係者URL</button>
       <button class="btn-hdr editor-only" onclick="exportTournamentArchive()">📦 アーカイブ</button>
       <button class="btn-hdr editor-only" onclick="openTournamentModal(currentTournamentId)">編集</button>
       <button class="btn-hdr-primary editor-only" onclick="newGame()">+ 試合を追加</button>
@@ -3435,9 +3458,13 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.03-9';
+const APP_VERSION = '2026.08.03-10';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.03-10', notes: [
+    '大会ごとの公開設定を追加（すべて公開／スコアまで／タイマー速報と対戦表のみ／非公開）',
+    '「🔐 関係者URL」を発行できるように：制限中でもこのURLならすべて表示されます'
+  ] },
   { v: '2026.08.03-9', notes: [
     '分析の集計先をScoreLink専用のアナリティクスアカウントに変更（送信先を明示指定する方式へ）',
     'Firebase Analytics SDKの読み込みを廃止し、ページの読み込みを軽量化'
@@ -5389,7 +5416,10 @@ async function openTournamentModal(id = null) {
       document.getElementById('m-endDate').value   = d.endDate   || '';
       document.getElementById('m-venue').value     = d.venue     || '';
       document.getElementById('m-note').value      = d.note      || '';
+      document.getElementById('m-visibility').value = d.visibility || 'public';
     } catch(e) { /* ignore */ }
+  } else {
+    document.getElementById('m-visibility').value = 'public';
   }
   document.getElementById('modal-tournament').classList.add('open');
 }
@@ -5412,6 +5442,7 @@ async function saveTournament() {
     endDate:   document.getElementById('m-endDate').value,
     venue:     document.getElementById('m-venue').value.trim(),
     note:      document.getElementById('m-note').value.trim(),
+    visibility: document.getElementById('m-visibility').value || 'public',
     updatedAt: new Date().toISOString()
   };
   try {
@@ -8629,6 +8660,29 @@ function copyTournamentViewUrl() {
   }
 }
 
+// 関係者用URL：公開設定で制限していても、このURLならすべて表示される
+async function copyTournamentStaffUrl() {
+  if (!currentTournamentId) return;
+  try {
+    const ref = db.collection('tournaments').doc(currentTournamentId);
+    const snap = await withTimeout(ref.get());
+    let key = snap.exists ? snap.data().viewKey : null;
+    if (!key) {
+      // 未発行なら合言葉を生成して保存（推測されにくい16文字）
+      key = Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
+      await withTimeout(ref.update({ viewKey: key }));
+    }
+    const url = `${location.origin}${location.pathname}?view=${currentTournamentId}&key=${key}`;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url)
+        .then(() => showToast('🔐 関係者URLをコピーしました（取扱いにご注意ください）', 4000))
+        .catch(() => prompt('関係者URL（限られた方にのみ共有してください）', url));
+    } else {
+      prompt('関係者URL（限られた方にのみ共有してください）', url);
+    }
+  } catch (e) { showToast('エラー: ' + e.message); }
+}
+
 // =====================================================
 // アーカイブHTML：起動と書き出し
 // =====================================================
@@ -8729,6 +8783,9 @@ function openViewer(tournamentId) {
   db.collection('tournaments').doc(tournamentId).get().then(tSnap => {
     const tData = tSnap.exists ? tSnap.data() : { name: '大会' };
     viewerLastTData = tData;
+    // 関係者URL（?key=）の合言葉が一致すれば、公開設定の制限を解除する
+    const urlKey = new URLSearchParams(location.search).get('key');
+    viewerFullAccess = !!(urlKey && tData.viewKey && urlKey === tData.viewKey);
     // ページタイトルを大会名に
     document.title = `${tData.name || '大会'} ｜ molten ScoreLink`;
     track('view_tournament', {
@@ -8819,6 +8876,22 @@ let viewerRefreshSec = (() => {
   } catch (e) { return 10; }
 })();
 let viewerLastFetchAt = 0;
+// 公開設定：関係者URL（?key=）で開いた場合は制限なしで表示する
+let viewerFullAccess = false;
+
+// 閲覧ページで何を見せてよいか
+//   'score'  … 確定スコア（得点・勝敗）
+//   'detail' … スコアシート・ボックススコア・得点推移グラフ
+//   'stats'  … 成績・ランキングタブ
+function viewerCanSee(what) {
+  if (IS_ARCHIVE || viewerFullAccess) return true;
+  const v = (viewerLastTData && viewerLastTData.visibility) || 'public';
+  if (v === 'public') return true;
+  if (v === 'private') return false;
+  if (v === 'scores_only') return what === 'score';
+  if (v === 'timer_only') return false;   // タイマー速報と対戦表のみ
+  return true;
+}
 let viewerLastGameDocs = [];
 let viewerLastTData = null;
 let viewerTournamentId = null;
@@ -9087,6 +9160,8 @@ function renderTournamentViewer(tData, gameDocs) {
     const timerStrip = (!IS_ARCHIVE && d.timerDeviceId && d.status !== 'finished' && plays.length > 0)
       ? `<div class="vt-timer-strip" data-timer-device="${escAttr(d.timerDeviceId)}" data-timer-flip="${d.timerScoreFlip ? 1 : 0}" style="display:none"></div>`
       : '';
+    // 公開設定でスコアを見せない場合は、得点を伏せてチーム名のみ表示する
+    const showScore = viewerCanSee('score');
     const scorelineHTML = isTimerLiveGame
       ? `<div class="vt-scoreline vt-live" data-timer-device="${escAttr(d.timerDeviceId)}" data-timer-flip="${d.timerScoreFlip ? 1 : 0}">
           <span class="vt-team-name">${esc(teamA)}</span>
@@ -9096,6 +9171,12 @@ function renderTournamentViewer(tData, gameDocs) {
           <span class="vt-team-name">${esc(teamB)}</span>
         </div>
         <div class="vt-live-note"><span class="vt-timer-live-dot"></span>タイマー速報（未確定）</div>`
+      : !showScore
+      ? `<div class="vt-scoreline">
+          <span class="vt-team-name">${esc(teamA)}</span>
+          <span class="vt-score-hidden">vs</span>
+          <span class="vt-team-name">${esc(teamB)}</span>
+        </div>`
       : `<div class="vt-scoreline">
           <span class="vt-team-name${winner==='A' ? ' vt-winner' : ''}">${esc(teamA)}</span>
           <span class="vt-score-a${winner==='A' ? ' vt-winner' : ''}">${totalA}</span>
@@ -9115,8 +9196,26 @@ function renderTournamentViewer(tData, gameDocs) {
       </span>`;
     }).join('');
     // 確定スコアのみ／タイマー速報の試合はクォーター内訳（全て0）を出さない
-    const qRowHTML = (usingFinalScore || isTimerLiveGame) ? '' : `<div class="vt-qrow">${qRow}</div>`;
+    const qRowHTML = (usingFinalScore || isTimerLiveGame || !showScore) ? '' : `<div class="vt-qrow">${qRow}</div>`;
+    // 公開設定で詳細（スコアシート等）を見せない場合は、カードを開けないようにする
+    const showDetail = viewerCanSee('detail');
 
+    // 詳細を見せない場合は details ではなく通常の枠として描画（開けない）
+    if (!showDetail) {
+      return `<div class="vt-game-detail vt-no-detail" data-game-id="${gameId}">
+        <div class="vt-game-summary">
+          <div class="vt-summary-inner">
+            <div class="vt-game-label">
+              ${esc(label) || '試合'}
+              ${isTimerLiveGame ? `<span class="vt-live-chip vt-chip-timer" data-timer-device="${escAttr(d.timerDeviceId)}" style="display:none">LIVE</span>` : ''}
+            </div>
+            ${scorelineHTML}
+            ${qRowHTML}
+            ${timerStrip}
+          </div>
+        </div>
+      </div>`;
+    }
     return `<details class="vt-game-detail" data-game-id="${gameId}"${isOpen ? ' open' : ''} ontoggle="viewerLazyGameBody(this)">
       <summary class="vt-game-summary">
         <div class="vt-summary-inner">
@@ -9137,11 +9236,14 @@ function renderTournamentViewer(tData, gameDocs) {
     </details>`;
   }).join('');
 
+  // 成績タブは公開設定で非表示にできる
+  const showStats = viewerCanSee('stats');
+  if (!showStats && viewerActiveTab === 'stats') viewerActiveTab = 'games';
   const tabsHTML = `
     <div class="viewer-tabs">
       <button class="viewer-tab ${viewerActiveTab==='games'?'active':''}" onclick="setViewerTab('games')">🏀 試合</button>
       <button class="viewer-tab ${viewerActiveTab==='bracket'?'active':''}" onclick="setViewerTab('bracket')">🏆 対戦表</button>
-      <button class="viewer-tab ${viewerActiveTab==='stats'?'active':''}" onclick="setViewerTab('stats')">📊 成績</button>
+      ${showStats ? `<button class="viewer-tab ${viewerActiveTab==='stats'?'active':''}" onclick="setViewerTab('stats')">📊 成績</button>` : ''}
     </div>`;
 
   // 更新バー（アーカイブHTMLは常に固定データのため出さない）
@@ -9180,12 +9282,24 @@ function renderTournamentViewer(tData, gameDocs) {
     bodyHTML = `<div class="vt-game-list">${cards}</div>`;
   }
 
-  document.getElementById('viewer-content').innerHTML = `
-    <div class="viewer-tournament-name">${esc(tData.name || '大会')}</div>
-    ${metaLine ? `<div class="viewer-game-info">${esc(metaLine)}</div>` : ''}
-    ${tabsHTML}
-    ${refreshHTML}
-    ${bodyHTML}`;
+  // 「非公開」設定のときは、一般の閲覧者には内容を出さない
+  const isPrivate = !IS_ARCHIVE && !viewerFullAccess &&
+    ((tData && tData.visibility) === 'private');
+  document.getElementById('viewer-content').innerHTML = isPrivate
+    ? `<div class="viewer-tournament-name">${esc(tData.name || '大会')}</div>
+       ${metaLine ? `<div class="viewer-game-info">${esc(metaLine)}</div>` : ''}
+       <div class="viewer-error" style="padding:56px 0">
+         <div style="font-size:40px;margin-bottom:8px">🔐</div>
+         <p style="font-size:15px;font-weight:600;color:var(--text-mid)">この大会は限定公開です</p>
+         <p style="font-size:12px;color:var(--text-light);margin-top:4px">閲覧には大会運営から配布されたURLが必要です</p>
+       </div>`
+    : `<div class="viewer-tournament-name">${esc(tData.name || '大会')}</div>
+       ${metaLine ? `<div class="viewer-game-info">${esc(metaLine)}</div>` : ''}
+       ${viewerFullAccess && (tData.visibility || 'public') !== 'public'
+         ? '<div class="viewer-staff-note">🔐 関係者向け表示（一般の観戦ページでは一部が非公開です）</div>' : ''}
+       ${tabsHTML}
+       ${refreshHTML}
+       ${bodyHTML}`;
 
   // タイマー速報：必要に応じて購読を開始/停止し、ストリップを即時反映
   ensureViewerTimerSync(sorted);
@@ -9237,7 +9351,13 @@ function renderViewerBrackets(gameDocs) {
       <p style="font-size:15px;font-weight:600;color:var(--text-mid)">組み合わせはまだ公開されていません</p>
     </div>`;
   }
-  const games = gameDocs.map(d => ({ id: d.id, ...d.data() }));
+  // 公開設定でスコアを見せない場合は、確定スコアを伏せて対戦表だけ見せる
+  const hideScore = !viewerCanSee('score');
+  const games = gameDocs.map(d => {
+    const g = { id: d.id, ...d.data() };
+    if (hideScore) { g.totalA = null; g.totalB = null; }
+    return g;
+  });
   return viewerBrackets.map(b => {
     const isLeague = b.type === 'league';
     return `
