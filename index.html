@@ -335,20 +335,23 @@ body.not-editor .editor-only { display: none !important; }
   width: 1px; height: 32px; background: rgba(255,255,255,.25);
   flex-shrink: 0; margin: 0 4px;
 }
+/* ヘッダーのボタン：塗りを抑え、余白と字間で読ませる */
 .btn-hdr {
-  background: rgba(255,255,255,.14); color: white;
-  border: 1px solid rgba(255,255,255,.35); border-radius: var(--radius-sm);
-  padding: 6px 16px; font-size: 12px; font-weight: 600; cursor: pointer;
-  white-space: nowrap; transition: background .15s;
+  background: transparent; color: rgba(255,255,255,.92);
+  border: 1px solid rgba(255,255,255,.32); border-radius: 4px;
+  padding: 7px 15px; font-size: 12px; font-weight: 500; cursor: pointer;
+  white-space: nowrap; letter-spacing: .04em; font-family: inherit;
+  transition: background .15s, border-color .15s, color .15s;
 }
-.btn-hdr:hover { background: rgba(255,255,255,.26); }
+.btn-hdr:hover { background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.6); color: #fff; }
 .btn-hdr-primary {
   background: white; color: var(--blue);
-  border: none; border-radius: var(--radius-sm);
-  padding: 7px 18px; font-size: 12px; font-weight: 600; cursor: pointer;
-  white-space: nowrap; transition: background .15s;
+  border: 1px solid white; border-radius: 4px;
+  padding: 7px 17px; font-size: 12px; font-weight: 600; cursor: pointer;
+  white-space: nowrap; letter-spacing: .04em; font-family: inherit;
+  transition: background .15s;
 }
-.btn-hdr-primary:hover { background: #dceefa; }
+.btn-hdr-primary:hover { background: #e8f2fb; }
 
 /* =====================================================
    大会一覧
@@ -388,15 +391,19 @@ body.not-editor .editor-only { display: none !important; }
   background: var(--blue-dim); color: var(--blue);
 }
 .tc-actions { display: flex; gap: 8px; flex-shrink: 0; }
+/* カード内のボタン：既定は控えめな枠線、主要操作だけ塗る */
 .btn-card {
-  padding: 6px 14px; border: none; border-radius: var(--radius-sm);
-  font-size: 12px; cursor: pointer; font-weight: 600;
-  transition: opacity .15s;
+  padding: 6px 13px; border: 1px solid var(--border); border-radius: 4px;
+  background: #fff; color: var(--text-mid);
+  font-size: 12px; cursor: pointer; font-weight: 500; letter-spacing: .03em;
+  font-family: inherit; transition: border-color .15s, color .15s, background .15s;
 }
-.btn-card:hover { opacity: .82; }
-.btn-open   { background: var(--blue); color: white; }
-.btn-edit   { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
-.btn-delete { background: white; color: #D32F2F; border: 1px solid #D32F2F; }
+.btn-card:hover { border-color: var(--blue); color: var(--blue); }
+.btn-open   { background: var(--blue); color: white; border-color: var(--blue); font-weight: 600; }
+.btn-open:hover { background: var(--blue-dark); color: #fff; }
+.btn-edit   { background: #fff; color: var(--text-mid); }
+.btn-delete { background: #fff; color: var(--text-light); }
+.btn-delete:hover { border-color: #D32F2F; color: #D32F2F; }
 
 .empty-state {
   text-align: center; padding: 80px 20px;
@@ -1202,6 +1209,14 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
 .timer-device-linked { color: var(--blue); font-size: 11px; margin-left: 6px; font-weight: 600; }
 .timer-device-meta { font-size: 12px; color: var(--text-mid); margin-top: 3px; }
 .timer-device-empty { font-size: 13px; color: var(--text-light); padding: 14px 4px; text-align: center; line-height: 1.7; }
+/* 稼働状況のドット（タイマー一覧） */
+.dev-dot {
+  display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  margin-right: 5px; vertical-align: middle; background: #cfd8dc;
+}
+.dev-dot.live { background: #2e9e5b; }
+.dev-dot.warn { background: #E8A33D; }
+.dev-dot.idle { background: #cfd8dc; }
 .timer-device-manual { display: flex; gap: 8px; }
 .timer-device-manual input { flex: 1; }
 .timer-section-title { font-size: 12px; font-weight: 600; color: var(--text-mid); margin: 14px 0 6px; padding-top: 10px; border-top: 1px solid #eee; }
@@ -1356,11 +1371,15 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
 .vt-qcell-a { font-size: 12px; font-weight: 600; color: var(--blue); }
 .vt-qcell-b { font-size: 12px; font-weight: 600; color: #E53935; }
 .vt-qcell-sep { font-size: 10px; color: var(--border); }
+/* 開閉インジケーター：記号文字ではなく細い線で描く */
 .vt-expand-icon {
-  color: var(--text-light); font-size: 12px;
-  transition: transform .2s; flex-shrink: 0;
+  width: 8px; height: 8px; flex-shrink: 0; align-self: center;
+  border-right: 1.5px solid var(--text-light);
+  border-bottom: 1.5px solid var(--text-light);
+  transform: rotate(45deg); margin: 0 4px 4px 0;
+  transition: transform .2s;
 }
-details[open] .vt-expand-icon { transform: rotate(180deg); }
+details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0; }
 .vt-game-body {
   border-top: 1px solid var(--border);
   padding: 16px 20px;
@@ -1459,7 +1478,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 .editor-advanced > div:last-child { padding-bottom: 14px; }
 
 /* レコーダー ヘッダー */
-/* スティッキーヘッダー（ヘッダー＋スコアボード＋Qバー） */
+/* スティッキーヘッダー（ヘッダースコアボードQバー） */
 .rec-sticky-top { position: sticky; top: 0; z-index: 50; }
 .rec-header {
   background: var(--blue); color: white;
@@ -2526,7 +2545,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   background: var(--uniform-b-bg); color: var(--uniform-b-text);
 }
 
-/* PBP：ユニフォームの背景＋文字色 */
+/* PBP：ユニフォームの背景文字色 */
 #view-recorder .rec-pbp-entry.pbp-a {
   background: var(--uniform-a-bg);
   border-left-color: var(--uniform-a-bg);
@@ -2676,7 +2695,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 <div class="changelog-overlay" id="members-overlay" onclick="closeMembersModal(event)">
   <div class="changelog-sheet" onclick="event.stopPropagation()">
     <div class="changelog-header">
-      <span class="changelog-title">👤 編集メンバー管理</span>
+      <span class="changelog-title">編集メンバー管理</span>
       <button class="changelog-close" onclick="closeMembersModal()">×</button>
     </div>
     <div class="changelog-body">
@@ -2724,8 +2743,8 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
         <div class="bracket-form-label" style="margin:10px 0 2px">トーナメント表（枠をタップしてチームを配置）</div>
         <div style="font-size:10.5px;color:var(--text-light);margin-bottom:6px" id="bracket-slot-hint"></div>
         <div style="display:flex;gap:8px;margin-bottom:8px">
-          <button class="btn btn-secondary" onclick="autoSeedBracketSlots()">⚙ シードを自動配置</button>
-          <button class="btn btn-secondary" onclick="clearBracketSlots()">✕ 配置をクリア</button>
+          <button class="btn btn-secondary" onclick="autoSeedBracketSlots()">シードを自動配置</button>
+          <button class="btn btn-secondary" onclick="clearBracketSlots()">配置をクリア</button>
         </div>
         <div id="bracket-slots-wrap"></div>
       </div>
@@ -2736,7 +2755,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
           ※ 参加チーム一覧から選ぶか、未登録のチームは「手入力で追加」から登録できます
         </div>
         <div id="league-groups-wrap"></div>
-        <button class="btn btn-secondary" style="margin-top:6px" onclick="addLeagueGroup()">＋ ブロックを追加</button>
+        <button class="btn btn-secondary" style="margin-top:6px" onclick="addLeagueGroup()">ブロックを追加</button>
       </div>
       <datalist id="bracket-team-datalist"></datalist>
       <div class="modal-btns" style="margin-top:14px">
@@ -2757,7 +2776,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
     </div>
     <div class="changelog-body">
       <div class="bracket-sched-box">
-        <div class="bracket-form-label" style="margin-bottom:6px">📅 この試合の予定（組み合わせ表に表示）</div>
+        <div class="bracket-form-label" style="margin-bottom:6px">この試合の予定（組み合わせ表に表示）</div>
         <div class="bracket-sched-row">
           <input class="members-input" type="date" id="bracket-sched-date">
           <input class="members-input" type="time" id="bracket-sched-time">
@@ -2782,7 +2801,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 <div class="changelog-overlay" id="changelog-overlay" onclick="closeChangelogModal(event)">
   <div class="changelog-sheet" onclick="event.stopPropagation()">
     <div class="changelog-header">
-      <span class="changelog-title">📋 更新履歴</span>
+      <span class="changelog-title">更新履歴</span>
       <button class="changelog-close" onclick="closeChangelogModal()">×</button>
     </div>
     <div class="changelog-body" id="changelog-body"></div>
@@ -2794,7 +2813,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
      ===================================================== -->
 <div class="modal-overlay" id="modal-tournament" onclick="closeModal(event)">
   <div class="modal" onclick="event.stopPropagation()">
-    <h2 id="modal-title">🏆 大会を登録</h2>
+    <h2 id="modal-title">大会を登録</h2>
     <div class="form-group">
       <label>大会名 *</label>
       <input type="text" id="m-name" placeholder="例: 第○○回 ○○大会">
@@ -2827,7 +2846,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 <!-- タイマーデバイス選択・試合結果（TimerLink連携） -->
 <div class="modal-overlay" id="modal-timer-device" onclick="closeTimerDeviceModal(event)">
   <div class="modal" onclick="event.stopPropagation()">
-    <h2 id="timer-modal-title">⏱ タイマーを選択</h2>
+    <h2 id="timer-modal-title">タイマーを選択</h2>
     <p class="timer-device-note" id="timer-modal-note">この試合で使用しているTimerLinkのタイマーを選ぶと、速報ページに時間とスコアが表示されます。</p>
     <div id="timer-device-list" class="timer-device-list">
       <div class="timer-device-empty">読み込み中...</div>
@@ -2849,7 +2868,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
     <div id="timer-result-section" style="display:none">
       <div class="timer-section-title">試合結果</div>
       <div class="timer-result-current" id="timer-result-current"></div>
-      <button class="btn-modal-save timer-finish-btn" id="timer-finish-btn" style="display:none" onclick="finishGameWithTimerScore()">🏁 タイマーのスコアで試合終了</button>
+      <button class="btn-modal-save timer-finish-btn" id="timer-finish-btn" style="display:none" onclick="finishGameWithTimerScore()">タイマーのスコアで試合終了</button>
       <div class="timer-manual-score">
         <span class="timer-manual-team" id="timer-manual-team-a">チームA</span>
         <input type="number" id="timer-manual-a" min="0" inputmode="numeric">
@@ -2890,7 +2909,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 <!-- 紙のスコアシート写真（編集者が撮影・保存する） -->
 <div class="modal-overlay" id="modal-sheet-photo" onclick="closeSheetPhotoModal(event)">
   <div class="modal" onclick="event.stopPropagation()">
-    <h2>📷 スコアシートの写真</h2>
+    <h2>スコアシートの写真</h2>
     <p class="timer-device-note" id="sheet-photo-note"></p>
     <div id="sheet-photo-list" class="sheet-photo-list"></div>
     <div class="form-group" style="margin-top:12px">
@@ -2929,13 +2948,13 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
     <span class="app-version" id="app-version" onclick="openChangelogModal()" title="更新履歴を表示"></span>
     <div class="logo-divider"></div>
     <div class="auth-block" id="auth-block">
-      <button class="btn-login" id="btn-login" onclick="signInWithGoogle()">🔑 ログイン</button>
+      <button class="btn-login" id="btn-login" onclick="signInWithGoogle()">ログイン</button>
       <div class="auth-user" id="auth-user" style="display:none">
         <span class="auth-user-name" id="auth-user-name"></span>
         <button class="btn-logout" onclick="signOutUser()">ログアウト</button>
       </div>
     </div>
-    <button class="btn-hdr editor-only" id="btn-members" onclick="openMembersModal()" style="background:rgba(255,255,255,.18);color:white">👤 メンバー管理</button>
+    <button class="btn-hdr editor-only" id="btn-members" onclick="openMembersModal()" style="background:rgba(255,255,255,.18);color:white">メンバー管理</button>
     <button class="btn-hdr-primary editor-only" id="btn-add-tournament" onclick="openTournamentModal()">+ 大会を登録</button>
   </div>
   <div class="page-body">
@@ -2955,20 +2974,20 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
     <div class="detail-header-top">
       <button class="btn-hdr" onclick="backToTournaments()">← 大会一覧</button>
       <div style="flex:1"></div>
-      <button class="btn-hdr" onclick="openRosterView()">👥 参加チーム一覧</button>
-      <button class="btn-hdr editor-only" onclick="copyRegisterUrl()">📋 登録URL</button>
-      <button class="btn-hdr" onclick="copyTournamentViewUrl()">🔗 速報URL</button>
-      <button class="btn-hdr editor-only" onclick="copyTournamentDetailUrl()">🔓 詳細URL</button>
-      <button class="btn-hdr editor-only" onclick="exportTournamentArchive()">📦 アーカイブ</button>
+      <button class="btn-hdr" onclick="openRosterView()">参加チーム一覧</button>
+      <button class="btn-hdr editor-only" onclick="copyRegisterUrl()">登録URL</button>
+      <button class="btn-hdr" onclick="copyTournamentViewUrl()">速報URL</button>
+      <button class="btn-hdr editor-only" onclick="copyTournamentDetailUrl()">詳細URL</button>
+      <button class="btn-hdr editor-only" onclick="exportTournamentArchive()">アーカイブ</button>
       <button class="btn-hdr editor-only" onclick="openTournamentModal(currentTournamentId)">編集</button>
       <button class="btn-hdr-primary editor-only" onclick="newGame()">+ 試合を追加</button>
     </div>
     <div class="detail-header-sub">
-      <button class="btn-hdr" onclick="openRosterView()">👥 参加チーム一覧</button>
-      <button class="btn-hdr editor-only" onclick="copyRegisterUrl()">📋 登録URL</button>
-      <button class="btn-hdr" onclick="copyTournamentViewUrl()">🔗 速報URL</button>
-      <button class="btn-hdr editor-only" onclick="copyTournamentDetailUrl()">🔓 詳細URL</button>
-      <button class="btn-hdr editor-only" onclick="exportTournamentArchive()">📦 アーカイブ</button>
+      <button class="btn-hdr" onclick="openRosterView()">参加チーム一覧</button>
+      <button class="btn-hdr editor-only" onclick="copyRegisterUrl()">登録URL</button>
+      <button class="btn-hdr" onclick="copyTournamentViewUrl()">速報URL</button>
+      <button class="btn-hdr editor-only" onclick="copyTournamentDetailUrl()">詳細URL</button>
+      <button class="btn-hdr editor-only" onclick="exportTournamentArchive()">アーカイブ</button>
       <button class="btn-hdr editor-only" onclick="openTournamentModal(currentTournamentId)">編集</button>
       <button class="btn-hdr-primary editor-only" onclick="newGame()">+ 試合を追加</button>
     </div>
@@ -3010,7 +3029,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
     <div id="reg-my-teams-section" style="display:none">
       <div class="section-eyebrow" style="margin:0 0 8px">このデバイスで登録済み</div>
       <div id="reg-my-teams-list"></div>
-      <button class="reg-new-btn" onclick="setRegFormMode('new')">＋ 別のチームを登録</button>
+      <button class="reg-new-btn" onclick="setRegFormMode('new')">別のチームを登録</button>
     </div>
 
     <!-- 登録フォーム -->
@@ -3028,24 +3047,24 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
           <div class="roster-th-name">名前</div>
         </div>
         <div class="roster-players-table" id="reg-players-table"></div>
-        <button class="roster-add-player-btn" onclick="addRegPlayerRow()">＋ 選手を追加</button>
+        <button class="roster-add-player-btn" onclick="addRegPlayerRow()">選手を追加</button>
       </div>
       <!-- ユニフォームカラー -->
       <div class="form-group">
         <label>ユニフォームカラー <span style="font-size:11px;color:#999;font-weight:400">（最大3色）</span></label>
         <div id="reg-uniforms-list"></div>
-        <button class="roster-add-player-btn" id="reg-uniform-add-btn" onclick="addUniformRow('reg')">＋ カラーを追加</button>
+        <button class="roster-add-player-btn" id="reg-uniform-add-btn" onclick="addUniformRow('reg')">カラーを追加</button>
       </div>
       <!-- OCRセクション -->
       <div class="ocr-section">
-        <div class="ocr-section-title">📷 写真から読み込み（AI認識）</div>
+        <div class="ocr-section-title">写真から読み込み（AI認識）</div>
         <div class="ocr-apikey-row">
           <span class="ocr-apikey-label">Gemini APIキー:</span>
           <span class="ocr-apikey-status" id="reg-apikey-status">確認中...</span>
-          <button class="ocr-apikey-btn" onclick="promptGeminiApiKey();updateAllApiKeyStatus()">🔑 設定</button>
+          <button class="ocr-apikey-btn" onclick="promptGeminiApiKey();updateAllApiKeyStatus()">設定</button>
         </div>
         <input type="file" id="reg-file-input" accept="image/*" style="display:none" onchange="handleOCRToTable(this,'reg')">
-        <button class="ocr-upload-btn" id="reg-upload-btn" onclick="startOCRForTarget('reg')">📷 写真を選択 / カメラで撮影</button>
+        <button class="ocr-upload-btn" id="reg-upload-btn" onclick="startOCRForTarget('reg')">写真を選択 / カメラで撮影</button>
         <div class="ocr-progress-wrap" id="reg-progress-wrap">
           <div class="ocr-progress-pct" id="reg-progress-pct">0%</div>
           <div class="ocr-progress-label" id="reg-progress-label">処理中...</div>
@@ -3058,7 +3077,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
           <button class="ocr-import-btn" onclick="importOCRToTable('reg')">↓ 選手リストに取り込む</button>
         </div>
       </div>
-      <button class="reg-submit-btn" id="reg-submit-btn" onclick="submitTeamRegistration()">📝 登録する</button>
+      <button class="reg-submit-btn" id="reg-submit-btn" onclick="submitTeamRegistration()">登録する</button>
       <div class="reg-success-msg" id="reg-success-msg" style="display:none"></div>
     </div>
   </div>
@@ -3071,7 +3090,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   <div class="editor-toolbar">
     <button class="btn-back" onclick="backToDetail()">← 試合一覧</button>
     <span class="toolbar-title" id="toolbar-title">新規試合</span>
-    <button class="btn-live editor-only" onclick="openRecorder()">🎙 ライブ記録</button>
+    <button class="btn-live editor-only" onclick="openRecorder()">ライブ記録</button>
     <button class="btn-save editor-only" id="btn-save" onclick="saveGame()">保存</button>
     <button class="btn-print-small" onclick="window.print()">印刷</button>
   </div>
@@ -3091,17 +3110,17 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   <div id="output"></div>
   <!-- 他アプリからのコピペ用：ロスター・PBP テキスト入力（最下部） -->
   <details class="editor-advanced">
-    <summary>📋 ロスター・PBP テキスト（他アプリからのコピペ用）</summary>
+    <summary>ロスター・PBP テキスト（他アプリからのコピペ用）</summary>
     <div class="players-grid">
       <div>
         <label class="pbp-label">チームA 選手（番号 名前、1行ずつ）</label>
         <textarea id="playersA" placeholder="10 岡田&#10;7 田中&#10;3 山田"></textarea>
-        <button class="roster-load-btn" onclick="openRosterSelectModal('A')">👥 ロスターから選択</button>
+        <button class="roster-load-btn" onclick="openRosterSelectModal('A')">ロスターから選択</button>
       </div>
       <div>
         <label class="pbp-label">チームB 選手（番号 名前、1行ずつ）</label>
         <textarea id="playersB" placeholder="5 高尾&#10;12 鈴木&#10;8 佐藤"></textarea>
-        <button class="roster-load-btn" onclick="openRosterSelectModal('B')">👥 ロスターから選択</button>
+        <button class="roster-load-btn" onclick="openRosterSelectModal('B')">ロスターから選択</button>
       </div>
     </div>
     <div>
@@ -3141,7 +3160,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
         <div class="rec-timer-btns">
           <button class="rec-timer-btn" id="rec-timer-btn" onclick="toggleRecTimer()">▶</button>
           <button class="rec-timer-reset" id="rec-timer-reset" onclick="resetRecTimer()">⟳</button>
-          <button class="rec-timer-sync-btn" id="timer-sync-btn" onclick="toggleTimerSync()" title="タイマー同期">🔗</button>
+          <button class="rec-timer-sync-btn" id="timer-sync-btn" onclick="toggleTimerSync()" title="タイマー同期"></button>
           <span class="rec-timer-sync-status" id="timer-sync-status"></span>
         </div>
       </div>
@@ -3162,7 +3181,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   </div>
   <div class="rec-util-bar">
     <button class="rec-undo-btn" onclick="undoLastEvent()">↩ 取り消し</button>
-    <button class="rec-sheet-btn" onclick="showSheetPreview()">📋 スコアシート確認</button>
+    <button class="rec-sheet-btn" onclick="showSheetPreview()">スコアシート確認</button>
   </div>
   <div class="rec-3col">
     <div class="rec-team-col">
@@ -3174,7 +3193,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
     <div class="rec-pbp-col">
       <div class="rec-pbp-header">
         <span>PLAY LOG</span>
-        <button class="rec-pbp-filter-toggle" id="rec-pbp-filter-toggle" onclick="togglePBPFilter()" title="フィルター">🔍</button>
+        <button class="rec-pbp-filter-toggle" id="rec-pbp-filter-toggle" onclick="togglePBPFilter()" title="フィルター"></button>
       </div>
       <div class="rec-pbp-filter" id="rec-pbp-filter" style="display:none">
         <select id="rec-pbp-filter-player" class="rec-pbp-select" onchange="updatePBPFeed()">
@@ -3334,7 +3353,7 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
   <div class="roster-page-header">
     <button class="rec-back" onclick="backFromRoster()">← 戻る</button>
     <span class="roster-page-title" id="roster-page-title">ロスター管理</span>
-    <button class="roster-add-btn" onclick="loadAndRenderRosterTeams()" style="margin-right:4px;background:rgba(255,255,255,.12)">🔄</button>
+    <button class="roster-add-btn" onclick="loadAndRenderRosterTeams()" style="margin-right:4px;background:rgba(255,255,255,.12)"></button>
     <button class="roster-add-btn editor-only" onclick="openTeamEditorModal(null)">+ チーム追加</button>
   </div>
   <div class="roster-list" id="roster-teams-list"></div>
@@ -3355,25 +3374,25 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
         <div class="roster-th-name">名前</div>
       </div>
       <div class="roster-players-table" id="roster-players-table"></div>
-      <button class="roster-add-player-btn" onclick="addRosterPlayerRow()">＋ 選手を追加</button>
+      <button class="roster-add-player-btn" onclick="addRosterPlayerRow()">選手を追加</button>
     </div>
     <!-- ユニフォームカラー -->
     <div class="form-group">
       <label>ユニフォームカラー <span style="font-size:11px;color:#999;font-weight:400">（最大3色）</span></label>
       <div id="roster-uniforms-list"></div>
-      <button class="roster-add-player-btn" id="roster-uniform-add-btn" onclick="addUniformRow('roster')">＋ カラーを追加</button>
+      <button class="roster-add-player-btn" id="roster-uniform-add-btn" onclick="addUniformRow('roster')">カラーを追加</button>
     </div>
     <!-- OCRセクション -->
     <div class="ocr-section">
-      <div class="ocr-section-title">📷 写真から読み込み（AI認識）</div>
+      <div class="ocr-section-title">写真から読み込み（AI認識）</div>
       <div class="ocr-apikey-row" id="ocr-apikey-row">
         <span class="ocr-apikey-label">Gemini APIキー:</span>
         <span class="ocr-apikey-status" id="ocr-apikey-status">確認中...</span>
-        <button class="ocr-apikey-btn" onclick="promptGeminiApiKey()">🔑 設定</button>
+        <button class="ocr-apikey-btn" onclick="promptGeminiApiKey()">設定</button>
       </div>
       <input type="file" id="ocr-file-input" accept="image/*" style="display:none" onchange="handleOCRToTable(this,'ocr')">
-      <button class="ocr-upload-btn" id="ocr-upload-btn" onclick="startOCRForTarget('ocr')">📷 写真を選択 / カメラで撮影</button>
-      <button class="ocr-apikey-btn" style="width:100%;margin-top:6px" onclick="checkGeminiModels()">🔍 使用可能モデルを確認（デバッグ）</button>
+      <button class="ocr-upload-btn" id="ocr-upload-btn" onclick="startOCRForTarget('ocr')">写真を選択 / カメラで撮影</button>
+      <button class="ocr-apikey-btn" style="width:100%;margin-top:6px" onclick="checkGeminiModels()">使用可能モデルを確認（デバッグ）</button>
       <div class="ocr-progress-wrap" id="ocr-progress-wrap">
         <div class="ocr-progress-pct" id="ocr-progress-pct">0%</div>
         <div class="ocr-progress-label" id="ocr-progress-label">処理中...</div>
@@ -3408,12 +3427,12 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
      ===================================================== -->
 <div class="setup-overlay hidden" id="modal-game-setup" onclick="closeGameSetupModal(event)">
   <div class="setup-sheet" onclick="event.stopPropagation()">
-    <div class="setup-title">⚙️ 試合セットアップ</div>
+    <div class="setup-title">️ 試合セットアップ</div>
 
     <!-- トーナメント枠の選択（任意・大会にトーナメントがある場合のみ表示） -->
     <div class="setup-team-section" id="setup-bracket-section" style="display:none">
       <div class="setup-team-label">
-        <span class="setup-badge" style="background:#F9A825">🏆</span>
+        <span class="setup-badge" style="background:#F9A825"></span>
         <span class="setup-selected-name" id="setup-bracket-selected">トーナメント枠（任意）</span>
       </div>
       <div class="setup-bracket-selects">
@@ -3434,15 +3453,15 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <button class="setup-team-toggle-btn" id="setup-toggle-a" onclick="toggleSetupTeamList('a')">▼ チームを選択</button>
       <div class="setup-team-cards" id="setup-cards-a" style="display:none"></div>
       <div class="setup-uniform-selector hidden" id="setup-uniform-a">
-        <div class="setup-uniform-label">👕 この試合で着用するユニフォームを選択</div>
+        <div class="setup-uniform-label">この試合で着用するユニフォームを選択</div>
         <div class="setup-uniform-opts" id="setup-uniform-opts-a"></div>
       </div>
       <div class="setup-manual-row" id="setup-manual-row-a" style="display:none">
         <input class="setup-manual-input" id="setup-manual-input-a" placeholder="HOME チーム名を入力">
       </div>
       <div class="setup-sub-btns">
-        <button class="setup-manual-btn" onclick="toggleManualInput('a')">✏️ 手入力する</button>
-        <button class="setup-manual-btn" onclick="useGuestTeam('a')">👤 ゲストチーム</button>
+        <button class="setup-manual-btn" onclick="toggleManualInput('a')">️ 手入力する</button>
+        <button class="setup-manual-btn" onclick="useGuestTeam('a')">ゲストチーム</button>
       </div>
     </div>
 
@@ -3455,15 +3474,15 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
       <button class="setup-team-toggle-btn" id="setup-toggle-b" onclick="toggleSetupTeamList('b')">▼ チームを選択</button>
       <div class="setup-team-cards" id="setup-cards-b" style="display:none"></div>
       <div class="setup-uniform-selector hidden" id="setup-uniform-b">
-        <div class="setup-uniform-label">👕 この試合で着用するユニフォームを選択</div>
+        <div class="setup-uniform-label">この試合で着用するユニフォームを選択</div>
         <div class="setup-uniform-opts" id="setup-uniform-opts-b"></div>
       </div>
       <div class="setup-manual-row" id="setup-manual-row-b" style="display:none">
         <input class="setup-manual-input" id="setup-manual-input-b" placeholder="AWAY チーム名を入力">
       </div>
       <div class="setup-sub-btns">
-        <button class="setup-manual-btn" onclick="toggleManualInput('b')">✏️ 手入力する</button>
-        <button class="setup-manual-btn" onclick="useGuestTeam('b')">👤 ゲストチーム</button>
+        <button class="setup-manual-btn" onclick="toggleManualInput('b')">️ 手入力する</button>
+        <button class="setup-manual-btn" onclick="useGuestTeam('b')">ゲストチーム</button>
       </div>
     </div>
 
@@ -3471,19 +3490,19 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 
     <!-- 記録モード選択 -->
     <div class="setup-mode-section">
-      <div class="setup-mode-label">📊 記録モード</div>
+      <div class="setup-mode-label">記録モード</div>
       <div class="setup-mode-grid">
         <label class="setup-mode-card">
           <input type="radio" name="setup-game-mode" value="scoresheet" checked>
           <div class="setup-mode-card-inner">
-            <div class="setup-mode-card-title">📋 スコアシートモード</div>
+            <div class="setup-mode-card-title">スコアシートモード</div>
             <div class="setup-mode-card-desc">2P/3P/FT・ファウル・タイムアウトを記録。公式スコアシートを出力。</div>
           </div>
         </label>
         <label class="setup-mode-card">
           <input type="radio" name="setup-game-mode" value="stats">
           <div class="setup-mode-card-inner">
-            <div class="setup-mode-card-title">📈 スタッツモード</div>
+            <div class="setup-mode-card-title">スタッツモード</div>
             <div class="setup-mode-card-desc">シュート成功率・リバウンド・アシスト・ブロック等のフルボックススコアを記録。</div>
           </div>
         </label>
@@ -3500,8 +3519,8 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
     </div>
 
     <div class="setup-actions">
-      <button class="setup-btn-live"   onclick="confirmGameSetup('recorder')">🎙 ライブ記録を開始</button>
-      <button class="setup-btn-editor" onclick="confirmGameSetup('editor')">📝 エディタで開く</button>
+      <button class="setup-btn-live"   onclick="confirmGameSetup('recorder')">ライブ記録を開始</button>
+      <button class="setup-btn-editor" onclick="confirmGameSetup('editor')">エディタで開く</button>
       <button class="setup-btn-cancel" onclick="closeGameSetupModal()">キャンセル</button>
     </div>
   </div>
@@ -3513,18 +3532,22 @@ details[open] .vt-expand-icon { transform: rotate(180deg); }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.13-1';
+const APP_VERSION = '2026.08.13-2';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.13-2', notes: [
+    'デザイン調整：ボタンやタブの装飾アイコンを廃止し、文字と余白で見せる構成に変更',
+    'ボタンの塗りを抑えた線基調のスタイルへ。開閉マークや稼働状況の表示も記号文字から作図に変更'
+  ] },
   { v: '2026.08.13-1', notes: [
     'スコアシートの写真を詳細URL限定の表示に変更（記録用紙には選手名が写るため）'
   ] },
   { v: '2026.08.03-12', notes: [
-    '紙のスコアシートを撮影して試合に保存できるように（試合一覧の📷ボタン／編集者のみ）',
+    '紙のスコアシートを撮影して試合に保存できるように（試合一覧のボタン／編集者のみ）',
     '保存した写真は観戦ページの試合詳細で閲覧可能（速報URLでも表示、タップで拡大）'
   ] },
   { v: '2026.08.03-11', notes: [
-    '閲覧URLを2種類に：「🔗 速報URL」（合計スコア・対戦表・タイマー速報まで）と「🔓 詳細URL」（個人名・個人スコア・スコアシートまで）',
+    '閲覧URLを2種類に：「速報URL」（合計スコア・対戦表・タイマー速報まで）と「詳細URL」（個人名・個人スコア・スコアシートまで）',
     '配布先に応じて、大会運営側でどちらのURLを共有するか選べます'
   ] },
   { v: '2026.08.03-9', notes: [
@@ -3544,7 +3567,7 @@ const APP_CHANGELOG = [
     '17試合の大会で描画時間を約1/12、ページの重さを約1/25に削減（多人数の同時閲覧でも軽快に）'
   ] },
   { v: '2026.08.03-4', notes: [
-    '閲覧ページに更新モードを追加（自動5/15/30秒・手動更新のみ）と「🔄 更新」ボタン',
+    '閲覧ページに更新モードを追加（自動5/15/30秒・手動更新のみ）と「更新」ボタン',
     'タイマー情報を常時受信から必要な分だけの定期取得に変更（通信量を大幅削減、時計の表示はなめらかなまま）'
   ] },
   { v: '2026.08.03-3', notes: [
@@ -3563,7 +3586,7 @@ const APP_CHANGELOG = [
   ] },
   { v: '2026.08.02-5', notes: [
     '対戦表（トーナメント表・リーグ星取表）に進行中の試合のLIVEマークを表示',
-    'タイマー連携中は「LIVE ⏱ 2Q 7:23」、デジタル記録中は星取表のマスにもLIVE表示'
+    'タイマー連携中は「LIVE 2Q 7:23」、デジタル記録中は星取表のマスにもLIVE表示'
   ] },
   { v: '2026.08.02-4', notes: [
     '対戦表に試合予定（日付・開始時刻・コート名）を設定できるように',
@@ -3574,7 +3597,7 @@ const APP_CHANGELOG = [
     '試合がまだ無い大会では「対戦表」タブを自動で初期表示'
   ] },
   { v: '2026.08.02-2', notes: [
-    '修正：トーナメントの「＋ チームを配置」でチーム選択画面が編集画面の背後に隠れて見えない問題'
+    '修正：トーナメントの「チームを配置」でチーム選択画面が編集画面の背後に隠れて見えない問題'
   ] },
   { v: '2026.08.02-1', notes: [
     'トーナメント作成を「表を作ってから枠にチームを当てはめる」方式に変更',
@@ -3582,7 +3605,7 @@ const APP_CHANGELOG = [
   ] },
   { v: '2026.07.31-4', notes: [
     'トーナメントの配置を組合せ表どおりに自由設定可能に（どの枠が1回戦か・どのチームがシードかを指定できます）',
-    '「⚙ シードを自動配置」ボタンで標準的な配置に並べ替えることも可能'
+    '「シードを自動配置」ボタンで標準的な配置に並べ替えることも可能'
   ] },
   { v: '2026.07.31-3', notes: [
     'トーナメントの参加チーム数を自由に指定可能に（9チーム等、2の累乗でない大会に対応）',
@@ -3603,7 +3626,7 @@ const APP_CHANGELOG = [
     'タイマー速報カードのチーム名を改行させない（長い場合は末尾を省略表示）'
   ] },
   { v: '2026.07.24-5', notes: [
-    'タイマー表示のデザイン変更：黒背景をやめ、白ベース＋ブルーのライトなチップに統一'
+    'タイマー表示のデザイン変更：黒背景をやめ、白ベースブルーのライトなチップに統一'
   ] },
   { v: '2026.07.24-4', notes: [
     'タイマー速報：クォーター内訳（全て0の行）を非表示に',
@@ -3616,11 +3639,11 @@ const APP_CHANGELOG = [
   ] },
   { v: '2026.07.24-2', notes: [
     '編集者の試合一覧カードにもタイマー速報（時計・スコア）をリアルタイム表示',
-    'トーナメント表の枠タップに「⏱ タイマー情報を取得（記録なし）」を追加：試合を自動作成してタイマーをリンク'
+    'トーナメント表の枠タップに「タイマー情報を取得（記録なし）」を追加：試合を自動作成してタイマーをリンク'
   ] },
   { v: '2026.07.24-1', notes: [
-    '試合一覧に「⏱」ボタン追加：デジタルスコアを取らない試合でもタイマーをリンクして速報表示が可能に',
-    '🏁 タイマーのスコアで試合終了（ワンタップで結果保存、トーナメント表・チーム成績に反映）',
+    '試合一覧に「」ボタン追加：デジタルスコアを取らない試合でもタイマーをリンクして速報表示が可能に',
+    'タイマーのスコアで試合終了（ワンタップで結果保存、トーナメント表・チーム成績に反映）',
     '試合結果の手動入力・修正機能（タップ忘れ対策）',
     'タイマースコアの向き（home側＝チームA/B）を試合ごとに切替可能',
     '修正：PBP未入力の試合保存時に別試合のスコアが混入することがある問題'
@@ -3629,11 +3652,11 @@ const APP_CHANGELOG = [
     'タイマーデバイスID入力欄の説明をTimerLink正式版に合わせて更新'
   ] },
   { v: '2026.07.23-1', notes: [
-    'TimerLink連携：記録画面の🔗ボタンでタイマーデバイスを選択し、試合とリンク（時計・ショットクロック自動反映）',
+    'TimerLink連携：記録画面のボタンでタイマーデバイスを選択し、試合とリンク（時計・ショットクロック自動反映）',
     '速報ページ：タイマー連携中の試合カードに残り時間とタイマー側スコアをリアルタイム表示'
   ] },
   { v: '2026.07.16-1', notes: [
-    'アーカイブHTML書き出し機能（大会詳細の「📦 アーカイブ」ボタン、編集者のみ）',
+    'アーカイブHTML書き出し機能（大会詳細の「アーカイブ」ボタン、編集者のみ）',
     '書き出したHTMLは大会データ内蔵の単体ファイルで、サーバー接続なしで閲覧ページを表示できる'
   ] },
   { v: '2026.07.13-3', notes: [
@@ -3645,11 +3668,11 @@ const APP_CHANGELOG = [
   ] },
   { v: '2026.07.13-1', notes: [
     'トーナメントのシード対応：1回戦で相手枠が空欄のチームは不戦勝として自動で次ラウンドへ進出',
-    '試合セットアップに「🏆 トーナメント枠」選択を追加：枠を選ぶと対戦チームを自動セットし、ライブ記録の結果がトーナメント表へ自動反映'
+    '試合セットアップに「トーナメント枠」選択を追加：枠を選ぶと対戦チームを自動セットし、ライブ記録の結果がトーナメント表へ自動反映'
   ] },
   { v: '2026.07.10-1', notes: [
     'トーナメント表機能を追加：大会ごとに4/8/16チームのトーナメントを作成、試合を枠に紐付けるとスコア・勝敗が自動反映（勝者は次ラウンドへ自動進出）',
-    '閲覧ページにも「🏆 トーナメント」タブを追加（観客もリアルタイムで確認可能）',
+    '閲覧ページにも「トーナメント」タブを追加（観客もリアルタイムで確認可能）',
     '※Firestoreルールの再公開が必要（brackets コレクション追加）'
   ] },
   { v: '2026.07.08-4', notes: [
@@ -3681,8 +3704,8 @@ const APP_CHANGELOG = [
   ] },
   { v: '2026.06.12-3', notes: ['通信状態インジケーターを右上（ヘッダー下）に移動'] },
   { v: '2026.06.12-2', notes: ['通信状態を常時表示（左下：オンライン=緑／オフライン=赤・点滅）'] },
-  { v: '2026.06.12-1', notes: ['オフライン対応：通信切断中も記録を継続し、復帰時に自動同期（Firestore永続化＋非ブロッキング保存＋オフラインバッジ）'] },
-  { v: '2026.05.21-2', notes: ['タイマー同期を改善：不正な時間値のバリデーション＋カウント中のクライアント補間（滑らか表示・遅延軽減）'] },
+  { v: '2026.06.12-1', notes: ['オフライン対応：通信切断中も記録を継続し、復帰時に自動同期（Firestore永続化非ブロッキング保存オフラインバッジ）'] },
+  { v: '2026.05.21-2', notes: ['タイマー同期を改善：不正な時間値のバリデーションカウント中のクライアント補間（滑らか表示・遅延軽減）'] },
   { v: '2026.05.21-1', notes: ['Firestoreセキュリティルールを適用し、編集者のみ書き込み可能に（Auth Phase 3）— 認証機能完成'] },
   { v: '2026.05.20-4', notes: ['編集権限制御（許可リストのユーザーのみ編集可）／メンバー管理機能を追加（Auth Phase 2）'] },
   { v: '2026.05.20-3', notes: ['Googleログイン基盤を追加（Auth Phase 1）'] },
@@ -3779,9 +3802,9 @@ function updateOnlineStatus() {
   renderNetStatus();
   // 復帰時：未同期があれば自動送信される（Firestoreが処理）
   if (isOnline) {
-    showToast('🟢 オンラインに復帰しました（データを同期中）');
+    showToast('オンラインに復帰しました（データを同期中）');
   } else {
-    showToast('🔴 オフラインです（記録は端末に保存され、復帰時に同期されます）', 4000);
+    showToast('オフラインです（記録は端末に保存され、復帰時に同期されます）', 4000);
   }
 }
 window.addEventListener('online',  updateOnlineStatus);
@@ -4070,7 +4093,7 @@ async function openTournament(id) {
     document.getElementById('detail-title').textContent = d.name || '大会';
     const period = [d.startDate, d.endDate].filter(Boolean).join(' 〜 ');
     document.getElementById('detail-meta').textContent =
-      [period, d.venue ? '📍 ' + d.venue : ''].filter(Boolean).join('　');
+      [period, d.venue ? '' + d.venue : ''].filter(Boolean).join('　');
   } catch(e) { /* ignore */ }
   switchTab('games');
 }
@@ -4353,7 +4376,7 @@ function listBracketSlots(bracket, games, allBrackets) {
   return slots;
 }
 
-// リーグ表HTML（星取表＋順位表）
+// リーグ表HTML（星取表順位表）
 function renderLeagueHTML(bracket, games, editable, viewerClick) {
   const groups = bracket.groups || [];
   return groups.map((group, gi) => {
@@ -4446,7 +4469,7 @@ function renderBracketHTML(bracket, games, editable, viewerClick, allBrackets, s
       const slot = (name, score, isWin, isSeed, slotIdx) => {
         const canEdit = slotIdx != null;
         const inner = canEdit && !name
-          ? '<span class="br-slot-add">＋ チームを配置</span>'
+          ? '<span class="br-slot-add">チームを配置</span>'
           : `<span class="br-name">${isSeed ? '<span class="br-tbd">（シード）</span>' : (esc(name) || '<span class="br-tbd">未定</span>')}</span>`;
         return `
         <div class="br-slot${isWin ? ' win' : ''}${canEdit ? ' br-slot-edit' : ''}"${
@@ -4490,7 +4513,7 @@ function renderBracketHTML(bracket, games, editable, viewerClick, allBrackets, s
         ${chip}
         ${slot(m.a, scoreA, m.winner && m.winner === m.a, m.bye && !m.a, slotIdxA)}
         ${slot(m.b, scoreB, m.winner && m.winner === m.b, m.bye && !m.b, slotIdxB)}
-        ${schText ? `<div class="br-sched">📅 ${esc(schText)}</div>` : ''}
+        ${schText ? `<div class="br-sched">${esc(schText)}</div>` : ''}
       </div>`;
     };
 
@@ -4516,7 +4539,7 @@ function renderBracketHTML(bracket, games, editable, viewerClick, allBrackets, s
   const champion = finalMatch.winner
     ? `<div class="br-round br-round-champion">
         <div class="br-round-title">優勝</div>
-        <div class="br-round-matches"><div class="br-pair br-pair-single"><div class="br-champion">🏆 ${esc(finalMatch.winner)}</div></div></div>
+        <div class="br-round-matches"><div class="br-pair br-pair-single"><div class="br-champion">${esc(finalMatch.winner)}</div></div></div>
       </div>`
     : '';
   return `<div class="bracket-wrap">${cols}${champion}</div>`;
@@ -4545,7 +4568,7 @@ function renderBracketTab() {
   const cont = document.getElementById('bracket-container');
   const createBtn = `<div style="margin-bottom:14px;display:flex;gap:8px;align-items:center">
     <button class="btn btn-primary editor-only" onclick="openBracketEditModal(null)">+ 対戦表を作成</button>
-    <button class="btn btn-secondary" onclick="loadBrackets()">🔄 更新</button>
+    <button class="btn btn-secondary" onclick="loadBrackets()">更新</button>
   </div>`;
   if (bracketTabBrackets.length === 0) {
     cont.innerHTML = createBtn + `<div class="empty-state">対戦表がまだありません<br>「+ 対戦表を作成」から予選リーグ／トーナメントを設定してください</div>`;
@@ -4558,7 +4581,7 @@ function renderBracketTab() {
     return `
     <div class="bracket-block">
       <div class="bracket-block-head">
-        <span class="bracket-block-name">${isLeague ? '📋' : '🏆'} ${esc(b.name || (isLeague ? '予選リーグ' : 'トーナメント'))}</span>
+        <span class="bracket-block-name">${isLeague ? '' : ''} ${esc(b.name || (isLeague ? '予選リーグ' : 'トーナメント'))}</span>
         <span class="bracket-block-size">${esc(sizeLabel)}</span>
         <span style="flex:1"></span>
         <button class="btn-card btn-edit editor-only" onclick="openBracketEditModal('${b.id}')">編集</button>
@@ -4669,10 +4692,10 @@ function drawLeagueGroupInputs() {
       <div class="league-team-chips">${chips}</div>
       <div class="league-team-add">
         <select class="members-input" onchange="addTeamToGroup(${i}, this.value); this.value='';">
-          <option value="">＋ 参加チームから選択…</option>
+          <option value="">参加チームから選択…</option>
           ${options}
         </select>
-        <button class="btn btn-secondary" onclick="addManualTeamToGroup(${i})">✎ 手入力で追加</button>
+        <button class="btn btn-secondary" onclick="addManualTeamToGroup(${i})">手入力で追加</button>
       </div>
     </div>`;
   }).join('');
@@ -4748,7 +4771,7 @@ function onBracketCountChange() {
   renderBracketSlotInputs(bracketEntriesDraft.slice());
 }
 
-// 「⚙ シードを自動配置」：配置済みのチームを標準的なシード配置に並べ替える
+// 「シードを自動配置」：配置済みのチームを標準的なシード配置に並べ替える
 function autoSeedBracketSlots() {
   const teams = bracketEntriesDraft.filter(Boolean);
   if (!teams.length) { showToast('先にチームを配置してください'); return; }
@@ -4759,7 +4782,7 @@ function autoSeedBracketSlots() {
   showToast('シードを自動配置しました（枠をタップして調整できます）');
 }
 
-// 「✕ 配置をクリア」
+// 「配置をクリア」
 function clearBracketSlots() {
   if (!bracketEntriesDraft.some(Boolean)) return;
   if (!confirm('配置したチームをすべて消しますか？')) return;
@@ -4866,7 +4889,7 @@ async function saveBracket() {
       if (!isOnline) {
         db.collection('brackets').doc(editingBracketId).update(updatePayload)
           .catch(e => console.error('[offline-queue] bracket更新:', e));
-        showToast('⏳ オフライン保存（再接続時に同期されます）');
+        showToast('オフライン保存（再接続時に同期されます）');
       } else {
         await db.collection('brackets').doc(editingBracketId).update(updatePayload);
         showToast(isLeague ? '予選リーグを更新しました' : 'トーナメントを更新しました');
@@ -4875,7 +4898,7 @@ async function saveBracket() {
       if (!isOnline) {
         db.collection('brackets').doc().set(createPayload)
           .catch(e => console.error('[offline-queue] bracket作成:', e));
-        showToast('⏳ オフライン保存（再接続時に同期されます）');
+        showToast('オフライン保存（再接続時に同期されます）');
       } else {
         await db.collection('brackets').add(createPayload);
         showToast(isLeague ? '予選リーグを作成しました' : 'トーナメントを作成しました');
@@ -4899,7 +4922,7 @@ async function deleteBracket(bracketId) {
     if (!isOnline) {
       db.collection('brackets').doc(id).delete()
         .catch(e => console.error('[offline-queue] bracket削除:', e));
-      showToast('⏳ オフラインで削除（再接続時に同期されます）');
+      showToast('オフラインで削除（再接続時に同期されます）');
     } else {
       await db.collection('brackets').doc(id).delete();
       showToast('削除しました');
@@ -4950,11 +4973,11 @@ function openBracketLinkModal(bracketId, matchId) {
   const sorted = bracketTabGames.slice().sort((x, y) => score2(y) - score2(x) || ((x.createdAt || '') < (y.createdAt || '') ? 1 : -1));
   const list = document.getElementById('bracket-link-list');
   const setupBtn = `<button class="bracket-setup-btn" onclick="setupGameFromBracket('${bracketId}','${matchId}')">
-    ⚙️ ライブ記録を開始（試合セットアップ）
+    ️ ライブ記録を開始（試合セットアップ）
     <span class="bracket-setup-btn-sub">デジタルスコアを取る場合。対戦チーム選択済みでセットアップ画面を開きます</span>
   </button>
   <button class="bracket-setup-btn bracket-timer-btn" onclick="timerGameFromBracket('${bracketId}','${matchId}')">
-    ⏱ タイマー情報を取得（記録なし）
+    タイマー情報を取得（記録なし）
     <span class="bracket-setup-btn-sub">スコアは取らず、TimerLinkの時間・スコアを速報ページに表示します</span>
   </button>
   <div class="bracket-link-divider">既存の試合を紐付ける場合は以下から選択</div>`;
@@ -4971,7 +4994,7 @@ function openBracketLinkModal(bracketId, matchId) {
   }).join('');
   list.innerHTML = setupBtn
     + (rows || '<div class="dash-no-data">この大会に試合がありません</div>')
-    + (current ? `<button class="bracket-unlink-btn" onclick="unlinkBracketGame('${current.id}')">🔗 紐付けを解除</button>` : '');
+    + (current ? `<button class="bracket-unlink-btn" onclick="unlinkBracketGame('${current.id}')">紐付けを解除</button>` : '');
   document.getElementById('bracket-link-overlay').classList.add('open');
 }
 
@@ -4979,7 +5002,7 @@ function openBracketLinkModal(bracketId, matchId) {
 // （該当チームが選択済み・枠も紐付け済みの状態でセットアップ画面を表示）
 async function setupGameFromBracket(bracketId, matchId) {
   document.getElementById('bracket-link-overlay').classList.remove('open');
-  await openGameSetupModal();  // リセット＋ロスター/ブラケット読込
+  await openGameSetupModal();  // リセットロスター/ブラケット読込
   const sel = document.getElementById('setup-bracket-select');
   if (!sel || ![...sel.options].some(o => o.value === bracketId)) return;
   sel.value = bracketId;
@@ -5010,10 +5033,10 @@ async function saveBracketSchedule() {
     const p = db.collection('brackets').doc(linkTargetBracket.id).update({ schedule });
     if (!isOnline) {
       p.catch(e => console.error('[offline-queue] 予定保存:', e));
-      showToast('⏳ オフライン保存（再接続時に同期されます）');
+      showToast('オフライン保存（再接続時に同期されます）');
     } else {
       await p;
-      showToast(date || time || court ? '📅 予定を保存しました' : '予定を削除しました');
+      showToast(date || time || court ? '予定を保存しました' : '予定を削除しました');
     }
     document.getElementById('bracket-link-overlay').classList.remove('open');
     loadBrackets();
@@ -5034,7 +5057,7 @@ function fmtSchedule(sch) {
 }
 
 // トーナメント枠から「タイマー情報を取得」（記録なし試合）
-// 枠に紐付いた試合があればその試合の⏱モーダルを開き、
+// 枠に紐付いた試合があればその試合のモーダルを開き、
 // なければ対戦チーム入りの試合を自動作成して枠に紐付けたうえで開く
 async function timerGameFromBracket(bracketId, matchId) {
   document.getElementById('bracket-link-overlay').classList.remove('open');
@@ -5064,7 +5087,7 @@ async function timerGameFromBracket(bracketId, matchId) {
     const p = ref.set(data);
     if (!isOnline) {
       p.catch(e => console.error('[offline-queue] 試合作成エラー:', e));
-      showToast('⏳ オフライン保存（再接続時に同期されます）');
+      showToast('オフライン保存（再接続時に同期されます）');
     } else {
       await p;
     }
@@ -5104,7 +5127,7 @@ async function linkGameToBracket(gameId) {
   if (!linkTargetBracket || !linkTargetMatchId) return;
   try {
     const result = await applyBracketLink(gameId, linkTargetBracket.id, linkTargetMatchId, bracketTabGames);
-    showToast(result === 'queued' ? '⏳ オフラインで紐付け（再接続時に同期されます）' : '試合を紐付けました');
+    showToast(result === 'queued' ? 'オフラインで紐付け（再接続時に同期されます）' : '試合を紐付けました');
     document.getElementById('bracket-link-overlay').classList.remove('open');
     loadBrackets();
   } catch (e) { showToast('エラー: ' + e.message); }
@@ -5119,7 +5142,7 @@ async function unlinkBracketGame(gameId) {
     if (!isOnline) {
       db.collection('games').doc(gameId).update(payload)
         .catch(e => console.error('[offline-queue] 紐付け解除:', e));
-      showToast('⏳ オフラインで解除（再接続時に同期されます）');
+      showToast('オフラインで解除（再接続時に同期されます）');
     } else {
       await db.collection('games').doc(gameId).update(payload);
       showToast('紐付けを解除しました');
@@ -5177,7 +5200,7 @@ function loadGames() {
           const scoreCell = isTimerLiveGame
             ? `<div class="gc-score gc-score-live" data-timer-device="${escAttr(d.timerDeviceId)}" data-timer-flip="${d.timerScoreFlip ? 1 : 0}">
                 <span class="gc-live-score" data-live="score">– - –</span>
-                <span class="gc-live-clock">⏱ --:--</span>
+                <span class="gc-live-clock">--:--</span>
                 <span class="gc-live-tag">タイマー速報</span>
               </div>`
             : `<div class="gc-score">${esc(score)}</div>`;
@@ -5191,8 +5214,8 @@ function loadGames() {
               ${scoreCell}
               <div class="gc-actions" onclick="event.stopPropagation()">
                 <button class="btn-card btn-open" onclick="openGame('${doc.id}')">開く</button>
-                <button class="btn-card btn-timer editor-only${d.timerDeviceId ? ' linked' : ''}" title="タイマーとスコア" onclick="openGameTimerModal('${doc.id}')">⏱${d.timerDeviceId ? ' リンク中' : ''}</button>
-                <button class="btn-card btn-photo editor-only${(d.sheetPhotos || []).length ? ' has-photo' : ''}" title="スコアシートの写真" onclick="openSheetPhotoModal('${doc.id}')">📷${(d.sheetPhotos || []).length ? ' ' + d.sheetPhotos.length : ''}</button>
+                <button class="btn-card btn-timer editor-only${d.timerDeviceId ? ' linked' : ''}" title="タイマーとスコア" onclick="openGameTimerModal('${doc.id}')">${d.timerDeviceId ? ' リンク中' : ''}</button>
+                <button class="btn-card btn-photo editor-only${(d.sheetPhotos || []).length ? ' has-photo' : ''}" title="スコアシートの写真" onclick="openSheetPhotoModal('${doc.id}')">${(d.sheetPhotos || []).length ? ' ' + d.sheetPhotos.length : ''}</button>
                 <button class="btn-card btn-delete editor-only" onclick="deleteGame('${doc.id}')">削除</button>
               </div>
             </div>`;
@@ -5332,7 +5355,7 @@ function renderStatsContent() {
   const { showRanking, showTeams, showGames, rankMetric } = statsFilters;
   const cont = document.getElementById('stats-container');
 
-  // ランキングソート＋同点同順位
+  // ランキングソート同点同順位
   const getVal = p => rankMetric === 'avg'
     ? (p.games > 0 ? p.pts / p.games : 0)
     : p.pts;
@@ -5513,7 +5536,7 @@ async function saveTournament() {
         // オフライン：キューして即完了扱い（復帰時に自動同期）
         db.collection('tournaments').doc(editingTournamentId).update(data)
           .catch(e => console.error('[offline-queue] 大会更新同期エラー:', e));
-        showToast('⏳ オフライン保存（再接続時に同期されます）');
+        showToast('オフライン保存（再接続時に同期されます）');
       } else {
         await withTimeout(db.collection('tournaments').doc(editingTournamentId).update(data));
         showToast('大会を更新しました');
@@ -5527,7 +5550,7 @@ async function saveTournament() {
       if (!isOnline) {
         db.collection('tournaments').doc().set(data)
           .catch(e => console.error('[offline-queue] 大会登録同期エラー:', e));
-        showToast('⏳ オフライン保存（再接続時に同期されます）');
+        showToast('オフライン保存（再接続時に同期されます）');
       } else {
         await withTimeout(db.collection('tournaments').add(data));
         showToast('大会を登録しました');
@@ -5550,7 +5573,7 @@ async function deleteTournament(id) {
     if (!isOnline) {
       db.collection('tournaments').doc(id).delete()
         .catch(e => console.error('[offline-queue] 大会削除同期エラー:', e));
-      showToast('⏳ オフラインで削除（再接続時に同期されます）');
+      showToast('オフラインで削除（再接続時に同期されます）');
     } else {
       await withTimeout(db.collection('tournaments').doc(id).delete());
       showToast('大会を削除しました');
@@ -5670,7 +5693,7 @@ async function loadSetupBrackets() {
     setupBracketGames = gSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     if (setupBrackets.length === 0) return;  // トーナメント未作成なら非表示のまま
     sel.innerHTML = '<option value="">（トーナメントに紐付けない）</option>'
-      + setupBrackets.map(b => `<option value="${b.id}">🏆 ${esc(b.name || 'トーナメント')}（${b.size}チーム）</option>`).join('');
+      + setupBrackets.map(b => `<option value="${b.id}">${esc(b.name || 'トーナメント')}（${b.size}チーム）</option>`).join('');
     section.style.display = '';
   } catch (e) {
     console.warn('[setup] brackets取得失敗:', e);
@@ -6000,7 +6023,7 @@ async function saveGame() {
         ref.set(data).catch(e => console.error('[offline-queue] saveGame同期エラー:', e));
         currentGameId = ref.id;
       }
-      showToast('⏳ オフライン保存（再接続時に同期されます）');
+      showToast('オフライン保存（再接続時に同期されます）');
     } else if (currentGameId) {
       await withTimeout(db.collection('games').doc(currentGameId).update(data));
       showToast('保存しました');
@@ -6015,7 +6038,7 @@ async function saveGame() {
       const pl = pendingBracketLink;
       pendingBracketLink = null;
       applyBracketLink(currentGameId, pl.bracketId, pl.matchId, setupBracketGames)
-        .then(r => { if (r === 'ok') showToast('🏆 トーナメント枠に紐付けました'); })
+        .then(r => { if (r === 'ok') showToast('トーナメント枠に紐付けました'); })
         .catch(e => showToast('トーナメント紐付けエラー: ' + e.message));
     }
   } catch(e) {
@@ -6032,7 +6055,7 @@ async function deleteGame(id) {
     if (!isOnline) {
       db.collection('games').doc(id).delete()
         .catch(e => console.error('[offline-queue] 試合削除同期エラー:', e));
-      showToast('⏳ オフラインで削除（再接続時に同期されます）');
+      showToast('オフラインで削除（再接続時に同期されます）');
     } else {
       await withTimeout(db.collection('games').doc(id).delete());
       showToast('削除しました');
@@ -6595,7 +6618,7 @@ function openRecorder() {
   document.getElementById('rec-title').textContent       = gameNo ? `Game ${gameNo}` : '記録中';
   document.getElementById('rec-col-label-a').textContent = recTeamAName;
   document.getElementById('rec-col-label-b').textContent = recTeamBName;
-  // チーム名 ＋ ユニフォームスウォッチ表示
+  // チーム名 ユニフォームスウォッチ表示
   const makeRecTeamName = (name, uniforms) => {
     const sw = (uniforms||[]).map(u =>
       `<span class="uniform-swatch" style="background:${u.bg};width:14px;height:14px;border-radius:3px;display:inline-block;margin-left:4px;vertical-align:middle"></span>`
@@ -6608,7 +6631,7 @@ function openRecorder() {
   // モードタグ表示
   const modeTag = document.getElementById('rec-mode-tag');
   if (modeTag) {
-    modeTag.textContent = recGameMode === 'stats' ? '📈 スタッツ' : '📋 スコアシート';
+    modeTag.textContent = recGameMode === 'stats' ? 'スタッツ' : 'スコアシート';
     modeTag.className = 'rec-mode-tag' + (recGameMode === 'stats' ? ' stats' : '');
   }
 
@@ -6677,7 +6700,7 @@ function renderActionGrids() {
     { ev: '3P成功',         label: '3P 成功',        cls: 'rec-act-scoring' },
     { ev: 'Pファウル',      label: 'ファウル',       cls: 'rec-act-foul' },
     { ev: 'タイムアウト',    label: 'タイムアウト',   cls: 'rec-act-timeout' },
-    { ev: '__sub__',        label: '⇄ 交代',        cls: 'rec-act-sub' },
+    { ev: '__sub__',        label: '交代',        cls: 'rec-act-sub' },
   ];
   // スタッツモード（フルボックススコア用）
   const buttonsStats = [
@@ -6691,7 +6714,7 @@ function renderActionGrids() {
     { kind: 'single', ev: 'ターンオーバー', label: 'ターンオーバー', cls: 'rec-act-to' },
     { kind: 'single', ev: 'Pファウル',     label: 'ファウル',       cls: 'rec-act-foul' },
     { kind: 'noplayer', ev: 'タイムアウト', label: 'タイムアウト', cls: 'rec-act-timeout' },
-    { kind: 'sub',                 label: '⇄ 交代',    cls: 'rec-act-sub' },
+    { kind: 'sub',                 label: '交代',    cls: 'rec-act-sub' },
   ];
 
   const isStats = recGameMode === 'stats';
@@ -6735,7 +6758,7 @@ function startShotAction(team, shotType) {
   grid.innerHTML = `
     <button class="rec-player-select-btn rec-shot-result success"
       onclick="closePlayerSelect();startAction('${team}','${shotType}成功')">
-      <span class="rec-psel-num">✓</span>
+      <span class="rec-psel-num"></span>
       <span class="rec-psel-name">成功</span>
     </button>
     <button class="rec-player-select-btn rec-shot-result miss"
@@ -6860,7 +6883,7 @@ function closePlayerSelect() {
 }
 
 // PBPデータを Firestore に保存（非ブロッキング・オフライン対応）
-// - オンライン時：サーバーACKで '✓'
+// - オンライン時：サーバーACKで ''
 // - オフライン時：Firestore が IndexedDB にキュー → 再接続時に自動同期。
 //   ローカルの記録は絶対にロールバックしない（データ消失防止）
 function savePbpToFirestore(extraFields = {}) {
@@ -6879,19 +6902,19 @@ function savePbpToFirestore(extraFields = {}) {
     db.collection('games').doc(recGameId).update(payload).catch(e => {
       console.error('[offline-queue] 同期時エラー:', e);
     });
-    setRecStatus('⏳ オフライン保存');
+    setRecStatus('オフライン保存');
     return;
   }
   setRecStatus('保存中...');
   db.collection('games').doc(recGameId).update(payload)
     .then(() => {
-      setRecStatus('✓');
+      setRecStatus('');
       setTimeout(() => setRecStatus(''), 1200);
     })
     .catch(e => {
       console.error('[save] エラー:', e);
       // 権限エラー等の真のエラーでもローカルは保持（PBPテキストから復元可能）
-      setRecStatus('⚠ 未同期');
+      setRecStatus('未同期');
       showToast('保存エラー: ' + e.message + '（記録は端末に保持されています）', 4000);
     });
 }
@@ -7475,7 +7498,7 @@ function _rawClockValue(data, primaryKey, fallbackKey) {
   return null;
 }
 
-// ゲームクロックを「秒」に変換＋バリデーション。不正値は null を返す。
+// ゲームクロックを「秒」に変換バリデーション。不正値は null を返す。
 function _parseGameClockSec(raw) {
   if (raw == null) return null;
   const s = String(raw).trim();
@@ -7492,7 +7515,7 @@ function _parseGameClockSec(raw) {
   return Math.floor(n);
 }
 
-// ショットクロックを「秒」に変換＋バリデーション（0〜35）。不正値は null。
+// ショットクロックを「秒」に変換バリデーション（0〜35）。不正値は null。
 function _parseShotClockSec(raw) {
   if (raw == null) return null;
   const n = parseFloat(String(raw).replace(/[^0-9.]/g, ''));
@@ -7588,7 +7611,7 @@ function loadRecTimerDevice() {
   }).catch(() => {});
 }
 
-// 試合一覧の⏱ボタン：試合データを読み込んでモーダルを開く
+// 試合一覧のボタン：試合データを読み込んでモーダルを開く
 async function openGameTimerModal(gameId) {
   try {
     const doc = await db.collection('games').doc(gameId).get();
@@ -7623,7 +7646,7 @@ function renderTimerModalSections() {
   const teamA = g.teamAName || 'チームA';
   const teamB = g.teamBName || 'チームB';
   const isGameMode = ctx.mode === 'game';
-  document.getElementById('timer-modal-title').textContent = isGameMode ? '⏱ タイマーとスコア' : '⏱ タイマーを選択';
+  document.getElementById('timer-modal-title').textContent = isGameMode ? 'タイマーとスコア' : 'タイマーを選択';
   document.getElementById('timer-modal-note').textContent = isGameMode
     ? `${teamA} vs ${teamB}${g.gameNo ? `（Game ${g.gameNo}）` : ''}：タイマーをリンクすると、速報ページに時間とスコアが表示されます。`
     : 'この試合で使用しているTimerLinkのタイマーを選ぶと、時計・ショットクロックが自動反映されます。';
@@ -7671,14 +7694,18 @@ function renderTimerDeviceList(devices) {
     const score = (sc.home != null && sc.guest != null) ? `${sc.home} - ${sc.guest}` : '';
     const ms = _timerDocMs(d);
     const ageMs = ms ? Date.now() - ms : null;
-    const ageTxt = ageMs == null ? '更新時刻不明'
-      : ageMs < 15000 ? '🟢 稼働中'
-      : ageMs < 3600000 ? `🟡 ${Math.max(1, Math.floor(ageMs / 60000))}分前`
-      : `⚪ ${Math.floor(ageMs / 3600000)}時間以上前`;
+    // 稼働状況は色付きのドットで示す（文字だけでも意味が通るようにラベルも併記）
+    const ageTxt = ageMs == null
+      ? '<span class="dev-dot idle"></span>更新時刻不明'
+      : ageMs < 15000
+        ? '<span class="dev-dot live"></span>稼働中'
+        : ageMs < 3600000
+          ? `<span class="dev-dot warn"></span>${Math.max(1, Math.floor(ageMs / 60000))}分前`
+          : `<span class="dev-dot idle"></span>${Math.floor(ageMs / 3600000)}時間以上前`;
     const linked = d.id === linkedId ? '<span class="timer-device-linked">この試合に登録済み</span>' : '';
     return `<div class="timer-device-row" data-device="${escAttr(d.id)}" onclick="selectTimerDevice(this.dataset.device)">
       <div class="timer-device-id">${esc(d.id)}${linked}</div>
-      <div class="timer-device-meta">${clock != null ? '⏱ ' + esc(String(clock)) + '　' : ''}${score ? score + '　' : ''}${ageTxt}</div>
+      <div class="timer-device-meta">${clock != null ? '' + esc(String(clock)) + '　' : ''}${score ? score + '　' : ''}${ageTxt}</div>
     </div>`;
   }).join('');
 }
@@ -7701,7 +7728,7 @@ function selectTimerDevice(deviceId) {
     closeTimerDeviceModal();
     startTimerSync(deviceId);
   } else {
-    showToast(`🔗 タイマーをリンクしました（${deviceId}）`);
+    showToast(`タイマーをリンクしました（${deviceId}）`);
     renderTimerModalSections();
     if (ctx.devices) renderTimerDeviceList(ctx.devices);
   }
@@ -7729,17 +7756,17 @@ function unlinkTimerDevice() {
   showToast('タイマーのリンクを解除しました');
 }
 
-// スコアの向きを保存（速報ストリップと🏁保存の両方に反映）
+// スコアの向きを保存（速報ストリップと保存の両方に反映）
 function setTimerScoreFlip(flip) {
   const ctx = timerModalCtx; if (!ctx || !ctx.gameId) return;
   ctx.game.timerScoreFlip = flip;
   if (ctx.mode === 'recorder') recTimerScoreFlip = flip;
   db.collection('games').doc(ctx.gameId).update({ timerScoreFlip: flip })
     .catch(e => showToast('保存エラー: ' + e.message));
-  showToast(flip ? '⇄ スコアの向きを入れ替えました' : 'スコアの向きを標準に戻しました');
+  showToast(flip ? 'スコアの向きを入れ替えました' : 'スコアの向きを標準に戻しました');
 }
 
-// 🏁 現在のタイマースコアを試合結果として保存（試合終了）
+// 現在のタイマースコアを試合結果として保存（試合終了）
 async function finishGameWithTimerScore() {
   const ctx = timerModalCtx;
   if (!ctx || !ctx.gameId || !ctx.linkedDeviceId) return;
@@ -7769,7 +7796,7 @@ function saveManualFinalScore() {
   saveFinalScore(a, b);
 }
 
-// 試合結果の共通保存処理（totalA/B ＋ 試合終了ステータス）
+// 試合結果の共通保存処理（totalA/B 試合終了ステータス）
 function saveFinalScore(a, b) {
   const ctx = timerModalCtx; if (!ctx || !ctx.gameId) return;
   const p = db.collection('games').doc(ctx.gameId).update({
@@ -7777,9 +7804,9 @@ function saveFinalScore(a, b) {
   });
   if (!isOnline) {
     p.catch(e => console.error('[offline-queue] スコア保存エラー:', e));
-    showToast('⏳ オフライン保存（再接続時に同期されます）');
+    showToast('オフライン保存（再接続時に同期されます）');
   } else {
-    p.then(() => showToast(`🏁 試合結果を保存しました：${a} - ${b}`))
+    p.then(() => showToast(`試合結果を保存しました：${a} - ${b}`))
      .catch(e => showToast('保存エラー: ' + e.message, 4000));
   }
   ctx.game.totalA = a;
@@ -7795,7 +7822,7 @@ function closeTimerDeviceModal(event) {
   timerModalCtx = null;
 }
 
-// 🔗ボタン：OFF時はデバイス選択モーダル、ON時は同期停止
+// ボタン：OFF時はデバイス選択モーダル、ON時は同期停止
 function toggleTimerSync() {
   if (timerSyncMode) {
     stopTimerSync();
@@ -7833,7 +7860,7 @@ function startTimerSync(deviceId) {
   updateTimerSyncStatus();
   // 接続テスト：まず1回読み込んでデータ状況を確認
   db.collection('timer_sync').doc(deviceId).get().then(snap => {
-    if (!snap.exists) showToast(`⚠ タイマーデータがまだありません（${deviceId}）`);
+    if (!snap.exists) showToast(`タイマーデータがまだありません（${deviceId}）`);
   }).catch(() => {});
   timerSyncUnsubscribe = db.collection('timer_sync').doc(deviceId).onSnapshot(doc => {
     if (!doc.exists) { console.warn('[timer_sync] doc does not exist:', deviceId); return; }
@@ -7847,7 +7874,7 @@ function startTimerSync(deviceId) {
     renderSyncedTimer();
     updateTimerSyncStatus();
   }, 250);
-  showToast(`🔗 タイマー同期 ON（${deviceId}）`);
+  showToast(`タイマー同期 ON（${deviceId}）`);
 }
 
 // 受信データを検証して時計状態に反映（テスト用に単体関数化）
@@ -8017,7 +8044,7 @@ async function saveTeamEditorModal() {
       }
       document.getElementById('modal-roster-team').classList.remove('show');
       loadAndRenderRosterTeams();
-      showToast('⏳ オフライン保存（再接続時に同期されます）');
+      showToast('オフライン保存（再接続時に同期されます）');
       return;
     }
     if (editingRosterTeamId) {
@@ -8040,7 +8067,7 @@ async function deleteRosterTeam() {
         .catch(e => console.error('[offline-queue] ロスター削除同期エラー:', e));
       document.getElementById('modal-roster-team').classList.remove('show');
       loadAndRenderRosterTeams();
-      showToast('⏳ オフラインで削除（再接続時に同期されます）');
+      showToast('オフラインで削除（再接続時に同期されます）');
       return;
     }
     await db.collection('roster_teams').doc(editingRosterTeamId).delete();
@@ -8173,7 +8200,7 @@ function renderMyRegTeams() {
   section.style.display = '';
   list.innerHTML = myTeams.map(t => `
     <div class="reg-my-team-card">
-      <div class="reg-my-team-name">🏀 ${esc(t.teamName)}</div>
+      <div class="reg-my-team-name">${esc(t.teamName)}</div>
       <button class="btn btn-secondary" style="font-size:13px;padding:6px 14px"
         onclick="editMyRegTeam('${t.teamId}','${t.editToken}')">編集</button>
     </div>`).join('');
@@ -8198,7 +8225,7 @@ async function editMyRegTeam(teamId, editToken) {
 function setRegFormMode(mode) {
   const isEdit = mode === 'edit';
   document.getElementById('reg-form-title').textContent = isEdit ? 'チーム情報を編集' : '新しいチームを登録';
-  document.getElementById('reg-submit-btn').textContent = isEdit ? '💾 更新する' : '📝 登録する';
+  document.getElementById('reg-submit-btn').textContent = isEdit ? '更新する' : '登録する';
   document.getElementById('reg-success-msg').style.display = 'none';
   if (!isEdit) {
     regEditingTeamId = null;
@@ -8211,11 +8238,11 @@ function setRegFormMode(mode) {
 
 async function submitTeamRegistration() {
   if (!isOnline) {
-    showToast('❌ オフラインのため登録できません。通信環境をご確認ください。');
+    showToast('オフラインのため登録できません。通信環境をご確認ください。');
     return;
   }
   if (!regTournamentId) {
-    showToast('❌ 大会IDが取得できていません。URLを確認してページを再読み込みしてください。');
+    showToast('大会IDが取得できていません。URLを確認してページを再読み込みしてください。');
     return;
   }
   const teamName = document.getElementById('reg-team-name').value.trim();
@@ -8238,7 +8265,7 @@ async function submitTeamRegistration() {
       const idx = arr.findIndex(t => t.teamId === regEditingTeamId);
       if (idx >= 0) arr[idx].teamName = teamName;
       saveMyRegTeams(regTournamentId, arr);
-      showRegSuccess('✅ 更新しました！');
+      showRegSuccess('更新しました！');
     } else {
       const editToken = generateToken();
       const ref = await db.collection('roster_teams').add({
@@ -8252,12 +8279,12 @@ async function submitTeamRegistration() {
       regEditingToken  = editToken;
       setRegFormMode('edit');
       renderMyRegTeams();
-      showRegSuccess('✅ 登録しました！内容は後からこのページで編集できます。');
+      showRegSuccess('登録しました！内容は後からこのページで編集できます。');
     }
   } catch(e) { showToast('エラー: ' + e.message); }
   finally {
     btn.disabled = false;
-    btn.textContent = isEditing ? '💾 更新する' : '📝 登録する';
+    btn.textContent = isEditing ? '更新する' : '登録する';
   }
 }
 
@@ -8271,7 +8298,7 @@ function showRegSuccess(msg) {
 function copyRegisterUrl() {
   const url = `${location.origin}${location.pathname}?register=${currentTournamentId}`;
   navigator.clipboard.writeText(url)
-    .then(() => showToast('📋 チーム登録URLをコピーしました'))
+    .then(() => showToast('チーム登録URLをコピーしました'))
     .catch(() => prompt('URLをコピーしてください', url));
 }
 
@@ -8339,7 +8366,7 @@ function _makeColorPalette(colors, selected, onSelect) {
   customWrap.className = 'uniform-swatch-btn uniform-custom-btn' + (!isPreset ? ' selected' : '');
   if (!isPreset) customWrap.style.background = selected;
   customWrap.title = 'カスタムカラー';
-  customWrap.innerHTML = '<span class="uniform-custom-icon">🎨</span>';
+  customWrap.innerHTML = '<span class="uniform-custom-icon"></span>';
   const picker = document.createElement('input');
   picker.type = 'color';
   picker.value = selected && /^#[0-9A-Fa-f]{6}$/.test(selected) ? selected : '#000000';
@@ -8366,7 +8393,7 @@ function addUniformRow(target, bg = '#1565C0', text = '#FFFFFF') {
   entry.dataset.bg   = bg;
   entry.dataset.text = text;
 
-  // ヘッダー行：プレビュー ＋ タイトル ＋ 削除
+  // ヘッダー行：プレビュー タイトル 削除
   const header = document.createElement('div');
   header.className = 'uniform-entry-header';
 
@@ -8497,7 +8524,7 @@ function updateAllApiKeyStatus() {
 function startOCRForTarget(target) {
   const key = getGeminiApiKey();
   if (!key) {
-    document.getElementById(`${target}-status-msg`).textContent = '⚠ Gemini APIキーが設定されていません。「🔑 設定」ボタンで登録してください。';
+    document.getElementById(`${target}-status-msg`).textContent = 'Gemini APIキーが設定されていません。「設定」ボタンで登録してください。';
     promptGeminiApiKey();
     return;
   }
@@ -8567,15 +8594,15 @@ async function handleOCRToTable(input, target) {
     const hasNames = parsed.some(p => p.name && p.name.trim().length > 0);
     if (parsed.length > 0 && hasNames) {
       _appendPlayersTo(ids.tableId, parsed);
-      statusMsg.textContent = `✓ ${parsed.length} 名を自動取り込みしました。内容を確認してください。`;
+      statusMsg.textContent = `${parsed.length} 名を自動取り込みしました。内容を確認してください。`;
     } else {
       document.getElementById(ids.textRaw).value = text;
       resultSec.style.display = '';
-      statusMsg.textContent = parsed.length > 0 ? '⚠ 番号は読み取れましたが名前が取得できませんでした。下のAI出力を確認してください。' : '⚠ 自動解析できませんでした。下のテキストを「番号 名前」形式に修正して取り込んでください。';
+      statusMsg.textContent = parsed.length > 0 ? '番号は読み取れましたが名前が取得できませんでした。下のAI出力を確認してください。' : '自動解析できませんでした。下のテキストを「番号 名前」形式に修正して取り込んでください。';
       resultSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   } catch(e) {
-    statusMsg.textContent = '⚠ エラー: ' + e.message;
+    statusMsg.textContent = 'エラー: ' + e.message;
     if (e.message.includes('leaked')) promptGeminiApiKey();
   } finally {
     progressWrap.style.display = 'none';
@@ -8588,10 +8615,10 @@ function importOCRToTable(target) {
   const tableId  = target === 'reg' ? 'reg-players-table' : 'roster-players-table';
   const raw      = document.getElementById(`${target}-text-raw`).value;
   const parsed   = parseOCRRoster(raw);
-  if (parsed.length === 0) { document.getElementById(`${target}-status-msg`).textContent = '⚠「番号 名前」の形式が見つかりません。'; return; }
+  if (parsed.length === 0) { document.getElementById(`${target}-status-msg`).textContent = '「番号 名前」の形式が見つかりません。'; return; }
   _appendPlayersTo(tableId, parsed);
   document.getElementById(`${target}-result-section`).style.display = 'none';
-  document.getElementById(`${target}-status-msg`).textContent = `✓ ${parsed.length} 名を取り込みました。`;
+  document.getElementById(`${target}-status-msg`).textContent = `${parsed.length} 名を取り込みました。`;
 }
 
 function addRosterPlayerRow(num = '', name = '') { _addPlayerRowTo('roster-players-table', num, name); }
@@ -8610,14 +8637,14 @@ async function checkGeminiModels() {
   try {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}&pageSize=50`);
     const data = await res.json();
-    if (!res.ok) { statusMsg.textContent = '⚠ エラー: ' + (data?.error?.message || res.status); return; }
+    if (!res.ok) { statusMsg.textContent = 'エラー: ' + (data?.error?.message || res.status); return; }
     const models = (data.models || [])
       .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
       .map(m => m.name.replace('models/', ''));
     statusMsg.textContent = '利用可能モデル: ' + (models.length ? models.join(', ') : 'なし');
     alert('generateContent対応モデル:\n\n' + models.join('\n'));
   } catch(e) {
-    statusMsg.textContent = '⚠ ' + e.message;
+    statusMsg.textContent = '' + e.message;
   }
 }
 
@@ -8789,7 +8816,7 @@ async function uploadSheetPhotos(files) {
     sheetPhotoGame.sheetPhotos = photos;
     renderSheetPhotoList();
     track('upload_score_sheet', { count: added.length, tournament_id: currentTournamentId || '' });
-    showToast(`📷 写真を${added.length}枚保存しました`);
+    showToast(`写真を${added.length}枚保存しました`);
   } catch (e) {
     showToast('保存エラー: ' + e.message, 5000);
   } finally {
@@ -8844,7 +8871,7 @@ function copyTournamentViewUrl() {
   const label = '速報URL（合計スコアまで／一般公開向け）';
   if (navigator.clipboard) {
     navigator.clipboard.writeText(url)
-      .then(() => showToast('🔗 速報URLをコピーしました（合計スコアまで公開）', 3500))
+      .then(() => showToast('速報URLをコピーしました（合計スコアまで公開）', 3500))
       .catch(() => prompt(label, url));
   } else {
     prompt(label, url);
@@ -8867,7 +8894,7 @@ async function copyTournamentDetailUrl() {
     const label = '詳細URL（個人名・個人スコアまで表示されます。共有先にご注意ください）';
     if (navigator.clipboard) {
       navigator.clipboard.writeText(url)
-        .then(() => showToast('🔓 詳細URLをコピーしました（個人成績まで表示されます）', 4000))
+        .then(() => showToast('詳細URLをコピーしました（個人成績まで表示されます）', 4000))
         .catch(() => prompt(label, url));
     } else {
       prompt(label, url);
@@ -8905,7 +8932,7 @@ function openViewerArchive() {
   renderTournamentViewer(tData, fakeDocs);
 }
 
-// 大会詳細の「📦 アーカイブ」：大会データを焼き込んだ単体HTMLをダウンロード
+// 大会詳細の「アーカイブ」：大会データを焼き込んだ単体HTMLをダウンロード
 async function exportTournamentArchive() {
   if (!currentTournamentId) return;
   if (!isOnline) { showToast('オフラインのため書き出せません（データ取得に接続が必要です）', 4000); return; }
@@ -8951,7 +8978,7 @@ async function exportTournamentArchive() {
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 10000);
     track('export_archive', { tournament_id: currentTournamentId || '', games: payload.games.length });
-    showToast('📦 アーカイブHTMLを書き出しました（' + payload.games.length + '試合）');
+    showToast('アーカイブHTMLを書き出しました（' + payload.games.length + '試合）');
   } catch (e) {
     showToast('書き出しエラー: ' + e.message, 4000);
   }
@@ -8965,7 +8992,7 @@ function openViewer(tournamentId) {
 
   viewerTournamentId = tournamentId;
   viewerTabTouched = false;
-  // 対戦表を取得（変更頻度が低いので1回＋タブ切替時に再取得）。
+  // 対戦表を取得（変更頻度が低いので1回タブ切替時に再取得）。
   // 試合より先に描画が走ることがあるため、取得後に一度描き直す
   refreshViewerBrackets(tournamentId).then(() => {
     if (viewerLastTData) renderTournamentViewer(viewerLastTData, viewerLastGameDocs);
@@ -9031,7 +9058,7 @@ function setViewerRefreshMode(sec) {
   showToast(viewerRefreshSec > 0 ? `自動更新：${viewerRefreshSec}秒ごと` : '手動更新に切り替えました');
 }
 
-// 「🔄 更新」：その時点の最新データを1回だけ取得する
+// 「更新」：その時点の最新データを1回だけ取得する
 async function viewerManualRefresh() {
   if (!viewerTournamentId || IS_ARCHIVE) return;
   track('manual_refresh', { tournament_id: viewerTournamentId });
@@ -9050,7 +9077,7 @@ async function viewerManualRefresh() {
     showToast('更新エラー: ' + e.message);
   } finally {
     const b = document.getElementById('viewer-refresh-btn');
-    if (b) { b.disabled = false; b.textContent = '🔄 更新'; }
+    if (b) { b.disabled = false; b.textContent = '更新'; }
   }
 }
 
@@ -9197,7 +9224,7 @@ function renderViewerTimerStrips() {
     if (!live) { el.style.display = 'none'; return; }
     const parts = [];
     const ct = clockText(live);
-    if (ct) parts.push(`⏱ ${ct}`);
+    if (ct) parts.push(`${ct}`);
     if (live.shotSec != null) parts.push(`SHOT ${Math.ceil(live.shotSec)}`);
     const ts = teamScores(live, el.dataset.timerFlip === '1');
     if (ts.a != null && ts.b != null) parts.push(`${ts.a} - ${ts.b}`);
@@ -9224,12 +9251,12 @@ function renderViewerTimerStrips() {
   document.querySelectorAll('.gc-score-live').forEach(el => {
     const live = getLive(el.dataset.timerDevice);
     const cEl = el.querySelector('.gc-live-clock');
-    if (!live) { if (cEl) cEl.textContent = '⏱ --:--'; return; }
+    if (!live) { if (cEl) cEl.textContent = '--:--'; return; }
     const ts = teamScores(live, el.dataset.timerFlip === '1');
     const sEl = el.querySelector('[data-live="score"]');
     if (sEl && ts.a != null && ts.b != null) sEl.textContent = `${ts.a} - ${ts.b}`;
     const ct = clockText(live);
-    if (cEl && ct) cEl.textContent = `⏱ ${ct}`;
+    if (cEl && ct) cEl.textContent = `${ct}`;
   });
 
   // 4) トーナメント表のライブスコアと時計
@@ -9240,13 +9267,13 @@ function renderViewerTimerStrips() {
     const v = el.dataset.side === 'b' ? ts.b : ts.a;
     if (v != null) el.textContent = v;
   });
-  // 配信中のみ「LIVE ⏱ 2Q 7:23」を表示（止まったら非表示）
+  // 配信中のみ「LIVE 2Q 7:23」を表示（止まったら非表示）
   document.querySelectorAll('.br-timer-clock').forEach(el => {
     const live = getLive(el.dataset.timerDevice);
     if (!live) { el.style.display = 'none'; return; }
     el.style.display = '';
     const ct = clockText(live);
-    el.textContent = ct ? `LIVE ⏱ ${ct}` : 'LIVE';
+    el.textContent = ct ? `LIVE ${ct}` : 'LIVE';
   });
 
   // 5) リーグ星取表のLIVEバッジ（タイマー連携中の対戦）
@@ -9313,7 +9340,7 @@ function renderTournamentViewer(tData, gameDocs) {
   }
 
   const period = [tData.startDate, tData.endDate].filter(Boolean).join(' 〜 ');
-  const metaLine = [period, tData.venue ? '📍 ' + tData.venue : ''].filter(Boolean).join('　');
+  const metaLine = [period, tData.venue ? '' + tData.venue : ''].filter(Boolean).join('　');
 
   // 試合が未登録でも、対戦表（リーグ／トーナメント）は閲覧できるようにする。
   // まだタブを操作していない状態で試合が無ければ、対戦表タブを初期表示にする。
@@ -9404,13 +9431,13 @@ function renderTournamentViewer(tData, gameDocs) {
             ${esc(label) || '試合'}
             ${isGameLive ? '<span class="vt-live-chip">LIVE</span>' : ''}
             ${isTimerLiveGame ? `<span class="vt-live-chip vt-chip-timer" data-timer-device="${escAttr(d.timerDeviceId)}" style="display:none">LIVE</span>` : ''}
-            ${hasSheetPhotos ? '<span class="vt-photo-chip">📷 記録用紙</span>' : ''}
+            ${hasSheetPhotos ? '<span class="vt-photo-chip">記録用紙</span>' : ''}
           </div>
           ${scorelineHTML}
           ${qRowHTML}
           ${timerStrip}
         </div>
-        <span class="vt-expand-icon">▼</span>
+        <span class="vt-expand-icon" aria-hidden="true"></span>
       </summary>
       <div class="vt-game-body" data-lazy="${isOpen ? '0' : '1'}">${
         isOpen ? buildViewerGameBody(d, tData) : ''
@@ -9423,16 +9450,16 @@ function renderTournamentViewer(tData, gameDocs) {
   if (!showStats && viewerActiveTab === 'stats') viewerActiveTab = 'games';
   const tabsHTML = `
     <div class="viewer-tabs">
-      <button class="viewer-tab ${viewerActiveTab==='games'?'active':''}" onclick="setViewerTab('games')">🏀 試合</button>
-      <button class="viewer-tab ${viewerActiveTab==='bracket'?'active':''}" onclick="setViewerTab('bracket')">🏆 対戦表</button>
-      ${showStats ? `<button class="viewer-tab ${viewerActiveTab==='stats'?'active':''}" onclick="setViewerTab('stats')">📊 成績</button>` : ''}
+      <button class="viewer-tab ${viewerActiveTab==='games'?'active':''}" onclick="setViewerTab('games')">試合</button>
+      <button class="viewer-tab ${viewerActiveTab==='bracket'?'active':''}" onclick="setViewerTab('bracket')">対戦表</button>
+      ${showStats ? `<button class="viewer-tab ${viewerActiveTab==='stats'?'active':''}" onclick="setViewerTab('stats')">成績</button>` : ''}
     </div>`;
 
   // 更新バー（アーカイブHTMLは常に固定データのため出さない）
   const fetchedAt = viewerLastFetchAt ? new Date(viewerLastFetchAt) : null;
   const refreshHTML = IS_ARCHIVE ? '' : `
     <div class="viewer-refresh-bar">
-      <button class="viewer-refresh-btn" id="viewer-refresh-btn" onclick="viewerManualRefresh()">🔄 更新</button>
+      <button class="viewer-refresh-btn" id="viewer-refresh-btn" onclick="viewerManualRefresh()">更新</button>
       <select class="viewer-refresh-mode" onchange="setViewerRefreshMode(this.value)" title="更新のしかた">
         <option value="1"  ${viewerRefreshSec === 1  ? 'selected' : ''}>自動更新：1秒ごと（通信量 多）</option>
         <option value="5"  ${viewerRefreshSec === 5  ? 'selected' : ''}>自動更新：5秒ごと</option>
@@ -9453,11 +9480,10 @@ function renderTournamentViewer(tData, gameDocs) {
     bodyHTML = renderViewerBrackets(gameDocs);
   } else if (sorted.length === 0) {
     bodyHTML = `<div class="viewer-error" style="padding:56px 0">
-      <div style="font-size:40px;margin-bottom:8px">🏀</div>
       <p style="font-size:15px;font-weight:600;color:var(--text-mid)">試合がまだ登録されていません</p>
       <p style="font-size:12px;color:var(--text-light);margin-top:4px">試合が始まると、ここにスコアが表示されます</p>
       ${viewerBrackets.length > 0
-        ? '<p style="font-size:12px;color:var(--text-light);margin-top:10px">「🏆 対戦表」タブで組み合わせを確認できます</p>'
+        ? '<p style="font-size:12px;color:var(--text-light);margin-top:10px">「対戦表」タブで組み合わせを確認できます</p>'
         : ''}
     </div>`;
   } else {
@@ -9468,7 +9494,7 @@ function renderTournamentViewer(tData, gameDocs) {
     <div class="viewer-tournament-name">${esc(tData.name || '大会')}</div>
     ${metaLine ? `<div class="viewer-game-info">${esc(metaLine)}</div>` : ''}
     ${viewerFullAccess && !IS_ARCHIVE
-      ? '<div class="viewer-staff-note">🔓 詳細版で表示中（個人成績・スコアシートを含みます）</div>' : ''}
+      ? '<div class="viewer-staff-note">詳細版で表示中（個人成績・スコアシートを含みます）</div>' : ''}
     ${tabsHTML}
     ${refreshHTML}
     ${bodyHTML}`;
@@ -9488,7 +9514,7 @@ function buildViewerGameBody(d, tData) {
   const photos = viewerCanSee('detail') ? (d.sheetPhotos || []) : [];
   const photosHTML = photos.length ? `
     <div class="vt-photo-section">
-      <div class="vt-photo-title">📷 スコアシート（記録用紙）</div>
+      <div class="vt-photo-title">スコアシート（記録用紙）</div>
       <div class="vt-photo-grid">
         ${photos.map((p, i) => `<img class="vt-photo-thumb" src="${escAttr(p.url)}"
             alt="スコアシート${i + 1}" loading="lazy" onclick="openPhotoLightbox('${escAttr(p.url)}')">`).join('')}
@@ -9536,7 +9562,6 @@ function viewerLazyGameBody(det) {
 function renderViewerBrackets(gameDocs) {
   if (!viewerBrackets || viewerBrackets.length === 0) {
     return `<div class="viewer-error" style="padding:48px 0">
-      <div style="font-size:40px;margin-bottom:8px">🏆</div>
       <p style="font-size:15px;font-weight:600;color:var(--text-mid)">組み合わせはまだ公開されていません</p>
     </div>`;
   }
@@ -9546,7 +9571,7 @@ function renderViewerBrackets(gameDocs) {
     return `
     <div class="bracket-block">
       <div class="bracket-block-head">
-        <span class="bracket-block-name">${isLeague ? '📋' : '🏆'} ${esc(b.name || (isLeague ? '予選リーグ' : 'トーナメント'))}</span>
+        <span class="bracket-block-name">${isLeague ? '' : ''} ${esc(b.name || (isLeague ? '予選リーグ' : 'トーナメント'))}</span>
         <span class="bracket-block-size">${esc(bracketSizeLabel(b))}</span>
       </div>
       ${isLeague
@@ -9735,7 +9760,7 @@ function computeGameFullStats(plays, regPlayersA, regPlayersB) {
     if (!regPlayers || regPlayers.length < 30) return false;
     return regPlayers.every(p => !p.name || !p.name.trim());
   };
-  // ゲストチーム向けフィルタ：スタッツがある選手を優先＋低い番号で 18 名まで
+  // ゲストチーム向けフィルタ：スタッツがある選手を優先低い番号で 18 名まで
   const filterGuest = (rows) => {
     const MAX = 18;
     const hasStat = p => (p.fga2 + p.fga3 + p.fta + p.oreb + p.dreb + p.ast + p.stl + p.blk + p.tov + p.fouls) > 0;
@@ -9834,7 +9859,7 @@ function renderFullBoxScoreHTML(stats, teamAName, teamBName) {
   };
   return `
     <div class="full-box-section">
-      <div class="full-box-title">📈 ボックススコア</div>
+      <div class="full-box-title">ボックススコア</div>
       ${teamTable(teamAName, stats.A)}
       ${teamTable(teamBName, stats.B)}
     </div>`;
@@ -9896,7 +9921,7 @@ function renderViewerBoxScore(plays, teamAName, teamBName, regPlayersA, regPlaye
 
   return `
     <div class="vt-box-section">
-      <div class="vt-box-title">📋 スコア一覧</div>
+      <div class="vt-box-title">スコア一覧</div>
       <div class="vt-box-grid">
         ${boxTable(teamAName, box.A)}
         ${boxTable(teamBName, box.B)}
