@@ -14,5 +14,5 @@ hosting-public/
 .firebase/
 firebase-debug.log
 
-# �e�X�g�̈ˑ��p�b�P�[�W
+# テストの依存パッケージ
 tests/node_modules/
