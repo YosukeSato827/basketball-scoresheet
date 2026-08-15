@@ -410,6 +410,9 @@ body.not-editor .editor-only { display: none !important; }
 .btn-edit   { background: #fff; color: var(--text-mid); }
 .btn-delete { background: #fff; color: var(--text-light); }
 .btn-delete:hover { border-color: #D32F2F; color: #D32F2F; }
+/* 終了取消：誤操作からの復帰用。終了済みの試合カードにだけ出る */
+.btn-reopen { background: #fff; color: var(--text-mid); }
+.btn-reopen:hover { border-color: var(--blue); color: var(--blue); }
 
 .empty-state {
   text-align: center; padding: 80px 20px;
@@ -474,7 +477,7 @@ body.not-editor .editor-only { display: none !important; }
   font-size: 24px; font-weight: 600; color: var(--blue);
   min-width: 90px; text-align: center; font-variant-numeric: tabular-nums;
 }
-.gc-actions { display: flex; gap: 8px; }
+.gc-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 
 /* =====================================================
    ダッシュボード
@@ -2681,6 +2684,10 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
     stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
     <path d="M4 6.5h16M9.5 6.5V4.5h5v2M6.5 6.5l1 13h9l1-13M10 10v6M14 10v6"/>
   </symbol>
+  <symbol id="ico-undo" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 5.5v5h5"/><path d="M4.6 10.5A8 8 0 1 1 5 15.2"/>
+  </symbol>
 </svg>
 
 <!-- molten 公式ワードマーク（正式SVGデータ・currentColorで色替え可能） -->
@@ -3558,9 +3565,13 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.16-1';
+const APP_VERSION = '2026.08.16-2';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.16-2', notes: [
+    '追加：試合終了を取り消して進行中に戻せるように（終了済みの試合カードに「終了取消」ボタン）',
+    '誤って試合終了を押すとタイマー速報・LIVE表示が止まり、これまで元に戻す方法がなかった'
+  ] },
   { v: '2026.08.16-1', notes: [
     '修正：試合一覧のタイマー・写真ボタンの表示が空欄になっていた問題',
     'ボタンのアイコンを線画（フラットデザイン）で作り直し、ラベルと併記して分かりやすく'
@@ -5246,6 +5257,7 @@ function loadGames() {
                 <button class="btn-card btn-open" onclick="openGame('${doc.id}')">開く</button>
                 <button class="btn-card btn-timer editor-only${d.timerDeviceId ? ' linked' : ''}" title="タイマーとスコア" onclick="openGameTimerModal('${doc.id}')"><svg class="ico" aria-hidden="true"><use href="#ico-timer"/></svg>${d.timerDeviceId ? 'リンク中' : 'タイマー'}</button>
                 <button class="btn-card btn-photo editor-only${(d.sheetPhotos || []).length ? ' has-photo' : ''}" title="スコアシートの写真" onclick="openSheetPhotoModal('${doc.id}')"><svg class="ico" aria-hidden="true"><use href="#ico-camera"/></svg>${(d.sheetPhotos || []).length ? '写真 ' + d.sheetPhotos.length : '写真'}</button>
+                ${d.status === 'finished' ? `<button class="btn-card btn-reopen editor-only" title="試合終了を取り消して進行中に戻す" onclick="reopenGame('${doc.id}')"><svg class="ico" aria-hidden="true"><use href="#ico-undo"/></svg>終了取消</button>` : ''}
                 <button class="btn-card btn-delete editor-only" onclick="deleteGame('${doc.id}')">削除</button>
               </div>
             </div>`;
@@ -6090,6 +6102,32 @@ async function deleteGame(id) {
       await withTimeout(db.collection('games').doc(id).delete());
       showToast('削除しました');
     }
+    loadGames();
+  } catch(e) {
+    showToast('エラー: ' + e.message);
+  }
+}
+
+// 「試合終了」の取り消し（誤操作からの復帰）
+// status を消すだけ。スコア（totalA/totalB）とPBPには触らない。
+// 終了済みの試合はタイマー速報・LIVE表示の対象外になり、順位も確定扱いになるため、
+// 誤って終了した試合を進行中に戻せる手段がないと現場で復旧できない
+async function reopenGame(id) {
+  if (!confirm('この試合の「試合終了」を取り消して、進行中に戻しますか？\n\n・スコアと記録はそのまま残ります\n・タイマー速報とLIVE表示が再び有効になります\n・順位表では未確定の試合として扱われます')) return;
+  try {
+    const payload = {
+      status: firebase.firestore.FieldValue.delete(),
+      updatedAt: new Date().toISOString()
+    };
+    if (!isOnline) {
+      db.collection('games').doc(id).update(payload)
+        .catch(e => console.error('[offline-queue] 終了取消の同期エラー:', e));
+      showToast('オフラインで取消（再接続時に同期されます）');
+    } else {
+      await withTimeout(db.collection('games').doc(id).update(payload));
+      showToast('試合終了を取り消しました');
+    }
+    track('reopen_game', { tournament_id: currentTournamentId || '' });
     loadGames();
   } catch(e) {
     showToast('エラー: ' + e.message);
