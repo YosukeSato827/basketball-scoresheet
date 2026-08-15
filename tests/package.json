@@ -1,0 +1,6 @@
+﻿{
+  "name": "scorelink-tests",
+  "private": true,
+  "description": "index.html の検証スクリプト（jsdom）",
+  "dependencies": { "jsdom": "^25.0.0" }
+}

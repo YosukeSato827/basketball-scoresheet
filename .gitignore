@@ -13,3 +13,6 @@ Thumbs.db
 hosting-public/
 .firebase/
 firebase-debug.log
+
+# テストの依存パッケージ
+tests/node_modules/
