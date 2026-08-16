@@ -3565,9 +3565,13 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.16-2';
+const APP_VERSION = '2026.08.16-3';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.16-3', notes: [
+    '修正：終了取消のあとタイマーを繋ぎ直しても、記録済みの試合ではLIVEが出ないことがあった',
+    'タイマー配信中はLIVEを表示するように変更（記録の有無を問わず、配信が止まれば自動で消灯）'
+  ] },
   { v: '2026.08.16-2', notes: [
     '追加：試合終了を取り消して進行中に戻せるように（終了済みの試合カードに「終了取消」ボタン）',
     '誤って試合終了を押すとタイマー速報・LIVE表示が止まり、これまで元に戻す方法がなかった'
@@ -9438,6 +9442,11 @@ function renderTournamentViewer(tData, gameDocs) {
     const isOpen = expanded.has(gameId);
     // タイマー取得試合（記録なし・未確定）：タイマーのスコアを正規のスコア欄に表示（中央に時計）
     const isTimerLiveGame = !IS_ARCHIVE && d.timerDeviceId && d.status !== 'finished' && plays.length === 0;
+    // タイマーが繋がっている未終了の試合（記録の有無を問わない）。
+    // 記録ありの試合の LIVE は updatedAt（＝最後に記録した時刻）だけで判定していたため、
+    // 「試合終了→終了取消→タイマー再連携」で記録が止まったままだと、配信中でもLIVEが出なかった。
+    // 配信が生きている間は LIVE を点けるため、チップ自体は記録ありの試合にも出しておく
+    const hasLiveTimer = !IS_ARCHIVE && d.timerDeviceId && d.status !== 'finished';
     // 黒ストリップはデジタルスコア記録中の試合の補助表示としてのみ使用
     const timerStrip = (!IS_ARCHIVE && d.timerDeviceId && d.status !== 'finished' && plays.length > 0)
       ? `<div class="vt-timer-strip" data-timer-device="${escAttr(d.timerDeviceId)}" data-timer-flip="${d.timerScoreFlip ? 1 : 0}" style="display:none"></div>`
@@ -9483,7 +9492,7 @@ function renderTournamentViewer(tData, gameDocs) {
           <div class="vt-summary-inner">
             <div class="vt-game-label">
               ${esc(label) || '試合'}
-              ${isTimerLiveGame ? `<span class="vt-live-chip vt-chip-timer" data-timer-device="${escAttr(d.timerDeviceId)}" style="display:none">LIVE</span>` : ''}
+              ${hasLiveTimer ? `<span class="vt-live-chip vt-chip-timer" data-timer-device="${escAttr(d.timerDeviceId)}" style="display:none">LIVE</span>` : ''}
             </div>
             ${scorelineHTML}
             ${qRowHTML}
@@ -9498,7 +9507,7 @@ function renderTournamentViewer(tData, gameDocs) {
           <div class="vt-game-label">
             ${esc(label) || '試合'}
             ${isGameLive ? '<span class="vt-live-chip">LIVE</span>' : ''}
-            ${isTimerLiveGame ? `<span class="vt-live-chip vt-chip-timer" data-timer-device="${escAttr(d.timerDeviceId)}" style="display:none">LIVE</span>` : ''}
+            ${hasLiveTimer && !isGameLive ? `<span class="vt-live-chip vt-chip-timer" data-timer-device="${escAttr(d.timerDeviceId)}" style="display:none">LIVE</span>` : ''}
             ${hasSheetPhotos ? '<span class="vt-photo-chip">記録用紙</span>' : ''}
           </div>
           ${scorelineHTML}
