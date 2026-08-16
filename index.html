@@ -410,9 +410,12 @@ body.not-editor .editor-only { display: none !important; }
 .btn-edit   { background: #fff; color: var(--text-mid); }
 .btn-delete { background: #fff; color: var(--text-light); }
 .btn-delete:hover { border-color: #D32F2F; color: #D32F2F; }
-/* 終了取消：誤操作からの復帰用。終了済みの試合カードにだけ出る */
-.btn-reopen { background: #fff; color: var(--text-mid); }
-.btn-reopen:hover { border-color: var(--blue); color: var(--blue); }
+/* 試合終了：状態を兼ねたトグル。塗り＝終了済み（タイマー／写真ボタンと同じ表現）
+   押すたびに終了⇔進行中が切り替わるので、誤って終了しても同じボタンで戻せる */
+.btn-finish { background: #fff; color: var(--text-mid); }
+.btn-finish:hover { border-color: var(--blue); color: var(--blue); }
+.btn-finish.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+.btn-finish.active:hover { background: var(--blue-dark); color: #fff; }
 
 .empty-state {
   text-align: center; padding: 80px 20px;
@@ -2684,9 +2687,9 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
     stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
     <path d="M4 6.5h16M9.5 6.5V4.5h5v2M6.5 6.5l1 13h9l1-13M10 10v6M14 10v6"/>
   </symbol>
-  <symbol id="ico-undo" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+  <symbol id="ico-check" viewBox="0 0 24 24" fill="none" stroke="currentColor"
     stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M4 5.5v5h5"/><path d="M4.6 10.5A8 8 0 1 1 5 15.2"/>
+    <path d="M4.5 12.5l5 5 10-11"/>
   </symbol>
 </svg>
 
@@ -3565,9 +3568,13 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.16-3';
+const APP_VERSION = '2026.08.16-4';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.16-4', notes: [
+    '変更：試合一覧の「試合終了」をボタンの状態で示す方式に（塗り＝終了済み、枠線＝進行中）',
+    '同じボタンで終了と解除を切り替えられるので、誤って終了しても押し直せば元に戻せます'
+  ] },
   { v: '2026.08.16-3', notes: [
     '修正：終了取消のあとタイマーを繋ぎ直しても、記録済みの試合ではLIVEが出ないことがあった',
     'タイマー配信中はLIVEを表示するように変更（記録の有無を問わず、配信が止まれば自動で消灯）'
@@ -5261,7 +5268,7 @@ function loadGames() {
                 <button class="btn-card btn-open" onclick="openGame('${doc.id}')">開く</button>
                 <button class="btn-card btn-timer editor-only${d.timerDeviceId ? ' linked' : ''}" title="タイマーとスコア" onclick="openGameTimerModal('${doc.id}')"><svg class="ico" aria-hidden="true"><use href="#ico-timer"/></svg>${d.timerDeviceId ? 'リンク中' : 'タイマー'}</button>
                 <button class="btn-card btn-photo editor-only${(d.sheetPhotos || []).length ? ' has-photo' : ''}" title="スコアシートの写真" onclick="openSheetPhotoModal('${doc.id}')"><svg class="ico" aria-hidden="true"><use href="#ico-camera"/></svg>${(d.sheetPhotos || []).length ? '写真 ' + d.sheetPhotos.length : '写真'}</button>
-                ${d.status === 'finished' ? `<button class="btn-card btn-reopen editor-only" title="試合終了を取り消して進行中に戻す" onclick="reopenGame('${doc.id}')"><svg class="ico" aria-hidden="true"><use href="#ico-undo"/></svg>終了取消</button>` : ''}
+                <button class="btn-card btn-finish editor-only${d.status === 'finished' ? ' active' : ''}" aria-pressed="${d.status === 'finished' ? 'true' : 'false'}" title="${d.status === 'finished' ? 'この試合は終了済み。押すと進行中に戻します' : 'この試合を終了にする'}" onclick="toggleGameFinished('${doc.id}', ${d.status === 'finished' ? 'true' : 'false'})"><svg class="ico" aria-hidden="true"><use href="#ico-check"/></svg>試合終了</button>
                 <button class="btn-card btn-delete editor-only" onclick="deleteGame('${doc.id}')">削除</button>
               </div>
             </div>`;
@@ -6112,26 +6119,31 @@ async function deleteGame(id) {
   }
 }
 
-// 「試合終了」の取り消し（誤操作からの復帰）
-// status を消すだけ。スコア（totalA/totalB）とPBPには触らない。
+// 「試合終了」のオン／オフを切り替える
+// ボタンがアクティブ（塗り）＝その試合は終了済み、という状態表示を兼ねたトグル。
 // 終了済みの試合はタイマー速報・LIVE表示の対象外になり、順位も確定扱いになるため、
-// 誤って終了した試合を進行中に戻せる手段がないと現場で復旧できない
-async function reopenGame(id) {
-  if (!confirm('この試合の「試合終了」を取り消して、進行中に戻しますか？\n\n・スコアと記録はそのまま残ります\n・タイマー速報とLIVE表示が再び有効になります\n・順位表では未確定の試合として扱われます')) return;
+// 誤って終了しても同じボタンで進行中に戻せるようにしてある。
+// status を出し入れするだけで、スコア（totalA/totalB）とPBPには触らない
+async function toggleGameFinished(id, isFinished) {
+  const msg = isFinished
+    ? 'この試合の「試合終了」を解除して、進行中に戻しますか？\n\n・スコアと記録はそのまま残ります\n・タイマー速報とLIVE表示が再び有効になります\n・順位表では未確定の試合として扱われます'
+    : 'この試合を終了にしますか？\n\n・スコアと記録はそのまま残ります\n・タイマー速報とLIVE表示は止まります\n・あとで同じボタンから進行中に戻せます';
+  if (!confirm(msg)) return;
   try {
     const payload = {
-      status: firebase.firestore.FieldValue.delete(),
+      status: isFinished ? firebase.firestore.FieldValue.delete() : 'finished',
       updatedAt: new Date().toISOString()
     };
     if (!isOnline) {
       db.collection('games').doc(id).update(payload)
-        .catch(e => console.error('[offline-queue] 終了取消の同期エラー:', e));
-      showToast('オフラインで取消（再接続時に同期されます）');
+        .catch(e => console.error('[offline-queue] 試合終了の切替の同期エラー:', e));
+      showToast(`オフラインで${isFinished ? '解除' : '終了'}（再接続時に同期されます）`);
     } else {
       await withTimeout(db.collection('games').doc(id).update(payload));
-      showToast('試合終了を取り消しました');
+      showToast(isFinished ? '試合終了を解除しました' : '試合を終了しました');
     }
-    track('reopen_game', { tournament_id: currentTournamentId || '' });
+    track(isFinished ? 'reopen_game' : 'finish_game',
+      { source: 'game_card', tournament_id: currentTournamentId || '' });
     loadGames();
   } catch(e) {
     showToast('エラー: ' + e.message);
