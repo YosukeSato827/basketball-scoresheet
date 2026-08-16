@@ -606,10 +606,16 @@ body.not-editor .editor-only { display: none !important; }
   z-index: 1000; display: none; backdrop-filter: blur(2px);
 }
 .modal-overlay.open { display: flex; }
+/* max-height と overflow が無いと、中身が画面より高いモーダル（タイマー連携など）が
+   上下にはみ出したまま固定され、下端の「閉じる」に永久に届かなくなる。
+   dvh はスマホのアドレスバー分を除いた実際の表示高さ（非対応ブラウザは上の vh を使う） */
 .modal {
   background: white; border-radius: var(--radius);
   padding: 28px 32px; width: 460px; max-width: 95vw;
   box-shadow: 0 12px 48px rgba(0,0,0,.18);
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
 }
 .modal h2 {
   font-size: 17px; font-weight: 600; color: var(--text);
@@ -634,7 +640,15 @@ body.not-editor .editor-only { display: none !important; }
 }
 .form-group textarea { height: 80px; resize: vertical; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.modal-btns { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+/* スクロールしても「閉じる」等が常に見えるよう下端に貼り付ける。
+   負のマージンは .modal の内側余白（28px 32px）と対で、背景を端まで広げるためのもの。
+   スマホ横持ちや背の低いウィンドウでも操作ボタンを見失わない */
+.modal-btns {
+  display: flex; gap: 10px; justify-content: flex-end;
+  position: sticky; bottom: -28px; z-index: 1;
+  margin: 20px -32px -28px; padding: 12px 32px 28px;
+  background: #fff; border-top: 1px solid var(--border);
+}
 .btn-modal-cancel {
   padding: 9px 20px; border: 1px solid var(--border);
   border-radius: var(--radius-sm); background: white;
@@ -922,6 +936,10 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
   /* タブバー */
   .tab-bar { padding: 0 8px; }
   .tab-btn { padding: 10px 16px; font-size: 12px; }
+
+  /* モーダル表示中は通信状態バッジが中身に重なるので隠す
+     （オンライン／オフラインの切り替わり自体はトーストで通知される） */
+  body:has(.modal-overlay.open) .net-status { display: none; }
 
   /* ゲームカード：2段組み（1段目＝チーム名とスコア／2段目＝操作ボタン） */
   .game-card { padding: 12px 14px; gap: 8px 10px; }
@@ -3614,9 +3632,13 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.16-8';
+const APP_VERSION = '2026.08.16-9';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.16-9', notes: [
+    '修正：スマホでタイマー連携の画面を開くと「閉じる」が画面外に出てしまい、閉じられなかった問題',
+    '中身が画面より長いときはモーダル内をスクロールできるようにし、「閉じる」は常に下端に表示されるようにしました。横向きや小さいウィンドウでも同じです'
+  ] },
   { v: '2026.08.16-8', notes: [
     '修正：スマホ・タブレットの試合一覧で、チーム名が1文字ずつ縦に折り返されていた問題',
     'チーム名とスコアを1行目、操作ボタンを2行目に分けました。ボタンは3列に揃えてタップしやすく、通信状態の表示も「詳細URL」に重ならないよう右下へ移動しています'
