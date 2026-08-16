@@ -1,43 +1,24 @@
+// 本番（molten-scorelink.firebasestorage.app）で稼働中のルールの控え。
+// 2026-08-16 にコンソールの本文と突き合わせて一致を確認済み。
+// 変更するときはコンソールとこのファイルの両方を必ず揃えること。
+// https://console.firebase.google.com/project/molten-scorelink/storage/rules
+
 rules_version = '2';
-
-// 紙のスコアシート写真の保存先ルール（バケット: molten-scorelink.firebasestorage.app）
-//
-// ※このファイルは「本番で実際に動いているルール」を、未ログインからの
-//   挙動調査（403/404の出し分け）をもとに書き起こしたもの。
-//   read の条件は検証済みだが、write の条件は外から観測できないため、
-//   デプロイ前に必ずコンソールの現行ルールと見比べること。
-//   https://console.firebase.google.com/project/molten-scorelink/storage/rules
-
 service firebase.storage {
   match /b/{bucket}/o {
 
-    // 保存先は index.html の uploadSheetPhotos() が作る
-    //   score_sheets/{試合ID}/{タイムスタンプ}_{連番}.jpg
-    // の2階層のみ。それ以外の階層は下の全拒否に落ちる
+    // 紙のスコアシート写真
+    // - 閲覧：誰でも可（速報ページで表示するため）
+    // - 保存：編集者（app_config/editors の許可リスト）のみ
+    // - 画像ファイルのみ・1枚10MBまで
     match /score_sheets/{gameId}/{fileName} {
-
-      // 閲覧は誰でも可。観戦ページの詳細版（?view=大会ID&key=合言葉）で
-      // 写真を表示するため。個々のダウンロードURLはトークン付きなので
-      // 一覧から辿られることはない
       allow read: if true;
-
-      // アップロードはログインユーザーのみ。
-      //
-      // 【制約】Storageのルールからは Firestore の app_config/editors を
-      // 参照できないため、「編集者だけ」に絞ることはできない。
-      // 実害は次の2点で抑えている：
-      //   1. 画像(jpeg/png)・10MB以下に限定（index.html 側で最大2000px/画質0.82に圧縮済み）
-      //   2. 写真を試合に紐づける games ドキュメントの更新は
-      //      firestore.rules の canEdit() で編集者限定になっている。
-      //      つまり非編集者が置けるのは、どの試合にも繋がらない孤立ファイルだけ
-      allow create, update: if request.auth != null
-                            && request.resource.size < 10 * 1024 * 1024
-                            && request.resource.contentType.matches('image/(jpeg|png)');
-
-      // 撮り直し・差し替え用（deleteSheetPhoto()）。
-      // delete では request.resource が null になるため、
-      // サイズ・種別の条件は付けられない
-      allow delete: if request.auth != null;
+      allow write: if request.auth != null
+        && request.auth.token.email.lower() in
+           firestore.get(/databases/(default)/documents/app_config/editors).data.emails
+        && (request.resource == null
+            || (request.resource.size < 10 * 1024 * 1024
+                && request.resource.contentType.matches('image/.*')));
     }
 
     // それ以外は全拒否
