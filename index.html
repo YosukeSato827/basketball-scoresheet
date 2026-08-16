@@ -1658,11 +1658,15 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
 }
 .rec-shot-display.warning { color: #FFAB40; }
 .rec-shot-display.danger  { color: #FFAB40; }
+/* タイマー同期：中身が空だと灰色の丸にしか見えないので、時計アイコン＋「同期」を出す
+   （絵文字を廃止したときに中身ごと消えて空欄になっていた） */
 .rec-timer-sync-btn {
   background: rgba(0,0,0,.07); color: var(--text-mid); border: none;
-  border-radius: 50%; width: 32px; height: 32px; font-size: 14px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
+  border-radius: 16px; height: 32px; padding: 0 10px 0 8px; gap: 3px;
+  font-size: 11px; font-weight: 700; font-family: inherit; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; white-space: nowrap;
 }
+.rec-timer-sync-btn .ico { width: 13px; height: 13px; margin-right: 0; }
 .rec-timer-sync-btn.active { background: #4CAF50; color: white; }
 .rec-timer-sync-btn:active { opacity: .7; }
 .rec-timer-sync-status {
@@ -2675,8 +2679,9 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
   .rec-shot-display { font-size: 13px; }
   .rec-timer-btns { gap: 5px; align-items: center; }
   #view-recorder .rec-timer-btn,
-  #view-recorder .rec-timer-reset,
-  #view-recorder .rec-timer-sync-btn { width: 24px; height: 24px; font-size: 11px; }
+  #view-recorder .rec-timer-reset { width: 24px; height: 24px; font-size: 11px; }
+  #view-recorder .rec-timer-sync-btn { height: 24px; padding: 0 8px 0 6px; font-size: 10px; }
+  #view-recorder .rec-timer-sync-btn .ico { width: 12px; height: 12px; }
 
   /* Qバー・ユーティリティバー */
   .rec-q-bar { padding: 2px 6px 3px; gap: 4px; }
@@ -3313,7 +3318,7 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
         <div class="rec-timer-btns">
           <button class="rec-timer-btn" id="rec-timer-btn" onclick="toggleRecTimer()">▶</button>
           <button class="rec-timer-reset" id="rec-timer-reset" onclick="resetRecTimer()">⟳</button>
-          <button class="rec-timer-sync-btn" id="timer-sync-btn" onclick="toggleTimerSync()" title="タイマー同期"></button>
+          <button class="rec-timer-sync-btn" id="timer-sync-btn" onclick="toggleTimerSync()" title="TimerLinkのタイマーと同期する／解除する"><svg class="ico" aria-hidden="true"><use href="#ico-timer"/></svg><span>同期</span></button>
           <span class="rec-timer-sync-status" id="timer-sync-status"></span>
         </div>
       </div>
@@ -3685,9 +3690,13 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.16-11';
+const APP_VERSION = '2026.08.16-12';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.16-12', notes: [
+    '修正：記録画面のタイマー同期ボタンが空欄（灰色の丸）で、何のボタンか分からなかった問題',
+    '時計アイコンと「同期」の文字を入れました。同期中は緑色に変わります'
+  ] },
   { v: '2026.08.16-11', notes: [
     '改善：スマホ横向きのライブ記録で、上部のスコア・時計・チーム名を半分以下の高さに',
     '上部だけで画面の半分近くを占め、アクションボタンと出場選手が画面外に出て操作できませんでした。時計の再生ボタンを時計の横に並べるなどして詰め、空いた高さはボタンに回しています。縦向きとiPadの表示は変えていません'
