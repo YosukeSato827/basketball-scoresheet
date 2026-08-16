@@ -435,8 +435,10 @@ body.not-editor .editor-only { display: none !important; }
   font-size: 20px; font-weight: 600;
   display: block; margin-bottom: 10px;
 }
+/* 813px 以下ではボタンが1行に収まらず画面外へはみ出すので折り返す
+   （600px 以下はスマホ用のサブ行に切り替わるため、効くのは 601〜813px の帯） */
 .detail-header-top {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; row-gap: 6px;
 }
 /* サブ行（スマホ専用）はデフォルト非表示 */
 .detail-header-sub {
@@ -467,13 +469,16 @@ body.not-editor .editor-only { display: none !important; }
   background: white; border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
   padding: 14px 20px; margin-bottom: 10px;
-  display: flex; align-items: center; gap: 16px;
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
   cursor: pointer;
   border-left: 3px solid transparent;
   transition: box-shadow .2s, border-color .2s;
 }
 .game-card:hover { box-shadow: var(--shadow-md); border-left-color: var(--blue); }
-.gc-info { flex: 1; min-width: 0; }
+/* min-width はチーム名の最低幅。0 のままだと幅が足りないときに .gc-info が
+   0 まで潰れ、日本語のチーム名が1文字ずつ縦に折り返される。この下限を割る幅
+   （スマホ〜タブレット縦）では .game-card の flex-wrap でボタン群が次行に落ちる */
+.gc-info { flex: 1; min-width: 200px; }
 .gc-title { font-size: 11px; color: var(--text-light); font-weight: 500; letter-spacing: .06em; }
 .gc-teams { font-size: 16px; font-weight: 600; margin-top: 2px; }
 .gc-score {
@@ -918,10 +923,22 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
   .tab-bar { padding: 0 8px; }
   .tab-btn { padding: 10px 16px; font-size: 12px; }
 
-  /* ゲームカード */
-  .game-card { padding: 10px 12px; gap: 10px; }
-  .gc-score { min-width: 72px; font-size: 20px; }
-  .gc-teams { font-size: 14px; }
+  /* ゲームカード：2段組み（1段目＝チーム名とスコア／2段目＝操作ボタン） */
+  .game-card { padding: 12px 14px; gap: 8px 10px; }
+  /* ボタン群は下の flex-basis:100% で必ず次行に落ちるので、チーム名の下限は不要。
+     残したままだと極端に狭い端末で横スクロールが出る */
+  .gc-info { min-width: 0; }
+  .gc-teams { font-size: 15px; line-height: 1.4; }
+  .gc-score { flex: 0 0 auto; min-width: 72px; font-size: 21px; text-align: right; }
+  /* ボタンは常に3列。カードごとに並びが変わらず、タップ幅もそろう */
+  .gc-actions {
+    flex-basis: 100%;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+  }
+  .gc-actions .btn-card { padding: 11px 3px; letter-spacing: 0; }
+  .gc-actions .ico { margin-right: 4px; }
+  /* 閲覧者は「開く」だけなので横幅いっぱいに */
+  body.not-editor .gc-actions { grid-template-columns: 1fr; }
 
   /* 大会一覧カード */
   .tc-card { padding: 14px 16px; }
@@ -946,6 +963,12 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
   /* エディタツールバー */
   .editor-toolbar { padding: 0 10px; gap: 6px; }
   .toolbar-title { font-size: 13px; }
+}
+
+/* 幅の狭い端末（iPhone SE 等 320px）：試合カードのボタンで
+   「リンク済み」が2行に折り返して高さが揃わなくなるぶんだけ文字を小さく */
+@media (max-width: 360px) {
+  .gc-actions .btn-card { font-size: 11px; }
 }
 
 /* =====================================================
@@ -1536,6 +1559,11 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
   50%      { opacity: .4; }
 }
 @media print { .net-status { display: none; } }
+/* スマホではヘッダーが折り返して高くなり、top:64px だとボタン行に重なって
+   「詳細URL」などが隠れる。右下へ逃がす（この指定は上の既定より後ろに置くこと） */
+@media (max-width: 600px) {
+  .net-status { top: auto; bottom: 12px; right: 10px; }
+}
 
 /* スコアボード（タイマーを中央に配置） */
 .rec-scoreboard {
@@ -3586,9 +3614,13 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.16-7';
+const APP_VERSION = '2026.08.16-8';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.16-8', notes: [
+    '修正：スマホ・タブレットの試合一覧で、チーム名が1文字ずつ縦に折り返されていた問題',
+    'チーム名とスコアを1行目、操作ボタンを2行目に分けました。ボタンは3列に揃えてタップしやすく、通信状態の表示も「詳細URL」に重ならないよう右下へ移動しています'
+  ] },
   { v: '2026.08.16-7', notes: [
     '追加：途中でやめたライブ記録を破棄して、タイマーのスコアに切り替えられるように',
     '記録が残っていると速報ページに途中経過のスコアが出てしまうため。タイマーのボタンから操作できます'
