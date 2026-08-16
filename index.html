@@ -3573,9 +3573,13 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.16-5';
+const APP_VERSION = '2026.08.16-6';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.16-6', notes: [
+    '修正：終了した試合のタイマーボタンが「リンク中」と表示され、同期中に見えていた問題',
+    '終了後は「リンク済み」（塗りなし）に。どのタイマーを使ったかは残るので、終了を解除すればそのまま再開します'
+  ] },
   { v: '2026.08.16-5', notes: [
     '変更：終了した試合はタイマーと連携できないように（終了中はタイマー選択欄を出さず、理由を表示）',
     '連携したのに速報へ出ない、という状態にならなくなりました。「試合終了」を解除すれば連携できます'
@@ -5266,6 +5270,16 @@ function loadGames() {
                 <span class="gc-live-tag">タイマー速報</span>
               </div>`
             : `<div class="gc-score">${esc(score)}</div>`;
+          // タイマーボタンは3状態。終了済みの試合は同期が止まっているため、
+          // デバイスを覚えていても「リンク中」とは出さず塗りもしない（同期中と紛れるため）
+          const timerLinked = !!d.timerDeviceId;
+          const timerActive = timerLinked && d.status !== 'finished';
+          const timerBtnLabel = !timerLinked ? 'タイマー' : (timerActive ? 'リンク中' : 'リンク済み');
+          const timerBtnTitle = !timerLinked
+            ? 'タイマーとスコア'
+            : (timerActive
+                ? `タイマー連携中（${d.timerDeviceId}）`
+                : `試合終了のため連携は停止中（${d.timerDeviceId}）`);
           return `
             <div class="game-card" onclick="openGame('${doc.id}')">
               <div class="gc-info">
@@ -5276,7 +5290,7 @@ function loadGames() {
               ${scoreCell}
               <div class="gc-actions" onclick="event.stopPropagation()">
                 <button class="btn-card btn-open" onclick="openGame('${doc.id}')">開く</button>
-                <button class="btn-card btn-timer editor-only${d.timerDeviceId ? ' linked' : ''}" title="タイマーとスコア" onclick="openGameTimerModal('${doc.id}')"><svg class="ico" aria-hidden="true"><use href="#ico-timer"/></svg>${d.timerDeviceId ? 'リンク中' : 'タイマー'}</button>
+                <button class="btn-card btn-timer editor-only${timerActive ? ' linked' : ''}" title="${escAttr(timerBtnTitle)}" onclick="openGameTimerModal('${doc.id}')"><svg class="ico" aria-hidden="true"><use href="#ico-timer"/></svg>${timerBtnLabel}</button>
                 <button class="btn-card btn-photo editor-only${(d.sheetPhotos || []).length ? ' has-photo' : ''}" title="スコアシートの写真" onclick="openSheetPhotoModal('${doc.id}')"><svg class="ico" aria-hidden="true"><use href="#ico-camera"/></svg>${(d.sheetPhotos || []).length ? '写真 ' + d.sheetPhotos.length : '写真'}</button>
                 <button class="btn-card btn-finish editor-only${d.status === 'finished' ? ' active' : ''}" aria-pressed="${d.status === 'finished' ? 'true' : 'false'}" title="${d.status === 'finished' ? 'この試合は終了済み。押すと進行中に戻します' : 'この試合を終了にする'}" onclick="toggleGameFinished('${doc.id}', ${d.status === 'finished' ? 'true' : 'false'})"><svg class="ico" aria-hidden="true"><use href="#ico-check"/></svg>試合終了</button>
                 <button class="btn-card btn-delete editor-only" onclick="deleteGame('${doc.id}')">削除</button>
