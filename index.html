@@ -2884,10 +2884,15 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
   <div class="modal" onclick="event.stopPropagation()">
     <h2 id="timer-modal-title">タイマーを選択</h2>
     <p class="timer-device-note" id="timer-modal-note">この試合で使用しているTimerLinkのタイマーを選ぶと、速報ページに時間とスコアが表示されます。</p>
+    <div id="timer-finished-note" class="timer-device-empty" style="display:none">
+      この試合は「試合終了」になっています。<br>
+      終了した試合は速報ページに時間・スコアを表示しないため、タイマーとは連携できません。<br>
+      連携するには、試合一覧の「試合終了」ボタンを押して解除してください。
+    </div>
     <div id="timer-device-list" class="timer-device-list">
       <div class="timer-device-empty">読み込み中...</div>
     </div>
-    <div class="form-group" style="margin-top:12px">
+    <div class="form-group" id="timer-device-manual-section" style="margin-top:12px">
       <label>デバイスIDを直接入力</label>
       <div class="timer-device-manual">
         <input type="text" id="timer-device-manual" placeholder="TimerLinkに表示されるデバイスID">
@@ -3568,9 +3573,13 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.16-4';
+const APP_VERSION = '2026.08.16-5';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.16-5', notes: [
+    '変更：終了した試合はタイマーと連携できないように（終了中はタイマー選択欄を出さず、理由を表示）',
+    '連携したのに速報へ出ない、という状態にならなくなりました。「試合終了」を解除すれば連携できます'
+  ] },
   { v: '2026.08.16-4', notes: [
     '変更：試合一覧の「試合終了」をボタンの状態で示す方式に（塗り＝終了済み、枠線＝進行中）',
     '同じボタンで終了と解除を切り替えられるので、誤って終了しても押し直せば元に戻せます'
@@ -3876,6 +3885,7 @@ let allowedEditors = [];    // 許可リスト（メールアドレス）
 // =====================================================
 let currentTournamentId = null;   // 表示中の大会ID
 let currentGameId       = null;   // 編集中の試合ID
+let currentGameStatus   = null;   // 編集中の試合の状態（'finished' なら終了済み。タイマー連携の可否判定に使う）
 let currentTab          = 'games';
 let lastTotalA = 0, lastTotalB = 0;
 let editingTournamentId = null;   // モーダルの編集対象
@@ -5977,6 +5987,7 @@ function confirmGameSetup(mode) {
 
   // エディタに反映
   currentGameId = null;
+  currentGameStatus = null;   // 新規作成なので未終了
   document.getElementById('teamAName').value  = teamAData?.teamName || '';
   document.getElementById('teamBName').value  = teamBData?.teamName || '';
   document.getElementById('gameNo').value     = gameNo;
@@ -6020,6 +6031,7 @@ async function openGame(id) {
     if (!doc.exists) { showToast('試合データが見つかりません'); return; }
     const d = doc.data();
     currentGameId = id;
+    currentGameStatus = d.status || null;          // 終了済みならタイマー連携を止める
     pendingGameMode = d.gameMode || 'scoresheet';  // 既存試合のモードを復元
     pendingBracketLink = null;  // セットアップ経由でない場合は紐付けしない
     document.getElementById('teamAName').value = d.teamAName || '';
@@ -6142,6 +6154,8 @@ async function toggleGameFinished(id, isFinished) {
       await withTimeout(db.collection('games').doc(id).update(payload));
       showToast(isFinished ? '試合終了を解除しました' : '試合を終了しました');
     }
+    // 同じ試合をエディタ／記録画面で開いている場合は状態をそろえる
+    if (currentGameId === id) currentGameStatus = isFinished ? null : 'finished';
     track(isFinished ? 'reopen_game' : 'finish_game',
       { source: 'game_card', tournament_id: currentTournamentId || '' });
     loadGames();
@@ -7712,6 +7726,8 @@ function openTimerDeviceModalFor(ctx) {
   timerModalCtx = ctx;
   document.getElementById('modal-timer-device').classList.add('open');
   renderTimerModalSections();
+  // 終了済みの試合は連携できないので、タイマー一覧を取りに行かない（無駄な通信を避ける）
+  if (ctx.game.status === 'finished') return;
   const listEl = document.getElementById('timer-device-list');
   listEl.innerHTML = '<div class="timer-device-empty">読み込み中...</div>';
   db.collection('timer_sync').get().then(snap => {
@@ -7730,12 +7746,21 @@ function renderTimerModalSections() {
   const teamA = g.teamAName || 'チームA';
   const teamB = g.teamBName || 'チームB';
   const isGameMode = ctx.mode === 'game';
+  // 終了済みの試合はタイマーと連携できない（速報に出ないため）。選択UIを隠して理由を出す
+  const isFinished = g.status === 'finished';
   document.getElementById('timer-modal-title').textContent = isGameMode ? 'タイマーとスコア' : 'タイマーを選択';
-  document.getElementById('timer-modal-note').textContent = isGameMode
-    ? `${teamA} vs ${teamB}${g.gameNo ? `（Game ${g.gameNo}）` : ''}：タイマーをリンクすると、速報ページに時間とスコアが表示されます。`
-    : 'この試合で使用しているTimerLinkのタイマーを選ぶと、時計・ショットクロックが自動反映されます。';
+  document.getElementById('timer-modal-note').textContent = isFinished
+    ? `${teamA} vs ${teamB}${g.gameNo ? `（Game ${g.gameNo}）` : ''}：この試合は終了済みです。`
+    : isGameMode
+      ? `${teamA} vs ${teamB}${g.gameNo ? `（Game ${g.gameNo}）` : ''}：タイマーをリンクすると、速報ページに時間とスコアが表示されます。`
+      : 'この試合で使用しているTimerLinkのタイマーを選ぶと、時計・ショットクロックが自動反映されます。';
+  document.getElementById('timer-finished-note').style.display = isFinished ? '' : 'none';
+  document.getElementById('timer-device-list').style.display = isFinished ? 'none' : '';
+  document.getElementById('timer-device-manual-section').style.display = isFinished ? 'none' : '';
 
   // スコアの向き（リンク済みのときのみ表示）
+  // ※終了済みでも隠さない。確定スコアの保存（finishGameWithTimerScore）が
+  //   この向き設定を使うため、スコア修正の手段として残しておく
   document.getElementById('timer-flip-section').style.display = ctx.linkedDeviceId ? '' : 'none';
   document.getElementById('timer-flip-label-0').textContent = `タイマーhome側 = ${teamA}`;
   document.getElementById('timer-flip-label-1').textContent = `タイマーhome側 = ${teamB}`;
@@ -7798,6 +7823,12 @@ function selectTimerDevice(deviceId) {
   deviceId = (deviceId || '').trim();
   if (!deviceId) { showToast('デバイスIDを入力してください'); return; }
   const ctx = timerModalCtx; if (!ctx) return;
+  // 終了済みの試合はタイマー速報・LIVE表示の対象外なので、リンクしても何も表示されない。
+  // 成功したように見えて実際には映らない状態を作らないよう、ここで止める
+  if (ctx.game && ctx.game.status === 'finished') {
+    showToast('この試合は終了しています。タイマーと連携するには「試合終了」を解除してください', 5000);
+    return;
+  }
   ctx.linkedDeviceId = deviceId;
   ctx.game.timerDeviceId = deviceId;
   // 試合に保存（速報ページのタイマー表示に使用）。オフライン時は復帰後に自動同期
@@ -7923,7 +7954,8 @@ function toggleTimerSync() {
         teamBName: recTeamBName,
         timerDeviceId: recTimerDeviceId,
         timerScoreFlip: recTimerScoreFlip,
-        pbpData: recPbpData
+        pbpData: recPbpData,
+        status: currentGameStatus   // 終了済みの試合ではタイマーと連携させない
       }
     });
   }
