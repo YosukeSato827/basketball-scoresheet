@@ -1240,6 +1240,9 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
 .timer-manual-score input { width: 64px; text-align: center; }
 .timer-manual-team { font-size: 12px; color: var(--text-mid); max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .timer-result-hint { font-size: 11px; color: var(--text-light); margin-top: 6px; }
+/* 途中でやめたライブ記録が残っている試合への案内（タイマー連携のみに切り替える導線） */
+.timer-pbp-current { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+.timer-pbp-hint { font-size: 12px; color: var(--text-light); line-height: 1.7; margin-bottom: 10px; }
 .btn-timer.linked { background: var(--blue); color: #fff; border-color: var(--blue); }
 .gc-timer-strip { margin-top: 5px; font-size: 12px; padding: 2px 10px; }
 .bracket-timer-btn {
@@ -2889,6 +2892,16 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
       終了した試合は速報ページに時間・スコアを表示しないため、タイマーとは連携できません。<br>
       連携するには、試合一覧の「試合終了」ボタンを押して解除してください。
     </div>
+    <div id="timer-pbp-section" style="display:none">
+      <div class="timer-section-title">この試合にはライブ記録が残っています</div>
+      <div class="timer-pbp-current" id="timer-pbp-current"></div>
+      <div class="timer-pbp-hint">
+        記録がある試合は、そのスコアが速報ページの正式なスコアになります。<br>
+        タイマーの得点は時計と一緒に補助表示されるだけで、正式なスコアには使われません。<br>
+        この試合はタイマーだけで運用する場合は、下から記録を破棄してください。
+      </div>
+      <button class="btn-modal-save" onclick="discardRecordingForTimer()">記録を破棄してタイマーのスコアを使う</button>
+    </div>
     <div id="timer-device-list" class="timer-device-list">
       <div class="timer-device-empty">読み込み中...</div>
     </div>
@@ -3573,9 +3586,13 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.16-6';
+const APP_VERSION = '2026.08.16-7';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.16-7', notes: [
+    '追加：途中でやめたライブ記録を破棄して、タイマーのスコアに切り替えられるように',
+    '記録が残っていると速報ページに途中経過のスコアが出てしまうため。タイマーのボタンから操作できます'
+  ] },
   { v: '2026.08.16-6', notes: [
     '修正：終了した試合のタイマーボタンが「リンク中」と表示され、同期中に見えていた問題',
     '終了後は「リンク済み」（塗りなし）に。どのタイマーを使ったかは残るので、終了を解除すればそのまま再開します'
@@ -7784,8 +7801,21 @@ function renderTimerModalSections() {
   if (r0) r0.checked = !flip;
   if (r1) r1.checked = flip;
 
-  // 試合結果（試合一覧モードのみ。デジタルスコア記録済みの試合はPBPが正のため非表示）
+  // ライブ記録が残っている試合の案内（試合一覧モードのみ）。
+  // 記録があるとPBPが正になりタイマーの得点は補助表示止まりなので、
+  // 「途中でやめた記録が速報に出てしまう」場合の破棄導線をここに出す
   const hasPbp = !!(g.pbpData && g.pbpData.trim());
+  const showPbpSection = isGameMode && hasPbp && !isFinished;
+  document.getElementById('timer-pbp-section').style.display = showPbpSection ? '' : 'none';
+  if (showPbpSection) {
+    const stPbp = buildState(parsePBP(g.pbpData));
+    const pa = stPbp.qScore.A.reduce((a, b) => a + b, 0);
+    const pb = stPbp.qScore.B.reduce((a, b) => a + b, 0);
+    document.getElementById('timer-pbp-current').textContent =
+      `記録中のスコア：${teamA} ${pa} - ${pb} ${teamB}`;
+  }
+
+  // 試合結果（試合一覧モードのみ。デジタルスコア記録済みの試合はPBPが正のため非表示）
   const showResult = isGameMode && !hasPbp;
   document.getElementById('timer-result-section').style.display = showResult ? '' : 'none';
   if (showResult) {
@@ -7860,6 +7890,59 @@ function selectTimerDevice(deviceId) {
     showToast(`タイマーをリンクしました（${deviceId}）`);
     renderTimerModalSections();
     if (ctx.devices) renderTimerDeviceList(ctx.devices);
+  }
+}
+
+// 途中でやめたライブ記録を破棄して、この試合をタイマー運用に切り替える
+//
+// 記録が少しでも残っていると、速報ページ・スコアシート・ボックススコア・順位の
+// すべてがその半端な値を正として扱う（PBPが正、という設計のため）。
+// 合計スコア（totalA/B）も必ず一緒に消すこと。pbpData だけ空にすると
+// 「PBPなし＋確定スコアあり」と見なされ、半端なスコアが確定値として表示される
+async function discardRecordingForTimer() {
+  const ctx = timerModalCtx; if (!ctx || !ctx.gameId) return;
+  const g = ctx.game;
+  const teamA = g.teamAName || 'チームA';
+  const teamB = g.teamBName || 'チームB';
+  const st = buildState(parsePBP(g.pbpData || ''));
+  const pa = st.qScore.A.reduce((a, b) => a + b, 0);
+  const pb = st.qScore.B.reduce((a, b) => a + b, 0);
+  if (!confirm(
+    `この試合のライブ記録を破棄します。\n\n`
+    + `破棄する記録：${teamA} ${pa} - ${pb} ${teamB}\n\n`
+    + `・記録した得点・ファウル・出場時間はすべて消えます（元に戻せません）\n`
+    + `・スコアシートとボックススコアも空になります\n`
+    + `・以後この試合のスコアはタイマーの得点が使われます\n`
+    + `・選手の登録と試合予定はそのまま残ります`
+  )) return;
+  try {
+    const payload = {
+      pbpData: '',
+      totalA: firebase.firestore.FieldValue.delete(),
+      totalB: firebase.firestore.FieldValue.delete(),
+      updatedAt: new Date().toISOString()
+    };
+    if (!isOnline) {
+      db.collection('games').doc(ctx.gameId).update(payload)
+        .catch(e => console.error('[offline-queue] 記録破棄の同期エラー:', e));
+      showToast('オフラインで破棄（再接続時に同期されます）');
+    } else {
+      await withTimeout(db.collection('games').doc(ctx.gameId).update(payload));
+      showToast('記録を破棄しました。以後はタイマーのスコアが使われます', 4000);
+    }
+    // モーダルとエディタ側の状態もそろえる
+    g.pbpData = '';
+    g.totalA = null;
+    g.totalB = null;
+    if (currentGameId === ctx.gameId) {
+      const pbpEl = document.getElementById('pbpInput');
+      if (pbpEl) pbpEl.value = '';
+    }
+    track('discard_recording', { tournament_id: currentTournamentId || '' });
+    renderTimerModalSections();
+    loadGames();
+  } catch (e) {
+    showToast('エラー: ' + e.message);
   }
 }
 
