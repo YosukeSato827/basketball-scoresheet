@@ -608,13 +608,15 @@ body.not-editor .editor-only { display: none !important; }
 .modal-overlay.open { display: flex; }
 /* max-height と overflow が無いと、中身が画面より高いモーダル（タイマー連携など）が
    上下にはみ出したまま固定され、下端の「閉じる」に永久に届かなくなる。
-   dvh はスマホのアドレスバー分を除いた実際の表示高さ（非対応ブラウザは上の vh を使う） */
+   dvh はスマホのアドレスバー分を除いた実際の表示高さ（非対応ブラウザは上の vh を使う）。
+   引く値を 56px にしているのは、上下に28pxずつ背景を残して
+   「背景タップで閉じる」の余地を作るため */
 .modal {
   background: white; border-radius: var(--radius);
   padding: 28px 32px; width: 460px; max-width: 95vw;
   box-shadow: 0 12px 48px rgba(0,0,0,.18);
-  max-height: calc(100vh - 32px);
-  max-height: calc(100dvh - 32px);
+  max-height: calc(100vh - 56px);
+  max-height: calc(100dvh - 56px);
   overflow-y: auto;
 }
 .modal h2 {
@@ -640,15 +642,12 @@ body.not-editor .editor-only { display: none !important; }
 }
 .form-group textarea { height: 80px; resize: vertical; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-/* スクロールしても「閉じる」等が常に見えるよう下端に貼り付ける。
-   負のマージンは .modal の内側余白（28px 32px）と対で、背景を端まで広げるためのもの。
-   スマホ横持ちや背の低いウィンドウでも操作ボタンを見失わない */
-.modal-btns {
-  display: flex; gap: 10px; justify-content: flex-end;
-  position: sticky; bottom: -28px; z-index: 1;
-  margin: 20px -32px -28px; padding: 12px 32px 28px;
-  background: #fff; border-top: 1px solid var(--border);
-}
+/* ここを position: sticky で下端固定にしたことがあるが、iOS実機で「閉じる」が
+   二重に描画される不具合が出たため戻した（2026.08.16-10）。
+   .modal-btns は .modal の外（.changelog-body / .modal-roster-sheet、内側余白が
+   18px・16px）でも使われていて、.modal の 32px 前提の負マージンが合わないという
+   問題もあった。ボタンに届かない件は .modal 側のスクロールで解決している */
+.modal-btns { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
 .btn-modal-cancel {
   padding: 9px 20px; border: 1px solid var(--border);
   border-radius: var(--radius-sm); background: white;
@@ -3632,9 +3631,13 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.16-9';
+const APP_VERSION = '2026.08.16-10';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.16-10', notes: [
+    '修正：「閉じる」が2つ並んで表示されることがあった問題',
+    '写真とタイマーのように別のボタンを続けて押すと、画面が2枚重なって開いていました。1枚だけ開くようにしています。前回入れた「閉じる」の下端固定も表示が乱れる原因になり得るため戻しました（下までスクロールすれば届きます）'
+  ] },
   { v: '2026.08.16-9', notes: [
     '修正：スマホでタイマー連携の画面を開くと「閉じる」が画面外に出てしまい、閉じられなかった問題',
     '中身が画面より長いときはモーダル内をスクロールできるようにし、「閉じる」は常に下端に表示されるようにしました。横向きや小さいウィンドウでも同じです'
@@ -4113,6 +4116,18 @@ function closeChangelogModal(event) {
 // =====================================================
 // ユーティリティ
 // =====================================================
+// ダイアログを開く。開く側が他を閉じないままだと2枚が重なって開き、
+// 「閉じる」が2つ並ぶなど表示が混乱するため、他の .modal-overlay は閉じる。
+// 写真の拡大表示（.photo-lightbox）は写真モーダルの上に重ねる仕様なので対象外
+function openModalOverlay(id) {
+  document.querySelectorAll('.modal-overlay.open').forEach(o => {
+    if (o.id === id) return;
+    o.classList.remove('open');
+    if (o.id === 'modal-timer-device') timerModalCtx = null;
+  });
+  document.getElementById(id).classList.add('open');
+}
+
 // 利用状況の記録（Googleアナリティクス）。個人が特定される情報は送らない。
 // 失敗してもアプリの動作には影響させない
 function track(name, params) {
@@ -4975,7 +4990,7 @@ function openSlotTeamModal(idx) {
     </div>`).join('');
   document.getElementById('slot-team-list').innerHTML =
     rows || '<div class="timer-device-empty">配置できるチームがありません。<br>下の欄に直接入力してください。</div>';
-  document.getElementById('modal-slot-team').classList.add('open');
+  openModalOverlay('modal-slot-team');
 }
 
 function assignSlotTeam(name) {
@@ -5655,7 +5670,7 @@ async function openTournamentModal(id = null) {
       document.getElementById('m-note').value      = d.note      || '';
     } catch(e) { /* ignore */ }
   }
-  document.getElementById('modal-tournament').classList.add('open');
+  openModalOverlay('modal-tournament');
 }
 
 function closeTournamentModal() {
@@ -7808,8 +7823,8 @@ function openTimerDeviceModalFor(ctx) {
   ctx.game = ctx.game || {};
   ctx.linkedDeviceId = ctx.game.timerDeviceId || null;
   ctx.devices = null;
-  timerModalCtx = ctx;
-  document.getElementById('modal-timer-device').classList.add('open');
+  openModalOverlay('modal-timer-device');
+  timerModalCtx = ctx;   // openModalOverlay が他モーダルを閉じる際に ctx を消すので、その後で入れる
   renderTimerModalSections();
   // 終了済みの試合は連携できないので、タイマー一覧を取りに行かない（無駄な通信を避ける）
   if (ctx.game.status === 'finished') return;
@@ -9029,7 +9044,7 @@ function compressImageFile(file, maxSide = 2000, quality = 0.82) {
 
 async function openSheetPhotoModal(gameId) {
   sheetPhotoGameId = gameId;
-  document.getElementById('modal-sheet-photo').classList.add('open');
+  openModalOverlay('modal-sheet-photo');
   document.getElementById('sheet-photo-list').innerHTML =
     '<div class="timer-device-empty">読み込み中...</div>';
   try {

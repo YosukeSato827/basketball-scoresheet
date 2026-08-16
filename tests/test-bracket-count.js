@@ -38,7 +38,7 @@ vm.runInContext('const showToast = () => {}; const confirm = () => true; let bra
 vm.runInContext([
   'bracketSizeForCount', 'expandEntriesToBracket', 'renderBracketSlotInputs', 'onBracketCountChange',
   'autoSeedBracketSlots', 'drawBracketEditPreview', 'openSlotTeamModal', 'assignSlotTeam',
-  'closeSlotTeamModal', 'clearBracketSlots',
+  'closeSlotTeamModal', 'clearBracketSlots', 'openModalOverlay',
   'resolveEntryName', 'computeBracket', 'bracketRoundName', 'renderBracketHTML', 'listBracketSlots',
   '_gameScorePair', 'rankLeagueTeams', 'leagueMatchId', 'computeLeagueGroup', 'fmtSchedule',
   'bracketTeamCount', 'bracketSizeLabel',
