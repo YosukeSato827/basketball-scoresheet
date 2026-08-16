@@ -2643,6 +2643,60 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
   .rec-pbp-select { font-size: 10px; padding: 3px 2px; }
 }
 
+/* =====================================================
+   スマホ横向きレイアウト最適化
+   ===================================================== */
+/* 上の iPad 横向き用（min-width:768px）は画面の高さに余裕がある前提。スマホ横持ちは
+   高さが 375〜430px しかなく、同じ指定だと上部だけで画面の46%を占め、
+   アクションボタンと選手チップが画面外に出る（#view-recorder は overflow:hidden
+   なのでスクロールでも見えない）。幅ではなく高さで判定して上部をさらに詰める。
+   縦持ち（高さ 667px 以上）と iPad 横（同 768px 以上）は対象外。
+   ※ .rec-timer-display などは後方にも定義があるため、この位置（それらより後ろ）に置くこと */
+@media (orientation: landscape) and (max-height: 500px) {
+  #view-recorder { height: 100dvh; min-height: unset; overflow: hidden; }
+  .rec-sticky-top, .rec-util-bar { flex-shrink: 0; }
+
+  /* ヘッダー */
+  .rec-header { height: 28px; padding: 0 8px; gap: 6px; }
+  .rec-back, .rec-end-btn { padding: 3px 8px; font-size: 11px; }
+  .rec-title { font-size: 12px; }
+  .rec-status { font-size: 10px; min-width: 0; }
+
+  /* スコアボード：時計の操作ボタンを時計の下ではなく横に並べ、2段ぶんの高さを1段にする */
+  .rec-scoreboard { padding: 3px 8px; }
+  .rec-team-box { padding: 3px 10px; gap: 8px; border-radius: 10px; }
+  .rec-score-name { font-size: 12px; max-width: 96px; overflow: hidden; text-overflow: ellipsis; }
+  .rec-score-val { font-size: 24px; }
+  .rec-timer-center { flex-direction: row; gap: 6px; padding: 0 6px; }
+  .rec-timer-clocks { gap: 5px; }
+  #view-recorder .rec-timer-display { font-size: 17px; min-width: 58px; padding: 1px 7px; }
+  .rec-shot-clock-wrap { padding: 1px 6px; }
+  .rec-shot-label { font-size: 7px; }
+  .rec-shot-display { font-size: 13px; }
+  .rec-timer-btns { gap: 5px; align-items: center; }
+  #view-recorder .rec-timer-btn,
+  #view-recorder .rec-timer-reset,
+  #view-recorder .rec-timer-sync-btn { width: 24px; height: 24px; font-size: 11px; }
+
+  /* Qバー・ユーティリティバー */
+  .rec-q-bar { padding: 2px 6px 3px; gap: 4px; }
+  .rec-q-btn { padding: 3px 0; font-size: 11px; }
+  .rec-util-bar { padding: 3px 8px; gap: 6px; }
+  .rec-undo-btn, .rec-sheet-btn { padding: 4px 8px; font-size: 11px; }
+
+  /* 空いた高さはアクションボタンに回す。
+     幅768px未満（iPhone SE 横 = 667px）では上の iPad 用が効かないので同じ内容を再掲する */
+  .rec-3col { flex: 1; min-height: 0; }
+  .rec-team-col { gap: 5px; padding: 5px; }
+  .rec-team-col-label { font-size: 9px; padding-bottom: 3px; }
+  .rec-pbp-feed { max-height: none !important; min-height: 0; }
+  .rec-act-grid { gap: 4px; grid-template-rows: 1fr 1fr; align-content: stretch; }
+  .rec-act-btn { font-size: 13px; padding: 4px 2px; border-radius: 10px; height: 100%; }
+  .rec-court-col { height: 46px; margin-top: 4px; padding: 4px 0 2px; }
+  .rec-court-col-player { font-size: 10px; padding: 1px 6px; }
+  .rec-court-bottom { display: none; }
+}
+
 /* 選手選択ポップアップ：ユニフォーム色 */
 .rec-player-select-btn.team-a {
   background: var(--uniform-a-bg);
@@ -3631,9 +3685,13 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.16-10';
+const APP_VERSION = '2026.08.16-11';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.16-11', notes: [
+    '改善：スマホ横向きのライブ記録で、上部のスコア・時計・チーム名を半分以下の高さに',
+    '上部だけで画面の半分近くを占め、アクションボタンと出場選手が画面外に出て操作できませんでした。時計の再生ボタンを時計の横に並べるなどして詰め、空いた高さはボタンに回しています。縦向きとiPadの表示は変えていません'
+  ] },
   { v: '2026.08.16-10', notes: [
     '修正：「閉じる」が2つ並んで表示されることがあった問題',
     '写真とタイマーのように別のボタンを続けて押すと、画面が2枚重なって開いていました。1枚だけ開くようにしています。前回入れた「閉じる」の下端固定も表示が乱れる原因になり得るため戻しました（下までスクロールすれば届きます）'
