@@ -14,6 +14,11 @@ Copy-Item "index.html" "hosting-public\index.html" -Force; firebase deploy --onl
 - GitHub Pages: https://yosukesato827.github.io/basketball-scoresheet/
 - `hosting-public/` は配信用の作業フォルダ（.gitignore 済み）。index.html だけをコピーする
 
+**スマホ／クラウド（claude.ai/code）から作業する場合**：`firebase deploy` は洋輔さんのPCの
+Firebase 認証に依存しているため実行できない。push までで止めて、**GitHub Pages の方で実機確認**する
+（push の1分ほど後に反映）。本番URLへの配信はPCに戻ってから。
+スマホでのUI調整はこの流れで回すこと。「両方に配信」はPC作業時のルール。
+
 ## バージョン番号（指摘が多い箇所）
 
 `APP_VERSION` は **必ず作業当日の日付** `YYYY.MM.DD-N`。同日中の再リリースのみ連番を進める。
