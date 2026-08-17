@@ -3690,9 +3690,15 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.16-12';
+const APP_VERSION = '2026.08.17-1';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.17-1', notes: [
+    '修正：ライブの時計が試合ごとにバラバラの速さで動いていた問題',
+    '時計は「自動更新」で選んだ間隔でだけ動くようになりました（5秒ごとなら全試合5秒ごと）',
+    '修正：設定した間隔より短い周期でタイマーを取りに行っていた問題（通信量の削減）',
+    '修正：スマホで「読み込み中...」のまま開けなくなることがあった問題'
+  ] },
   { v: '2026.08.16-12', notes: [
     '修正：記録画面のタイマー同期ボタンが空欄（灰色の丸）で、何のボタンか分からなかった問題',
     '時計アイコンと「同期」の文字を入れました。同期中は緑色に変わります'
@@ -3950,7 +3956,23 @@ const GA_MEASUREMENT_ID = 'G-QB7HSCG2Z5';
 // アーカイブHTML（書き出し版）：大会データが焼き込まれており、Firebaseには一切接続しない
 const IS_ARCHIVE = !!window.ARCHIVE_DATA;
 let db = null, auth = null, analytics = null, storage = null;
-if (!IS_ARCHIVE) {
+// Firebase本体（gstatic）が読めていないと、この下の初期化で例外になって
+// スクリプト全体が止まり、画面が「読み込み中...」のまま何も起きなくなる。
+// 原因が分かるように案内だけ出して終わる（2026.08.17-1）
+if (!IS_ARCHIVE && typeof firebase === 'undefined') {
+  document.addEventListener('DOMContentLoaded', () => {
+    const c = document.getElementById('tournament-list-container');
+    if (c) c.innerHTML = `<div class="loading-msg" style="color:#c0392b">
+      通信部品（Firebase）を読み込めませんでした
+      <div style="font-size:12px;color:var(--text-light);margin-top:6px;line-height:1.6">
+        ネットワークの制限で www.gstatic.com がブロックされている可能性があります。<br>
+        別の回線（モバイル通信など）でお試しください。
+      </div>
+      <div style="margin-top:10px"><button onclick="location.reload()" style="padding:6px 14px;cursor:pointer">再読み込み</button></div>
+    </div>`;
+  });
+}
+if (!IS_ARCHIVE && typeof firebase !== 'undefined') {
   firebase.initializeApp(firebaseConfig);
   db = firebase.firestore();
   auth = firebase.auth();
@@ -3974,17 +3996,24 @@ if (!IS_ARCHIVE) {
   // =====================================================
   // オフライン永続化（体育館などWi-Fiが不安定な環境向け）
   // 書き込みは IndexedDB にキューされ、再接続時に自動送信される
+  //
+  // 観戦URL（?view=）と登録URL（?register=）では使わない。読み取りしかしない画面なので
+  // キャッシュの必要がない上に、同じ端末で複数タブを開くと IndexedDB のロックを
+  // 取り合って最初の取得が返ってこなくなることがある（iPhone で発生・2026.08.17-1）
   // =====================================================
-  db.enablePersistence({ synchronizeTabs: true }).catch(err => {
-    if (err.code === 'failed-precondition') {
-      // 複数タブで開いている場合など。キャッシュなしでも動作は継続
-      console.warn('[offline] persistence無効（複数タブ）:', err.message);
-    } else if (err.code === 'unimplemented') {
-      console.warn('[offline] このブラウザはオフライン永続化に非対応');
-    } else {
-      console.warn('[offline] persistence有効化失敗:', err);
-    }
-  });
+  const _pageQuery = new URLSearchParams(location.search);
+  if (!_pageQuery.has('view') && !_pageQuery.has('register')) {
+    db.enablePersistence({ synchronizeTabs: true }).catch(err => {
+      if (err.code === 'failed-precondition') {
+        // 複数タブで開いている場合など。キャッシュなしでも動作は継続
+        console.warn('[offline] persistence無効（複数タブ）:', err.message);
+      } else if (err.code === 'unimplemented') {
+        console.warn('[offline] このブラウザはオフライン永続化に非対応');
+      } else {
+        console.warn('[offline] persistence有効化失敗:', err);
+      }
+    });
+  }
 }
 
 // =====================================================
@@ -4217,14 +4246,52 @@ function withTimeout(promise, ms = 10000) {
 // =====================================================
 // リアルタイム購読の解除関数を保持
 let tournamentsUnsubscribe = null;
+let tournamentsWatchdog = null;   // 応答なしで「読み込み中...」のまま固まるのを検知する
+
+// 応答が返ってこないまま固まったときの案内。Firestore は接続が詰まっても
+// onSnapshot のエラー側を呼ばないことがあり、その場合これだけが手がかりになる
+function showLoadStuckMessage(cont, retryFn) {
+  cont.innerHTML = `<div class="loading-msg" style="color:#c0392b">
+    データを取得できませんでした（応答がありません）
+    <div style="font-size:12px;color:var(--text-light);margin-top:6px;line-height:1.6">
+      電波状況をご確認ください。<br>
+      このアプリを別のタブでも開いている場合は、そのタブを閉じてからお試しください。
+    </div>
+    <div style="margin-top:10px">
+      <button onclick="${retryFn}" style="padding:6px 14px;cursor:pointer">再試行</button>
+      <button onclick="location.reload()" style="padding:6px 14px;cursor:pointer;margin-left:6px">ページを再読み込み</button>
+    </div>
+  </div>`;
+}
+
+// Firestore の接続が詰まっているときに張り直す。詰まっていると
+// disableNetwork 自体も返らないことがあるので、待ちすぎないようにする
+async function reconnectFirestore() {
+  try {
+    await withTimeout(db.disableNetwork(), 3000);
+    await withTimeout(db.enableNetwork(), 3000);
+  } catch (e) {
+    console.warn('[reconnect] 再接続に失敗:', e && e.message);
+  }
+}
+
+async function retryLoadTournaments() {
+  const cont = document.getElementById('tournament-list-container');
+  if (cont) cont.innerHTML = '<div class="loading-msg">再接続中...</div>';
+  await reconnectFirestore();
+  loadTournaments();
+}
 
 function loadTournaments() {
   const cont = document.getElementById('tournament-list-container');
   cont.innerHTML = '<div class="loading-msg">読み込み中...</div>';
   // 既存購読を解除
   if (tournamentsUnsubscribe) { tournamentsUnsubscribe(); tournamentsUnsubscribe = null; }
+  clearTimeout(tournamentsWatchdog);
+  tournamentsWatchdog = setTimeout(() => showLoadStuckMessage(cont, 'retryLoadTournaments()'), 12000);
   try {
     tournamentsUnsubscribe = db.collection('tournaments').onSnapshot(snap => {
+      clearTimeout(tournamentsWatchdog);
       if (snap.empty) {
         cont.innerHTML = `<div class="empty-state">大会が登録されていません<br>「大会を登録」から追加してください</div>`;
         return;
@@ -4284,16 +4351,19 @@ function loadTournaments() {
         }
       });
     }, err => {
+      clearTimeout(tournamentsWatchdog);
       console.error('大会一覧の読み込みエラー:', err);
-      cont.innerHTML = `<div class="loading-msg" style="color:red">読み込みエラー: ${err.message}<br><button onclick="loadTournaments()" style="margin-top:8px;padding:4px 10px;cursor:pointer">再試行</button></div>`;
+      cont.innerHTML = `<div class="loading-msg" style="color:red">読み込みエラー: ${err.message}<br><button onclick="retryLoadTournaments()" style="margin-top:8px;padding:4px 10px;cursor:pointer">再試行</button></div>`;
     });
   } catch(e) {
+    clearTimeout(tournamentsWatchdog);
     console.error('大会一覧の購読開始エラー:', e);
     cont.innerHTML = `<div class="loading-msg" style="color:red">読み込みエラー: ${e.message}</div>`;
   }
 }
 
 function stopTournamentsSubscription() {
+  clearTimeout(tournamentsWatchdog);
   if (tournamentsUnsubscribe) { tournamentsUnsubscribe(); tournamentsUnsubscribe = null; }
 }
 
@@ -4333,7 +4403,8 @@ function switchTab(tab) {
   });
   if (tab === 'games')        loadGames();
   else if (tab === 'bracket') { stopGamesSubscription(); loadBrackets(); }
-  else                        { stopGamesSubscription(); loadStats(); }
+  // 成績タブにライブ表示は無いので、タイマーの定期取得も止める
+  else                        { stopGamesSubscription(); ensureViewerTimerSync([]); loadStats(); }
 }
 
 // =====================================================
@@ -5376,12 +5447,22 @@ async function unlinkBracketGame(gameId) {
 // =====================================================
 // 試合一覧：リアルタイム購読の解除関数
 let gamesUnsubscribe = null;
+let gamesWatchdog = null;   // 応答なしで「読み込み中...」のまま固まるのを検知する
+
+async function retryLoadGames() {
+  const cont = document.getElementById('game-list-container');
+  if (cont) cont.innerHTML = '<div class="loading-msg">再接続中...</div>';
+  await reconnectFirestore();
+  loadGames();
+}
 
 function loadGames() {
   const cont = document.getElementById('game-list-container');
   cont.innerHTML = '<div class="loading-msg">読み込み中...</div>';
   // 既存購読を解除
   if (gamesUnsubscribe) { gamesUnsubscribe(); gamesUnsubscribe = null; }
+  clearTimeout(gamesWatchdog);
+  gamesWatchdog = setTimeout(() => showLoadStuckMessage(cont, 'retryLoadGames()'), 12000);
   // 大会IDが変わる前のスナップショットを captured
   const tid = currentTournamentId;
   try {
@@ -5390,6 +5471,7 @@ function loadGames() {
       .onSnapshot(snap => {
         // 別の大会に切り替わった後の遅延スナップショットは無視
         if (tid !== currentTournamentId) return;
+        clearTimeout(gamesWatchdog);
         if (snap.empty) {
           cont.innerHTML = `<div class="empty-state">この大会の試合がありません<br>「試合を追加」から入力してください</div>`;
           return;
@@ -5454,16 +5536,19 @@ function loadGames() {
         ensureViewerTimerSync(sortedDocs, { alwaysPoll: true });
         renderViewerTimerStrips();
       }, err => {
+        clearTimeout(gamesWatchdog);
         console.error('試合一覧の読み込みエラー:', err);
-        cont.innerHTML = `<div class="loading-msg" style="color:red">読み込みエラー: ${err.message}</div>`;
+        cont.innerHTML = `<div class="loading-msg" style="color:red">読み込みエラー: ${err.message}<br><button onclick="retryLoadGames()" style="margin-top:8px;padding:4px 10px;cursor:pointer">再試行</button></div>`;
       });
   } catch(e) {
+    clearTimeout(gamesWatchdog);
     console.error('試合一覧の購読開始エラー:', e);
     cont.innerHTML = `<div class="loading-msg" style="color:red">読み込みエラー: ${e.message}</div>`;
   }
 }
 
 function stopGamesSubscription() {
+  clearTimeout(gamesWatchdog);
   if (gamesUnsubscribe) { gamesUnsubscribe(); gamesUnsubscribe = null; }
 }
 
@@ -9476,7 +9561,8 @@ function refreshViewerBrackets(tournamentId) {
 // タイマー連携中の試合カードに、時計とタイマー側スコアを表示
 // =====================================================
 let viewerTimerPollIv = null;   // タイマー取得の間隔タイマー
-let viewerTimerIv = null;       // 表示補間（通信なし）
+let viewerTimerPollKey = '';    // 現在の取得設定（対象デバイス＋間隔）。同じなら組み直さない
+let viewerTimerIv = null;       // LIVE表示の期限切れチェック（通信なし）
 let viewerTimerSourceDocs = []; // タイマー取得の対象試合（閲覧ページ／運営画面で共通）
 let viewerTimerData = {};       // deviceId → timer_sync ドキュメント
 let viewerTimerReceivedAt = {}; // deviceId → 受信時刻（Date.now()）
@@ -9512,21 +9598,28 @@ async function fetchViewerTimers() {
 function ensureViewerTimerSync(gameDocs, opts) {
   if (IS_ARCHIVE) return;
   viewerTimerSourceDocs = gameDocs || [];
-  const need = viewerActiveTimerDevices(viewerTimerSourceDocs).length > 0;
+  const devs = viewerActiveTimerDevices(viewerTimerSourceDocs);
+  const sec  = viewerRefreshSec > 0 ? viewerRefreshSec : ((opts && opts.alwaysPoll) ? 10 : 0);
+  // 取得対象と間隔が前回と同じなら、回っている定期取得をそのまま続ける。
+  // ここは試合データが届くたびの再描画から呼ばれるので、毎回組み直していると
+  // そのたびに即時取得が走り、設定した間隔より短い周期で通信していた（2026.08.17-1 で修正）
+  const key = devs.length ? devs.slice().sort().join(',') + '@' + sec : '';
+  if (key === viewerTimerPollKey) return;
+  viewerTimerPollKey = key;
   clearInterval(viewerTimerPollIv); viewerTimerPollIv = null;
-  if (!need) {
+  if (!devs.length) {
     clearInterval(viewerTimerIv); viewerTimerIv = null;
     viewerTimerData = {}; viewerTimerReceivedAt = {};
     renderViewerTimerStrips();
     return;
   }
   fetchViewerTimers();   // まず1回取得
-  const sec = viewerRefreshSec > 0 ? viewerRefreshSec : ((opts && opts.alwaysPoll) ? 10 : 0);
   if (sec > 0) {
     viewerTimerPollIv = setInterval(fetchViewerTimers, sec * 1000);
   }
-  // 表示の補間（通信なし・ローカル計算のみ）で時計はなめらかに進む
-  if (!viewerTimerIv) viewerTimerIv = setInterval(renderViewerTimerStrips, 500);
+  // 定期の描き直しは「配信が止まったらLIVE表示を消す」ためだけ。
+  // 時計は取得時にしか動かさないので、細かく回す必要はない
+  if (!viewerTimerIv) viewerTimerIv = setInterval(renderViewerTimerStrips, 5000);
 }
 
 // 受信データを保持して表示を更新（テスト用に単体関数化）
@@ -9548,13 +9641,11 @@ function renderViewerTimerStrips() {
     // 手動更新モードでは取得間隔が長くなるため、鮮度の判定もゆるめる
     const staleSec = viewerRefreshSec > 0 ? Math.max(60, viewerRefreshSec * 4) : 900;
     if (!data || age > staleSec) return null;
-    let gameSec = _parseGameClockSec(_rawClockValue(data, 'gameClock', 'gameTime'));
-    let shotSec = _parseShotClockSec(_rawClockValue(data, 'shotClock', 'subTime'));
-    if (_extractRunning(data) && recv) {
-      const elapsed = (now - recv) / 1000;
-      if (gameSec != null) gameSec = Math.max(0, gameSec - elapsed);
-      if (shotSec != null) shotSec = Math.max(0, shotSec - elapsed);
-    }
+    // 時計は「取得したときの値」をそのまま出す。端末側で秒を進める補間はしない。
+    // 補間すると running を送ってくるタイマーだけが1秒ごとに動き、同じページの中で
+    // 更新間隔の設定と食い違う表示になっていた（2026.08.17-1 で廃止）
+    const gameSec = _parseGameClockSec(_rawClockValue(data, 'gameClock', 'gameTime'));
+    const shotSec = _parseShotClockSec(_rawClockValue(data, 'shotClock', 'subTime'));
     const sc = data.scores || {};
     return { gameSec, shotSec, home: sc.home, guest: sc.guest, period: _fmtPeriod(data.period) };
   };
@@ -10481,6 +10572,7 @@ function handlePopState(e) {
   // 画面遷移
   if (target === 'tournaments') {
     stopGamesSubscription();
+    ensureViewerTimerSync([]);   // 大会一覧にライブ表示は無いので取得も止める
     showView('tournaments');
     loadTournaments();
   } else if (target === 'detail') {
@@ -10511,6 +10603,7 @@ async function initApp() {
   if (verEl) verEl.textContent = 'ver ' + APP_VERSION;
   // アーカイブ版：埋め込みデータで閲覧ページを表示して終了（認証・Firestoreは使わない）
   if (IS_ARCHIVE) { openViewerArchive(); return; }
+  if (!db) return;   // Firebase未読み込み。上で案内を出しているのでここは何もしない
   updateGeminiApiKeyStatus();
   initAuth();  // 認証状態の監視を開始
   const params      = new URLSearchParams(window.location.search);
@@ -10532,7 +10625,9 @@ async function initApp() {
     if (saved) {
       try {
         const sess = JSON.parse(saved);
-        const doc  = await db.collection('games').doc(sess.gameId).get();
+        // タイムアウト必須。ここで返ってこないと下の loadTournaments() に到達できず、
+        // 大会一覧が「読み込み中...」のまま止まる（2026.08.17-1 で修正）
+        const doc  = await withTimeout(db.collection('games').doc(sess.gameId).get(), 8000);
         if (doc.exists) {
           const d = doc.data();
           currentTournamentId = sess.tournamentId;

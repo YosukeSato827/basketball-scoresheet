@@ -169,6 +169,34 @@ results.viewer = {
   })),
 };
 
+// ===== テスト1e: 時計はローカルで進めない（更新間隔の設定どおりに動くこと） =====
+// running: true を送ってくるタイマーでも、取得したときの値のまま表示し続ける。
+// 以前はここで経過秒を引いていたため、同じ観戦ページの中に
+// 「5秒ごとに動く試合」と「1秒ごとに動く試合」が混在していた
+{
+  const runDiv = document.createElement('div');
+  runDiv.innerHTML = `<div class="vt-scoreline vt-live" data-timer-device="RUNDEV" data-timer-flip="0">
+    <span data-live="a">–</span><span class="vt-live-clock">--:--</span><span data-live="b">–</span></div>`;
+  document.body.appendChild(runDiv);
+  vm.runInContext(`
+    _viewerApplyTimerData('RUNDEV', {
+      gameClock: { display: '7:20', running: true },
+      shotClock: { display: '18', running: true },
+      period: '3', scores: { home: 15, guest: 11, isReversed: false }
+    });
+  `, ctx);
+  const justFetched = runDiv.querySelector('.vt-live-clock').textContent;
+  // 取得から4秒経ってから描き直す（この間に通信は発生していない）
+  vm.runInContext(`
+    viewerTimerReceivedAt['RUNDEV'] = Date.now() - 4000;
+    renderViewerTimerStrips();
+  `, ctx);
+  results.noInterpolation = {
+    justFetched,
+    after4s: runDiv.querySelector('.vt-live-clock').textContent,
+  };
+}
+
 // ===== テスト2: モーダル（game モード・PBPなし・リンク済み） =====
 vm.runInContext(`
   timerModalCtx = {
@@ -266,6 +294,9 @@ const checks = [
   ['ブラケット swap正常（アルファ=20/ガンマ=10）', br.sides[0] === 'b' && br.values[0] === '20' && br.sides[1] === 'a' && br.values[1] === '10'],
   ['ブラケット 時計＋Q表示', (br.clock || '').includes('2Q 5:30')],
   ['編集者一覧 ライブスコア＋Q表示', gc.score === '20 - 10' && gc.clock.includes('2Q 5:30')],
+  ['取得直後の時計表示', results.noInterpolation.justFetched === '3Q 7:20', results.noInterpolation],
+  ['時計をローカルで進めない（設定した間隔でだけ動く）',
+    results.noInterpolation.after4s === '3Q 7:20', results.noInterpolation],
   ['モーダルtitle game', m.title.includes('タイマーとスコア')],
   ['向きセクション表示', m.flipVisible],
   ['flip=1選択済み', m.flipChecked1],
