@@ -3690,15 +3690,19 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.17-2';
+const APP_VERSION = '2026.08.18-3';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
-  { v: '2026.08.17-2', notes: [
+  { v: '2026.08.18-3', notes: [
+    'スマホで開けない問題の調査：自動復旧で通信方法（ロングポーリング）も切り替えるようにしました',
+    'エラー画面に、原因を切り分けるための状態表示を追加'
+  ] },
+  { v: '2026.08.18-2', notes: [
     '修正：スマホで大会一覧が「読み込み中...」のまま止まる問題への対処を追加',
     '10秒たっても読めないときは、オフライン保存を切って自動で読み込み直します',
     'それでも駄目なときの案内に、原因の手がかりと「保存データを消して開き直す」を追加'
   ] },
-  { v: '2026.08.17-1', notes: [
+  { v: '2026.08.18-1', notes: [
     '修正：ライブの時計が試合ごとにバラバラの速さで動いていた問題',
     '時計は「自動更新」で選んだ間隔でだけ動くようになりました（5秒ごとなら全試合5秒ごと）',
     '修正：設定した間隔より短い周期でタイマーを取りに行っていた問題（通信量の削減）',
@@ -3966,7 +3970,7 @@ let db = null, auth = null, analytics = null, storage = null;
 let persistenceState = '未応答';
 // Firebase本体（gstatic）が読めていないと、この下の初期化で例外になって
 // スクリプト全体が止まり、画面が「読み込み中...」のまま何も起きなくなる。
-// 原因が分かるように案内だけ出して終わる（2026.08.17-1）
+// 原因が分かるように案内だけ出して終わる（2026.08.18-1）
 if (!IS_ARCHIVE && typeof firebase === 'undefined') {
   document.addEventListener('DOMContentLoaded', () => {
     const c = document.getElementById('tournament-list-container');
@@ -4007,7 +4011,7 @@ if (!IS_ARCHIVE && typeof firebase !== 'undefined') {
   //
   // 観戦URL（?view=）と登録URL（?register=）では使わない。読み取りしかしない画面なので
   // キャッシュの必要がない上に、同じ端末で複数タブを開くと IndexedDB のロックを
-  // 取り合って最初の取得が返ってこなくなることがある（iPhone で発生・2026.08.17-1）
+  // 取り合って最初の取得が返ってこなくなることがある（iPhone で発生・2026.08.18-1）
   // =====================================================
   const _pageQuery = new URLSearchParams(location.search);
   if (!_pageQuery.has('view') && !_pageQuery.has('register')) {
@@ -4063,6 +4067,7 @@ document.addEventListener('DOMContentLoaded', renderNetStatus);
 // =====================================================
 // 認証状態
 // =====================================================
+let authReady = false;      // onAuthStateChanged が一度でも呼ばれたか（切り分け用）
 let currentUser = null;     // ログイン中の Firebase ユーザー
 let isEditor = false;       // 編集権限（許可リストに含まれるか）
 let allowedEditors = [];    // 許可リスト（メールアドレス）
@@ -4280,11 +4285,18 @@ function showLoadStuckMessage(cont, retryFn) {
         未送信の記録が残っていた場合は消えます
       </div>
     </div>
-    <div style="font-size:11px;color:var(--text-light);margin-top:12px">
-      状態: オフライン保存 ${esc(persistenceState)} ／ 通信 ${navigator.onLine ? 'オンライン' : 'オフライン'}
-      ／ 自動復旧 ${dbRebuiltWithoutPersistence ? '実施済み' : '未実施'}
+    <div style="font-size:11px;color:var(--text-light);margin-top:12px;line-height:1.7;text-align:left;display:inline-block">
+      オフライン保存: ${esc(persistenceState)}<br>
+      通信: ${navigator.onLine ? 'オンライン' : 'オフライン'}<br>
+      認証の初期化: ${authReady ? '完了' : '未応答'}<br>
+      自動復旧: ${esc(recoverMode)}<br>
+      直接通信テスト: <span id="load-stuck-rest">確認中…</span>
     </div>
   </div>`;
+  probeFirestoreRest().then(r => {
+    const el = document.getElementById('load-stuck-rest');
+    if (el) el.textContent = r;
+  });
 }
 
 // 最後の手段：オフライン保存(IndexedDB)を消してから開き直す。
@@ -4307,15 +4319,17 @@ async function reconnectFirestore() {
   }
 }
 
-// 最初の取得が返ってこないときの自動復旧。
-// iPhone では複数タブで開いていると IndexedDB を取り合って Firestore ごと固まり、
-// onSnapshot はエラーも返さないまま無反応になる。永続化なしで作り直せば読み込める。
-// 引き換えにこのタブではオフライン保存が効かなくなるので、1回だけ試す
+// 最初の取得が返ってこないときの自動復旧。Firestore を作り直して、
+//   ・オフライン保存（IndexedDB）を使わない
+//   ・通常のストリーミング(WebChannel)ではなくロングポーリングで通信する
+// の2点を変えて読み直す。後者は、途中の回線がストリーミングを通さないときに効く
+// （その場合 onSnapshot はエラーも返さず無言で止まる）。1回だけ試す
 let dbRebuiltWithoutPersistence = false;
+let recoverMode = '未実施';
 async function recoverWithoutPersistence() {
   if (dbRebuiltWithoutPersistence || !db || typeof db.terminate !== 'function') return false;
   dbRebuiltWithoutPersistence = true;
-  console.warn('[recover] 応答がないため、オフライン保存なしで作り直します');
+  console.warn('[recover] 応答がないため、保存なし＋ロングポーリングで作り直します');
   // 古いインスタンスの購読は破棄（terminate 後に呼ぶと例外になるため先に外す）
   try { if (tournamentsUnsubscribe) tournamentsUnsubscribe(); } catch (e) {}
   try { if (gamesUnsubscribe) gamesUnsubscribe(); } catch (e) {}
@@ -4328,11 +4342,33 @@ async function recoverWithoutPersistence() {
   try {
     db = firebase.firestore();          // 永続化を有効化しない新しいインスタンス
     persistenceState = '無効（自動復旧）';
-    showToast('オフライン保存を切って読み込み直しています', 4000);
+    recoverMode = '保存なし';
+    try {
+      db.settings({ experimentalForceLongPolling: true });
+      recoverMode = '保存なし＋ロングポーリング';
+    } catch (e) {
+      console.warn('[recover] ロングポーリング指定に失敗:', e && e.message);
+    }
+    showToast('通信方法を変えて読み込み直しています', 4000);
     return true;
   } catch (e) {
     console.error('[recover] 作り直しに失敗:', e);
     return false;
+  }
+}
+
+// 切り分け用：SDK を通さず REST で直接叩いてみる。
+// ここが通れば「回線は Firestore に届いている＝SDKの通信方式の問題」、
+// 通らなければ「回線側で塞がれている」と切り分けられる
+async function probeFirestoreRest() {
+  const url = 'https://firestore.googleapis.com/v1/projects/' + firebaseConfig.projectId +
+              '/databases/(default)/documents/tournaments?pageSize=1';
+  const t0 = Date.now();
+  try {
+    const r = await withTimeout(fetch(url, { cache: 'no-store' }), 8000);
+    return 'HTTP ' + r.status + '（' + (Date.now() - t0) + 'ms）';
+  } catch (e) {
+    return '届かない（' + ((e && e.message) || 'error') + '）';
   }
 }
 
@@ -9670,7 +9706,7 @@ function ensureViewerTimerSync(gameDocs, opts) {
   const sec  = viewerRefreshSec > 0 ? viewerRefreshSec : ((opts && opts.alwaysPoll) ? 10 : 0);
   // 取得対象と間隔が前回と同じなら、回っている定期取得をそのまま続ける。
   // ここは試合データが届くたびの再描画から呼ばれるので、毎回組み直していると
-  // そのたびに即時取得が走り、設定した間隔より短い周期で通信していた（2026.08.17-1 で修正）
+  // そのたびに即時取得が走り、設定した間隔より短い周期で通信していた（2026.08.18-1 で修正）
   const key = devs.length ? devs.slice().sort().join(',') + '@' + sec : '';
   if (key === viewerTimerPollKey) return;
   viewerTimerPollKey = key;
@@ -9711,7 +9747,7 @@ function renderViewerTimerStrips() {
     if (!data || age > staleSec) return null;
     // 時計は「取得したときの値」をそのまま出す。端末側で秒を進める補間はしない。
     // 補間すると running を送ってくるタイマーだけが1秒ごとに動き、同じページの中で
-    // 更新間隔の設定と食い違う表示になっていた（2026.08.17-1 で廃止）
+    // 更新間隔の設定と食い違う表示になっていた（2026.08.18-1 で廃止）
     const gameSec = _parseGameClockSec(_rawClockValue(data, 'gameClock', 'gameTime'));
     const shotSec = _parseShotClockSec(_rawClockValue(data, 'shotClock', 'subTime'));
     const sc = data.scores || {};
@@ -10559,6 +10595,7 @@ async function loadAllowedEditors() {
 // 認証状態の変化を監視
 function initAuth() {
   auth.onAuthStateChanged(async (user) => {
+    authReady = true;
     currentUser = user;
     if (user) {
       await loadAllowedEditors();
@@ -10694,7 +10731,7 @@ async function initApp() {
       try {
         const sess = JSON.parse(saved);
         // タイムアウト必須。ここで返ってこないと下の loadTournaments() に到達できず、
-        // 大会一覧が「読み込み中...」のまま止まる（2026.08.17-1 で修正）
+        // 大会一覧が「読み込み中...」のまま止まる（2026.08.18-1 で修正）
         const doc  = await withTimeout(db.collection('games').doc(sess.gameId).get(), 8000);
         if (doc.exists) {
           const d = doc.data();
