@@ -58,12 +58,12 @@ Firebase 認証に依存しているため実行できない。push までで止
 - 記録画面の時計と観戦ページのタイマー表示は別系統。試合一覧からのリンクは観戦ページ用で、
   記録画面に出すには記録画面側で「タイマー同期」をONにする
 
-### 「読み込み中...」で固まる系の対処（2026.08.17-1）
+### 「読み込み中...」で固まる系の対処（2026.08.17-1 / -2）
 
 Firestore は接続が詰まっても `onSnapshot` のエラー側を呼ばないことがあり、
 画面が「読み込み中...」のまま無言で止まる。**新しく画面を足すときは必ず逃げ道を用意する。**
 
-- `loadTournaments` / `loadGames` は12秒のウォッチドッグ付き。無反応なら
+- `loadTournaments` / `loadGames` は10秒のウォッチドッグ付き。無反応なら
   `showLoadStuckMessage()` で「再試行／ページを再読み込み」を出す。
   再試行は `reconnectFirestore()`（disableNetwork → enableNetwork、各3秒でタイムアウト）を挟む
 - **`await db....get()` を素で書かない。** 必ず `withTimeout()` を通す。
@@ -73,6 +73,20 @@ Firestore は接続が詰まっても `onSnapshot` のエラー側を呼ばな�
   読み取り専用でキャッシュが要らない上に、同じ端末で複数タブを開くと IndexedDB を
   取り合って最初の取得が返らなくなる（iPhone で発生）
 - gstatic の Firebase 本体が読めなかった場合も案内を出す（黙って全スクリプトが止まるため）
+- **10秒応答がなければ `recoverWithoutPersistence()` が自動で走る**（2026.08.17-2）。
+  `db.terminate()` → `db = firebase.firestore()` で**永続化なしのインスタンスに作り直して**読み直す。
+  compat SDK は terminate 後の `firebase.firestore()` で新しいインスタンスを返す（実機確認済み）。
+  1回だけ試す（`dbRebuiltWithoutPersistence`）。復旧するとそのタブはオフライン保存が効かなくなるので、
+  トーストで知らせる
+- 固まったときの案内には**切り分け用の状態表示**を出している
+  （`persistenceState` ／ online 判定 ／ 自動復旧の実施有無）。
+  **`オフライン保存 未応答` と出ていたら IndexedDB で詰まっている**。
+  最後の手段として `clearLocalCacheAndReload()`（terminate → clearPersistence → reload）のボタンも置く
+
+**iPhone で実際に起きた例（2026-08-17）**：Chrome でタブを6個開いた状態で
+molten-scorelink.web.app（運営ページ）を開くと、`onSnapshot` が最初の1件も返さず
+エラーも投げないまま無反応。ログイン前でも起きるので認証は無関係。
+`synchronizeTabs: true` のタブ間ロックが原因と見ている
 
 ## テスト
 

@@ -3690,9 +3690,14 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.17-1';
+const APP_VERSION = '2026.08.17-2';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.17-2', notes: [
+    '修正：スマホで大会一覧が「読み込み中...」のまま止まる問題への対処を追加',
+    '10秒たっても読めないときは、オフライン保存を切って自動で読み込み直します',
+    'それでも駄目なときの案内に、原因の手がかりと「保存データを消して開き直す」を追加'
+  ] },
   { v: '2026.08.17-1', notes: [
     '修正：ライブの時計が試合ごとにバラバラの速さで動いていた問題',
     '時計は「自動更新」で選んだ間隔でだけ動くようになりました（5秒ごとなら全試合5秒ごと）',
@@ -3956,6 +3961,9 @@ const GA_MEASUREMENT_ID = 'G-QB7HSCG2Z5';
 // アーカイブHTML（書き出し版）：大会データが焼き込まれており、Firebaseには一切接続しない
 const IS_ARCHIVE = !!window.ARCHIVE_DATA;
 let db = null, auth = null, analytics = null, storage = null;
+// オフライン保存(IndexedDB)の状態。「未応答」のまま固まることがあり、
+// 読み込みが止まったときの切り分けに使う
+let persistenceState = '未応答';
 // Firebase本体（gstatic）が読めていないと、この下の初期化で例外になって
 // スクリプト全体が止まり、画面が「読み込み中...」のまま何も起きなくなる。
 // 原因が分かるように案内だけ出して終わる（2026.08.17-1）
@@ -4003,7 +4011,10 @@ if (!IS_ARCHIVE && typeof firebase !== 'undefined') {
   // =====================================================
   const _pageQuery = new URLSearchParams(location.search);
   if (!_pageQuery.has('view') && !_pageQuery.has('register')) {
-    db.enablePersistence({ synchronizeTabs: true }).catch(err => {
+    db.enablePersistence({ synchronizeTabs: true }).then(() => {
+      persistenceState = '有効';
+    }).catch(err => {
+      persistenceState = '無効(' + (err.code || 'error') + ')';
       if (err.code === 'failed-precondition') {
         // 複数タブで開いている場合など。キャッシュなしでも動作は継続
         console.warn('[offline] persistence無効（複数タブ）:', err.message);
@@ -4013,6 +4024,8 @@ if (!IS_ARCHIVE && typeof firebase !== 'undefined') {
         console.warn('[offline] persistence有効化失敗:', err);
       }
     });
+  } else {
+    persistenceState = '未使用（閲覧用）';
   }
 }
 
@@ -4261,7 +4274,26 @@ function showLoadStuckMessage(cont, retryFn) {
       <button onclick="${retryFn}" style="padding:6px 14px;cursor:pointer">再試行</button>
       <button onclick="location.reload()" style="padding:6px 14px;cursor:pointer;margin-left:6px">ページを再読み込み</button>
     </div>
+    <div style="margin-top:12px">
+      <button onclick="clearLocalCacheAndReload()" style="padding:6px 14px;cursor:pointer;font-size:12px">端末の保存データを消して開き直す</button>
+      <div style="font-size:11px;color:var(--text-light);margin-top:4px">
+        未送信の記録が残っていた場合は消えます
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--text-light);margin-top:12px">
+      状態: オフライン保存 ${esc(persistenceState)} ／ 通信 ${navigator.onLine ? 'オンライン' : 'オフライン'}
+      ／ 自動復旧 ${dbRebuiltWithoutPersistence ? '実施済み' : '未実施'}
+    </div>
   </div>`;
+}
+
+// 最後の手段：オフライン保存(IndexedDB)を消してから開き直す。
+// タブ間でロックを取り合ったまま壊れた状態が残ると、再読み込みだけでは戻らない
+async function clearLocalCacheAndReload() {
+  try { await withTimeout(db.terminate(), 4000); } catch (e) { /* 続行 */ }
+  try { await withTimeout(db.clearPersistence(), 4000); }
+  catch (e) { console.warn('[cache] 消去に失敗:', e && e.message); }
+  location.reload();
 }
 
 // Firestore の接続が詰まっているときに張り直す。詰まっていると
@@ -4272,6 +4304,35 @@ async function reconnectFirestore() {
     await withTimeout(db.enableNetwork(), 3000);
   } catch (e) {
     console.warn('[reconnect] 再接続に失敗:', e && e.message);
+  }
+}
+
+// 最初の取得が返ってこないときの自動復旧。
+// iPhone では複数タブで開いていると IndexedDB を取り合って Firestore ごと固まり、
+// onSnapshot はエラーも返さないまま無反応になる。永続化なしで作り直せば読み込める。
+// 引き換えにこのタブではオフライン保存が効かなくなるので、1回だけ試す
+let dbRebuiltWithoutPersistence = false;
+async function recoverWithoutPersistence() {
+  if (dbRebuiltWithoutPersistence || !db || typeof db.terminate !== 'function') return false;
+  dbRebuiltWithoutPersistence = true;
+  console.warn('[recover] 応答がないため、オフライン保存なしで作り直します');
+  // 古いインスタンスの購読は破棄（terminate 後に呼ぶと例外になるため先に外す）
+  try { if (tournamentsUnsubscribe) tournamentsUnsubscribe(); } catch (e) {}
+  try { if (gamesUnsubscribe) gamesUnsubscribe(); } catch (e) {}
+  tournamentsUnsubscribe = null; gamesUnsubscribe = null;
+  try {
+    await withTimeout(db.terminate(), 4000);
+  } catch (e) {
+    console.warn('[recover] terminate に失敗:', e && e.message);
+  }
+  try {
+    db = firebase.firestore();          // 永続化を有効化しない新しいインスタンス
+    persistenceState = '無効（自動復旧）';
+    showToast('オフライン保存を切って読み込み直しています', 4000);
+    return true;
+  } catch (e) {
+    console.error('[recover] 作り直しに失敗:', e);
+    return false;
   }
 }
 
@@ -4288,7 +4349,11 @@ function loadTournaments() {
   // 既存購読を解除
   if (tournamentsUnsubscribe) { tournamentsUnsubscribe(); tournamentsUnsubscribe = null; }
   clearTimeout(tournamentsWatchdog);
-  tournamentsWatchdog = setTimeout(() => showLoadStuckMessage(cont, 'retryLoadTournaments()'), 12000);
+  tournamentsWatchdog = setTimeout(async () => {
+    // まず永続化なしで作り直して読み直す。それでも駄目なら案内を出す
+    if (await recoverWithoutPersistence()) { loadTournaments(); return; }
+    showLoadStuckMessage(cont, 'retryLoadTournaments()');
+  }, 10000);
   try {
     tournamentsUnsubscribe = db.collection('tournaments').onSnapshot(snap => {
       clearTimeout(tournamentsWatchdog);
@@ -5462,7 +5527,10 @@ function loadGames() {
   // 既存購読を解除
   if (gamesUnsubscribe) { gamesUnsubscribe(); gamesUnsubscribe = null; }
   clearTimeout(gamesWatchdog);
-  gamesWatchdog = setTimeout(() => showLoadStuckMessage(cont, 'retryLoadGames()'), 12000);
+  gamesWatchdog = setTimeout(async () => {
+    if (await recoverWithoutPersistence()) { loadGames(); return; }
+    showLoadStuckMessage(cont, 'retryLoadGames()');
+  }, 10000);
   // 大会IDが変わる前のスナップショットを captured
   const tid = currentTournamentId;
   try {
