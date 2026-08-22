@@ -3704,9 +3704,12 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.22-1';
+const APP_VERSION = '2026.08.22-2';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.22-2', notes: [
+    '以前「1秒ごと」を選んでいた端末は、標準の「10秒ごと」に戻るようにしました'
+  ] },
   { v: '2026.08.22-1', notes: [
     '観戦ページの自動更新は「5秒ごと」が最短になりました（1秒ごとは廃止）',
     'コート数と観戦者が増えると1秒ごとでは通信量が大きくなりすぎるためです',
@@ -9629,9 +9632,9 @@ function startViewerGamesListener() {
 
 // 更新モードの変更（自動◯秒／手動）。端末に記憶する
 function setViewerRefreshMode(sec) {
-  viewerRefreshSec = parseInt(sec, 10) || 0;
-  // 手動（0）以外は下限を下回らせない
-  if (viewerRefreshSec > 0 && viewerRefreshSec < VIEWER_MIN_REFRESH_SEC) viewerRefreshSec = VIEWER_MIN_REFRESH_SEC;
+  const n = parseInt(sec, 10);
+  // 選択肢にない値（古いキャッシュのページから渡る旧「1秒」など）は既定の10秒に戻す
+  viewerRefreshSec = VIEWER_REFRESH_OPTIONS.includes(n) ? n : VIEWER_DEFAULT_REFRESH_SEC;
   try { localStorage.setItem('viewerRefreshSec', String(viewerRefreshSec)); } catch (e) {}
   if (viewerRefreshSec > 0) {
     startViewerGamesListener();
@@ -9671,19 +9674,18 @@ async function viewerManualRefresh() {
 let viewerActiveTab = 'games'; // 'games' | 'bracket' | 'stats'
 let viewerTabTouched = false;  // 閲覧者がタブを操作したか（初期表示の自動選択に使用）
 // 更新モード：秒数（0 = 手動更新のみ）。通信量と表示の鮮度のバランスを閲覧者が選べる
-// 自動更新の下限は5秒。1秒ごとも選べるようにしていたが、閲覧者1人につき
-// 「稼働中のコート数」ぶんの読み取りが毎秒発生するため、コート数と観戦者が増えると
-// 通信量が跳ね上がる。それより細かく見たいときは「更新」ボタンを押してもらう（2026.08.22-1）
-const VIEWER_MIN_REFRESH_SEC = 5;
+// 自動更新の選択肢（0 = 手動更新のみ）。最短は5秒。1秒ごとも選べるようにしていたが、
+// 閲覧者1人につき「稼働中のコート数」ぶんの読み取りが毎秒発生するため、コート数と
+// 観戦者が増えると通信量が跳ね上がる（2026.08.22-1 で廃止）。
+// それより細かく見たいときは「更新」ボタンを押してもらう
+const VIEWER_REFRESH_OPTIONS = [0, 5, 10, 30];
+const VIEWER_DEFAULT_REFRESH_SEC = 10;
 let viewerRefreshSec = (() => {
-  const ALLOWED = [0, 5, 10, 30];
   try {
-    const v = localStorage.getItem('viewerRefreshSec');
-    if (v == null) return 10;                       // 既定は10秒
-    const n = parseInt(v, 10);
-    if (n === 1) return VIEWER_MIN_REFRESH_SEC;     // 旧「1秒ごと」を選んでいた端末は下限まで引き上げる
-    return ALLOWED.includes(n) ? n : 10;            // 旧設定（15秒など）は既定に戻す
-  } catch (e) { return 10; }
+    const n = parseInt(localStorage.getItem('viewerRefreshSec'), 10);
+    // 未設定のほか、旧「1秒」「15秒」など選択肢にない値は既定の10秒に戻す
+    return VIEWER_REFRESH_OPTIONS.includes(n) ? n : VIEWER_DEFAULT_REFRESH_SEC;
+  } catch (e) { return VIEWER_DEFAULT_REFRESH_SEC; }
 })();
 let viewerLastFetchAt = 0;
 // 閲覧URLは2種類。詳細URL（?key=付き）で開いた場合のみ個人データまで表示する

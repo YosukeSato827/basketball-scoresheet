@@ -26,23 +26,26 @@ t('「1秒ごと」の選択肢が無い', !opts.some(l => l.includes('1秒ご�
 t('最短は「5秒ごと」', opts.some(l => l.includes('5秒ごと')));
 t('通信量の注意書きが5秒に付いている', opts.some(l => l.includes('5秒ごと') && l.includes('通信量 多')));
 
-// ---- 2) 下限の定数 ----
-const m = src.match(/const VIEWER_MIN_REFRESH_SEC = (\d+);/);
-t('下限の定数が定義されている', !!m);
-t('下限は5秒', !!m && m[1] === '5');
+// ---- 2) 選択肢と既定値の定数 ----
+const mOpts = src.match(/const VIEWER_REFRESH_OPTIONS = \[([^\]]*)\];/);
+const mDef  = src.match(/const VIEWER_DEFAULT_REFRESH_SEC = (\d+);/);
+t('選択肢の定数が定義されている', !!mOpts);
+t('選択肢は 0/5/10/30（1秒は含まない）', !!mOpts && mOpts[1].replace(/\s/g, '') === '0,5,10,30');
+t('既定は10秒', !!mDef && mDef[1] === '10');
 
 // ---- 3) 端末に保存された設定の復元 ----
 const initStart = src.indexOf('let viewerRefreshSec = (() => {');
 const initEnd = src.indexOf('})();', initStart) + 5;
 const initSrc = src.slice(initStart, initEnd).replace('let viewerRefreshSec =', 'restored =');
 const restore = (saved) => {
-  const ctx = { restored: null, VIEWER_MIN_REFRESH_SEC: 5, localStorage: { getItem: () => saved } };
+  const ctx = { restored: null, VIEWER_REFRESH_OPTIONS: [0, 5, 10, 30],
+                VIEWER_DEFAULT_REFRESH_SEC: 10, localStorage: { getItem: () => saved } };
   vm.createContext(ctx);
   vm.runInContext(initSrc, ctx);
   return ctx.restored;
 };
 t('保存なし → 既定の10秒', restore(null) === 10);
-t('旧「1秒」→ 下限の5秒に引き上げ', restore('1') === 5);
+t('旧「1秒」→ 既定の10秒に戻す', restore('1') === 10);
 t('5秒 → そのまま', restore('5') === 5);
 t('10秒 → そのまま', restore('10') === 10);
 t('30秒 → そのまま', restore('30') === 30);
@@ -55,7 +58,7 @@ const setFn = extractFn('setViewerRefreshMode');
 const setMode = (v) => {
   const stored = {};
   const ctx = {
-    viewerRefreshSec: 10, VIEWER_MIN_REFRESH_SEC: 5,
+    viewerRefreshSec: 10, VIEWER_REFRESH_OPTIONS: [0, 5, 10, 30], VIEWER_DEFAULT_REFRESH_SEC: 10,
     localStorage: { setItem: (k, val) => { stored[k] = val; } },
     startViewerGamesListener: () => {}, viewerUnsubscribe: null,
     ensureViewerTimerSync: () => {}, viewerLastGameDocs: [], viewerLastTData: null,
@@ -66,9 +69,9 @@ const setMode = (v) => {
   vm.runInContext(`setViewerRefreshMode(${JSON.stringify(v)})`, ctx);
   return { sec: ctx.viewerRefreshSec, saved: stored.viewerRefreshSec };
 };
-t('1を渡しても5に引き上げ', setMode(1).sec === 5);
-t('引き上げた後の値が保存される', setMode(1).saved === '5');
-t('文字列の"3"も5に引き上げ', setMode('3').sec === 5);
+t('1を渡しても既定の10秒に戻す', setMode(1).sec === 10);
+t('戻した後の値が保存される', setMode(1).saved === '10');
+t('文字列の"3"も既定の10秒に戻す', setMode('3').sec === 10);
 t('5はそのまま', setMode(5).sec === 5);
 t('10はそのまま', setMode(10).sec === 10);
 t('30はそのまま', setMode(30).sec === 30);
