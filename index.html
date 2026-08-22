@@ -200,13 +200,17 @@ body.not-editor .editor-only { display: none !important; }
   letter-spacing: .08em; text-align: center; margin-bottom: 8px;
   text-transform: uppercase;
 }
+/* 線を合わせるため、ラウンドは「同じ高さのスロット」に等分し、カードはスロットの中央に置く。
+   flex + space-around だとカードの高さ（試合予定の行の有無）で中心位置がずれ、
+   25%/50%/75% で引いている線がカードの中心から外れて切れて見える。
+   grid の 1fr なら中心位置がカードの高さに左右されない。
+   さらに 1fr は「いちばん高いカード」に揃うので、スロットからはみ出して重なることもない */
 .br-round-matches {
-  flex: 1; display: flex; flex-direction: column;
-  justify-content: space-around; gap: 0;
+  flex: 1; display: grid; grid-auto-rows: 1fr; gap: 0;
 }
 .br-pair {
-  flex: 1; display: flex; flex-direction: column;
-  justify-content: space-around; position: relative; min-height: 0;
+  display: grid; grid-auto-rows: 1fr; align-items: center;
+  position: relative;
 }
 .br-pair.br-pair-empty { visibility: hidden; }
 .br-match.br-empty { visibility: hidden; }
@@ -3704,9 +3708,13 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.22-2';
+const APP_VERSION = '2026.08.22-3';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.22-3', notes: [
+    '修正：対戦表（トーナメント）の線が切れてズレていた問題を直しました',
+    '試合予定（日付・コート）が入っている枠だけカードが高くなり、線の位置がずれていました'
+  ] },
   { v: '2026.08.22-2', notes: [
     '以前「1秒ごと」を選んでいた端末は、標準の「10秒ごと」に戻るようにしました'
   ] },

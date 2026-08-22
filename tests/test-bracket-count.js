@@ -252,6 +252,27 @@ t('リーグはブロック数＋チーム数',
     { name: 'C', teams: ['g','h','i'] }, { name: 'D', teams: ['j','k','l'] } ] })`) === '4ブロック・12チーム');
 t('チーム数の集計', run(`bracketTeamCount({ type: 'tournament', size: 16, entries: pdfEntries })`) === 9);
 
+// ===== 9. 接続線のレイアウト（線が切れる不具合の再発防止） =====
+// カードの高さは「試合予定の行」の有無で変わる。flex + space-around だと
+// 中心位置が高さに引きずられ、25%/50%/75% で引いている線がカードから外れる。
+// grid の 1fr（等分スロット）＋ align-items:center なら高さに左右されない。
+const cssOf = sel => {
+  const i = src.indexOf(sel + ' {');
+  return i < 0 ? '' : src.slice(i, src.indexOf('}', i));
+};
+const cssMatches = cssOf('.br-round-matches');
+const cssPair    = cssOf('.br-pair');
+t('.br-round-matches が等分スロットのグリッド',
+  /display:\s*grid/.test(cssMatches) && /grid-auto-rows:\s*1fr/.test(cssMatches), cssMatches);
+t('.br-pair が等分スロットのグリッド',
+  /display:\s*grid/.test(cssPair) && /grid-auto-rows:\s*1fr/.test(cssPair), cssPair);
+t('.br-pair はカードをスロット中央に置く', /align-items:\s*center/.test(cssPair), cssPair);
+t('space-around を使っていない（カードの高さで中心がずれるため）',
+  !/space-around/.test(cssMatches) && !/space-around/.test(cssPair), cssMatches + ' | ' + cssPair);
+t('線は 25%/50%/75% のまま（スロット中央＝カード中央）',
+  /\.br-pair:not\(\.br-pair-single\):not\(\.br-pair-empty\)::before/.test(src) &&
+  /top:\s*25%;\s*height:\s*50%/.test(src));
+
 let pass = true;
 for (const [n, ok] of checks) { console.log((ok ? '✅' : '❌') + ' ' + n); if (!ok) pass = false; }
 process.exit(pass ? 0 : 1);
