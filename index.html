@@ -1083,6 +1083,10 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   margin: 0 0 12px; font-size: 12px;
 }
+.games-refresh-bar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin: 0 0 10px; font-size: 12px; color: var(--text-mid);
+}
 .viewer-refresh-btn {
   background: var(--blue); color: #fff; border: none; border-radius: 14px;
   padding: 5px 14px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit;
@@ -3158,6 +3162,16 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
   </div>
   <div class="page-body">
     <div id="tab-games" style="display:block">
+      <div class="games-refresh-bar" id="games-refresh-bar" style="display:none">
+        <span>タイマー速報の更新</span>
+        <select class="viewer-refresh-mode" id="games-refresh-mode" onchange="setEditorRefreshMode(this.value)" title="運営画面でタイマー速報を取り直す間隔">
+          <option value="1">1秒ごと</option>
+          <option value="3">3秒ごと（標準）</option>
+          <option value="5">5秒ごと</option>
+          <option value="10">10秒ごと</option>
+          <option value="30">30秒ごと</option>
+        </select>
+      </div>
       <div id="game-list-container"><div class="loading-msg">読み込み中...</div></div>
     </div>
     <div id="tab-bracket" style="display:none">
@@ -3690,9 +3704,17 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.18-3';
+const APP_VERSION = '2026.08.22-1';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.22-1', notes: [
+    '観戦ページの自動更新は「5秒ごと」が最短になりました（1秒ごとは廃止）',
+    'コート数と観戦者が増えると1秒ごとでは通信量が大きくなりすぎるためです',
+    'もっと細かく見たいときは「更新」ボタンを押してください',
+    '運営画面の試合一覧に、タイマー速報の更新間隔を選ぶ欄を追加（1〜30秒・標準3秒）',
+    'これまで運営画面は観戦ページの設定を引き継いでいましたが、別々に選べるようになりました',
+    '記録画面のタイマー同期の表示が、「受信からの経過」ではなく「実機からの遅れ」を表すようになりました'
+  ] },
   { v: '2026.08.18-3', notes: [
     'スマホで開けない問題の調査：自動復旧で通信方法（ロングポーリング）も切り替えるようにしました',
     'エラー画面に、原因を切り分けるための状態表示を追加'
@@ -5578,6 +5600,7 @@ function loadGames() {
         clearTimeout(gamesWatchdog);
         if (snap.empty) {
           cont.innerHTML = `<div class="empty-state">この大会の試合がありません<br>「試合を追加」から入力してください</div>`;
+          updateGamesRefreshBar(false);   // 前の大会の表示が残らないように消す
           return;
         }
         // 追加順（createdAt 降順）。古いデータは gameDate, gameNo でフォールバック
@@ -5638,6 +5661,7 @@ function loadGames() {
         }).join('');
         // タイマー連携中の試合があればライブ表示を開始（速報ページと共通の仕組み）
         ensureViewerTimerSync(sortedDocs, { alwaysPoll: true });
+        updateGamesRefreshBar(viewerActiveTimerDevices(sortedDocs).length > 0);
         renderViewerTimerStrips();
       }, err => {
         clearTimeout(gamesWatchdog);
@@ -7930,14 +7954,23 @@ function updateTimerSyncStatus() {
   const el = document.getElementById('timer-sync-status');
   if (!el) return;
   if (!timerSyncMode) { el.textContent = ''; el.className = 'rec-timer-sync-status'; return; }
-  if (!timerLastUpdatedAt) { el.textContent = '待機中…'; el.className = 'rec-timer-sync-status offline'; return; }
-  const age = (Date.now() - timerLastUpdatedAt) / 1000;
+  if (!timerLastUpdatedAt) { el.textContent = '待機中…'; el.className = 'rec-timer-sync-status offline'; el.title = ''; return; }
+  const sinceRecv = (Date.now() - timerLastUpdatedAt) / 1000;
+  // lagMs があれば「表示している値が実際の何秒前のものか」を出す。
+  // 受信からの経過だけを見ていると、配信経路が渋滞して古い値が毎秒届き続けている状態でも
+  // 「LIVE」に見えてしまい、遅れに気づけない（2026.08.22-1）
+  const hasLag = typeof timerSyncLagMs === 'number';
+  const age = hasLag ? timerSyncLagMs / 1000 + sinceRecv : sinceRecv;
+  const unit = hasLag ? '遅れ' : '前';
+  el.title = hasLag
+    ? `タイマー実機からの遅れ（配信 ${(timerSyncLagMs / 1000).toFixed(1)}秒 ＋ 受信後 ${sinceRecv.toFixed(1)}秒）`
+    : '最後にデータを受け取ってからの経過時間';
   if (age < 3)  { el.textContent = '● LIVE';    el.className = 'rec-timer-sync-status live'; }
-  else if (age < 10) { el.textContent = `● ${Math.floor(age)}秒前`; el.className = 'rec-timer-sync-status stale'; }
-  else if (age < 60) { el.textContent = `● ${Math.floor(age)}秒前`; el.className = 'rec-timer-sync-status offline'; }
+  else if (age < 10) { el.textContent = `● ${Math.floor(age)}秒${unit}`; el.className = 'rec-timer-sync-status stale'; }
+  else if (age < 60) { el.textContent = `● ${Math.floor(age)}秒${unit}`; el.className = 'rec-timer-sync-status offline'; }
   else {
     const m = Math.floor(age / 60);
-    el.textContent = `● ${m}分前`;
+    el.textContent = `● ${m}分${unit}`;
     el.className = 'rec-timer-sync-status offline';
   }
 }
@@ -8005,6 +8038,10 @@ function _extractRunning(data) {
   return false;
 }
 
+// timer_sync の lagMs（TimerLink が値を出してから Lambda が書き込むまでの遅れ・ミリ秒）。
+// Lambda v4 以降のみ入る。無い場合（v3以前）は null のまま従来表示にフォールバックする
+let timerSyncLagMs = null;
+
 // 同期タイマーの状態（補間用）
 let timerSyncState = {
   gameSec: null,    // 最後に受信したゲームクロック（秒）
@@ -8018,7 +8055,13 @@ function renderSyncedTimer() {
   let gameSec = timerSyncState.gameSec;
   let shotSec = timerSyncState.shotSec;
   if (timerSyncState.running && timerSyncState.receivedAt) {
-    const elapsed = (Date.now() - timerSyncState.receivedAt) / 1000;
+    // 配信経路の遅れ（lagMs）も足して補間する。受信時刻を起点にすると、TimerLink が値を
+    // 出してから届くまでのぶん、ずっと遅れたままの表示になる。
+    // ただし大きく遅れたデータを補外しても当たらない（その間に時計が止まっているかもしれない）
+    // ため、3秒までの遅れに限る。それ以上は状態表示の「● N秒遅れ」で気づいてもらう
+    const lagSec = (typeof timerSyncLagMs === 'number' && timerSyncLagMs > 0 && timerSyncLagMs <= 3000)
+      ? timerSyncLagMs / 1000 : 0;
+    const elapsed = (Date.now() - timerSyncState.receivedAt) / 1000 + lagSec;
     if (gameSec != null) gameSec = Math.max(0, gameSec - elapsed);
     if (shotSec != null) shotSec = Math.max(0, shotSec - elapsed);
   }
@@ -8395,6 +8438,7 @@ function startTimerSync(deviceId) {
   document.getElementById('rec-timer-btn').disabled = true;
   document.getElementById('rec-timer-reset').disabled = true;
   timerLastUpdatedAt = null;
+  timerSyncLagMs = null;
   updateTimerSyncStatus();
   // 接続テスト：まず1回読み込んでデータ状況を確認
   db.collection('timer_sync').doc(deviceId).get().then(snap => {
@@ -8418,6 +8462,7 @@ function startTimerSync(deviceId) {
 // 受信データを検証して時計状態に反映（テスト用に単体関数化）
 function _applyRecorderTimerData(data) {
   timerLastUpdatedAt = Date.now();
+  timerSyncLagMs = typeof data.lagMs === 'number' ? data.lagMs : null;
   const rawGame = _rawClockValue(data, 'gameClock', 'gameTime');
   const rawShot = _rawClockValue(data, 'shotClock', 'subTime');
   const gameSec = _parseGameClockSec(rawGame);
@@ -8438,6 +8483,7 @@ function stopTimerSync() {
   clearInterval(timerSyncStatusIv);
   timerSyncMode = false;
   timerLastUpdatedAt = null;
+  timerSyncLagMs = null;
   timerSyncState = { gameSec: null, shotSec: null, running: false, receivedAt: 0 };
   const btn = document.getElementById('timer-sync-btn');
   if (btn) btn.classList.remove('active');
@@ -9584,6 +9630,8 @@ function startViewerGamesListener() {
 // 更新モードの変更（自動◯秒／手動）。端末に記憶する
 function setViewerRefreshMode(sec) {
   viewerRefreshSec = parseInt(sec, 10) || 0;
+  // 手動（0）以外は下限を下回らせない
+  if (viewerRefreshSec > 0 && viewerRefreshSec < VIEWER_MIN_REFRESH_SEC) viewerRefreshSec = VIEWER_MIN_REFRESH_SEC;
   try { localStorage.setItem('viewerRefreshSec', String(viewerRefreshSec)); } catch (e) {}
   if (viewerRefreshSec > 0) {
     startViewerGamesListener();
@@ -9623,12 +9671,17 @@ async function viewerManualRefresh() {
 let viewerActiveTab = 'games'; // 'games' | 'bracket' | 'stats'
 let viewerTabTouched = false;  // 閲覧者がタブを操作したか（初期表示の自動選択に使用）
 // 更新モード：秒数（0 = 手動更新のみ）。通信量と表示の鮮度のバランスを閲覧者が選べる
+// 自動更新の下限は5秒。1秒ごとも選べるようにしていたが、閲覧者1人につき
+// 「稼働中のコート数」ぶんの読み取りが毎秒発生するため、コート数と観戦者が増えると
+// 通信量が跳ね上がる。それより細かく見たいときは「更新」ボタンを押してもらう（2026.08.22-1）
+const VIEWER_MIN_REFRESH_SEC = 5;
 let viewerRefreshSec = (() => {
-  const ALLOWED = [0, 1, 5, 10, 30];
+  const ALLOWED = [0, 5, 10, 30];
   try {
     const v = localStorage.getItem('viewerRefreshSec');
     if (v == null) return 10;                       // 既定は10秒
     const n = parseInt(v, 10);
+    if (n === 1) return VIEWER_MIN_REFRESH_SEC;     // 旧「1秒ごと」を選んでいた端末は下限まで引き上げる
     return ALLOWED.includes(n) ? n : 10;            // 旧設定（15秒など）は既定に戻す
   } catch (e) { return 10; }
 })();
@@ -9668,8 +9721,38 @@ let viewerTimerPollIv = null;   // タイマー取得の間隔タイマー
 let viewerTimerPollKey = '';    // 現在の取得設定（対象デバイス＋間隔）。同じなら組み直さない
 let viewerTimerIv = null;       // LIVE表示の期限切れチェック（通信なし）
 let viewerTimerSourceDocs = []; // タイマー取得の対象試合（閲覧ページ／運営画面で共通）
+let viewerTimerAlwaysPoll = false; // 現在の取得が運営画面向けか（鮮度判定の基準を切り替える）
 let viewerTimerData = {};       // deviceId → timer_sync ドキュメント
 let viewerTimerReceivedAt = {}; // deviceId → 受信時刻（Date.now()）
+
+// 運営画面（試合一覧・対戦表）のタイマー速報の取得間隔。観戦ページとは別に持つ。
+// 観戦者は数百人になりうるので下限5秒にしているが、運営は数人なのでその制限を共有する
+// 必要がない。以前は観戦ページの設定を引き継いでいた（2026.08.22-1 で分離）
+const EDITOR_REFRESH_OPTIONS = [1, 3, 5, 10, 30];
+const EDITOR_DEFAULT_REFRESH_SEC = 3;
+let editorRefreshSec = (() => {
+  try {
+    const n = parseInt(localStorage.getItem('editorRefreshSec'), 10);
+    return EDITOR_REFRESH_OPTIONS.includes(n) ? n : EDITOR_DEFAULT_REFRESH_SEC;
+  } catch (e) { return EDITOR_DEFAULT_REFRESH_SEC; }
+})();
+
+// 運営画面の更新間隔を変更する（端末に記憶する）
+function setEditorRefreshMode(sec) {
+  const n = parseInt(sec, 10);
+  editorRefreshSec = EDITOR_REFRESH_OPTIONS.includes(n) ? n : EDITOR_DEFAULT_REFRESH_SEC;
+  try { localStorage.setItem('editorRefreshSec', String(editorRefreshSec)); } catch (e) {}
+  ensureViewerTimerSync(viewerTimerSourceDocs, { alwaysPoll: true });
+  showToast(`タイマー速報の更新：${editorRefreshSec}秒ごと`);
+}
+
+// 更新間隔バーは、タイマー連携中の試合があるときだけ出す
+function updateGamesRefreshBar(show) {
+  const bar = document.getElementById('games-refresh-bar');
+  if (bar) bar.style.display = show ? '' : 'none';
+  const sel = document.getElementById('games-refresh-mode');
+  if (sel) sel.value = String(editorRefreshSec);
+}
 
 // 表示中の試合に紐づくタイマーだけを取得する
 // （毎秒更新されるタイマーを常時購読すると通信量が跳ね上がるため、必要な分だけ間隔をあけて取得）
@@ -9703,7 +9786,9 @@ function ensureViewerTimerSync(gameDocs, opts) {
   if (IS_ARCHIVE) return;
   viewerTimerSourceDocs = gameDocs || [];
   const devs = viewerActiveTimerDevices(viewerTimerSourceDocs);
-  const sec  = viewerRefreshSec > 0 ? viewerRefreshSec : ((opts && opts.alwaysPoll) ? 10 : 0);
+  // 運営画面（alwaysPoll）は運営用の間隔、観戦ページは閲覧者が選んだ間隔（0＝手動）
+  viewerTimerAlwaysPoll = !!(opts && opts.alwaysPoll);
+  const sec  = viewerTimerAlwaysPoll ? editorRefreshSec : viewerRefreshSec;
   // 取得対象と間隔が前回と同じなら、回っている定期取得をそのまま続ける。
   // ここは試合データが届くたびの再描画から呼ばれるので、毎回組み直していると
   // そのたびに即時取得が走り、設定した間隔より短い周期で通信していた（2026.08.18-1 で修正）
@@ -9743,7 +9828,8 @@ function renderViewerTimerStrips() {
     const recv = viewerTimerReceivedAt[dev];
     const age = recv ? (now - recv) / 1000 : Infinity;
     // 手動更新モードでは取得間隔が長くなるため、鮮度の判定もゆるめる
-    const staleSec = viewerRefreshSec > 0 ? Math.max(60, viewerRefreshSec * 4) : 900;
+    const activeSec = viewerTimerAlwaysPoll ? editorRefreshSec : viewerRefreshSec;
+    const staleSec = activeSec > 0 ? Math.max(60, activeSec * 4) : 900;
     if (!data || age > staleSec) return null;
     // 時計は「取得したときの値」をそのまま出す。端末側で秒を進める補間はしない。
     // 補間すると running を送ってくるタイマーだけが1秒ごとに動き、同じページの中で
@@ -10010,8 +10096,7 @@ function renderTournamentViewer(tData, gameDocs) {
     <div class="viewer-refresh-bar">
       <button class="viewer-refresh-btn" id="viewer-refresh-btn" onclick="viewerManualRefresh()">更新</button>
       <select class="viewer-refresh-mode" onchange="setViewerRefreshMode(this.value)" title="更新のしかた">
-        <option value="1"  ${viewerRefreshSec === 1  ? 'selected' : ''}>自動更新：1秒ごと（通信量 多）</option>
-        <option value="5"  ${viewerRefreshSec === 5  ? 'selected' : ''}>自動更新：5秒ごと</option>
+        <option value="5"  ${viewerRefreshSec === 5  ? 'selected' : ''}>自動更新：5秒ごと（通信量 多）</option>
         <option value="10" ${viewerRefreshSec === 10 ? 'selected' : ''}>自動更新：10秒ごと（標準）</option>
         <option value="30" ${viewerRefreshSec === 30 ? 'selected' : ''}>自動更新：30秒ごと（通信量 少）</option>
         <option value="0"  ${viewerRefreshSec === 0  ? 'selected' : ''}>手動更新のみ</option>

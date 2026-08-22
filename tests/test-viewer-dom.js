@@ -40,7 +40,7 @@ const ctx = {
   IS_ARCHIVE: false,
   viewerActiveTab: 'games',
   viewerTabTouched: false,
-  viewerRefreshSec: 5,
+  viewerRefreshSec: 5, viewerTimerAlwaysPoll: false, editorRefreshSec: 3,
   viewerLastFetchAt: 0,
   viewerFullAccess: true,   // 既存テストは制限なし表示を前提にする
   viewerLastTData: null, viewerLastGameDocs: [],

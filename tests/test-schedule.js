@@ -17,7 +17,7 @@ function extractFn(name) {
 
 const dom = new JSDOM('<!doctype html><html><body><div id="out"></div></body></html>');
 const ctx = { console, document: dom.window.document, window: dom.window, IS_ARCHIVE: false,
-  viewerRefreshSec: 5 };
+  viewerRefreshSec: 5, viewerTimerAlwaysPoll: false, editorRefreshSec: 3 };
 vm.createContext(ctx);
 vm.runInContext(src.split('\n').filter(l => l.startsWith('const esc =')).join('\n'), ctx);
 vm.runInContext(`const escAttr = s => esc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');`, ctx);

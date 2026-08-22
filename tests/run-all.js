@@ -10,6 +10,8 @@ const files = [
   'test-bracket-count.js', // トーナメント（任意チーム数・配置編集）
   'test-schedule.js',      // 試合予定とLIVE表示
   'test-viewer-dom.js',    // 観戦ページの描画
+  'test-viewer-refresh.js',// 観戦ページの自動更新間隔（下限5秒）
+  'test-timer-delay.js',   // 記録画面のタイマー同期（遅れ表示・補間）
   'test-league.js',        // 予選リーグの順位計算
   'test-league-editor.js', // リーグのブロック編集
 ];
