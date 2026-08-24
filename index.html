@@ -1324,6 +1324,14 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
   border: 1px solid #dbe6f1;
 }
 .gc-live-tag { font-size: 10px; font-weight: 600; color: #FF7043; }
+/* タイマー速報の遅れ表示（運営画面のみ。観戦ページには出さない） */
+.gc-live-lag {
+  font-size: 10px; font-weight: 700; color: #fff; background: #FF9800;
+  padding: 1px 7px; border-radius: 6px; letter-spacing: .02em; white-space: nowrap;
+}
+.gc-live-lag.danger { background: #E53935; }
+.gc-strip-lag { margin-left: 8px; font-weight: 700; color: #FFD54F; }
+.gc-strip-lag.danger { color: #FF8A80; }
 .br-timer-clock {
   background: #E53935; color: #fff;
   border: none; font-size: 8px; font-weight: 800;
@@ -3708,9 +3716,14 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.22-3';
+const APP_VERSION = '2026.08.24-1';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.24-1', notes: [
+    '運営画面の試合一覧にも、タイマー速報の「● N秒遅れ」表示を追加しました',
+    'タイマー端末の通信が詰まって時計が遅れているとき、画面で気づけるようになります',
+    '観戦ページの表示は変えていません'
+  ] },
   { v: '2026.08.22-3', notes: [
     '修正：対戦表（トーナメント）の線が切れてズレていた問題を直しました',
     '試合予定（日付・コート）が入っている枠だけカードが高くなり、線の位置がずれていました'
@@ -5640,6 +5653,7 @@ function loadGames() {
             ? `<div class="gc-score gc-score-live" data-timer-device="${escAttr(d.timerDeviceId)}" data-timer-flip="${d.timerScoreFlip ? 1 : 0}">
                 <span class="gc-live-score" data-live="score">– - –</span>
                 <span class="gc-live-clock">--:--</span>
+                <span class="gc-live-lag" style="display:none"></span>
                 <span class="gc-live-tag">タイマー速報</span>
               </div>`
             : `<div class="gc-score">${esc(score)}</div>`;
@@ -9832,13 +9846,23 @@ function _viewerApplyTimerData(deviceId, data) {
 // 対象：黒ストリップ／速報カードのライブスコアライン／編集者一覧のスコア欄／トーナメント表
 function renderViewerTimerStrips() {
   const now = Date.now();
+  const activeSec = viewerTimerAlwaysPoll ? editorRefreshSec : viewerRefreshSec;
+  // 「● N秒遅れ」の表示。取得間隔ぶんの遅れは正常なので、それを超えたときだけ出す。
+  // 運営が回線の異常（TimerLink端末の送信詰まり）に気づけるようにするためのもので、
+  // 観戦ページには出さない（2026.08.24-1）
+  const lagLimitSec = Math.max(5, (activeSec > 0 ? activeSec : 10) + 2);
+  const lagText = (live) => {
+    if (live.lagSec == null || live.lagSec < lagLimitSec) return null;
+    return live.lagSec >= 60
+      ? `● ${Math.floor(live.lagSec / 60)}分遅れ`
+      : `● ${Math.floor(live.lagSec)}秒遅れ`;
+  };
   // デバイスの現在値を取得（60秒以上更新がなければ null＝停止・配信終了扱い）
   const getLive = (dev) => {
     const data = viewerTimerData[dev];
     const recv = viewerTimerReceivedAt[dev];
     const age = recv ? (now - recv) / 1000 : Infinity;
     // 手動更新モードでは取得間隔が長くなるため、鮮度の判定もゆるめる
-    const activeSec = viewerTimerAlwaysPoll ? editorRefreshSec : viewerRefreshSec;
     const staleSec = activeSec > 0 ? Math.max(60, activeSec * 4) : 900;
     if (!data || age > staleSec) return null;
     // 時計は「取得したときの値」をそのまま出す。端末側で秒を進める補間はしない。
@@ -9847,7 +9871,10 @@ function renderViewerTimerStrips() {
     const gameSec = _parseGameClockSec(_rawClockValue(data, 'gameClock', 'gameTime'));
     const shotSec = _parseShotClockSec(_rawClockValue(data, 'shotClock', 'subTime'));
     const sc = data.scores || {};
-    return { gameSec, shotSec, home: sc.home, guest: sc.guest, period: _fmtPeriod(data.period) };
+    // データの鮮度＝「配信経路の遅れ（lagMs）＋こちらが取得してからの経過」。
+    // lagMs は Lambda v5 以降でのみ入る。無ければ null で、遅れ表示は出さない
+    const lagSec = typeof data.lagMs === 'number' ? data.lagMs / 1000 + age : null;
+    return { gameSec, shotSec, home: sc.home, guest: sc.guest, period: _fmtPeriod(data.period), lagSec };
   };
   // 試合ごとのスコア向き設定（home側をチームA/Bどちらに表示するか）を適用
   const teamScores = (live, flipped) => flipped
@@ -9868,9 +9895,12 @@ function renderViewerTimerStrips() {
     if (live.shotSec != null) parts.push(`SHOT ${Math.ceil(live.shotSec)}`);
     const ts = teamScores(live, el.dataset.timerFlip === '1');
     if (ts.a != null && ts.b != null) parts.push(`${ts.a} - ${ts.b}`);
-    if (parts.length === 0) { el.style.display = 'none'; return; }
+    // 遅れ表示は運営画面の帯（gc-timer-strip）だけに出す。観戦ページの帯には出さない
+    const lt = el.classList.contains('gc-timer-strip') ? lagText(live) : null;
+    if (parts.length === 0 && !lt) { el.style.display = 'none'; return; }
     el.style.display = '';
-    el.innerHTML = '<span class="vt-timer-live-dot"></span>' + esc(parts.join('　'));
+    el.innerHTML = '<span class="vt-timer-live-dot"></span>' + esc(parts.join('　'))
+      + (lt ? `<span class="gc-strip-lag${live.lagSec >= 10 ? ' danger' : ''}">${esc(lt)}</span>` : '');
   });
 
   // 2) 速報カードのライブスコアライン（タイマー取得試合：正規のスコア欄に表示）
@@ -9891,12 +9921,23 @@ function renderViewerTimerStrips() {
   document.querySelectorAll('.gc-score-live').forEach(el => {
     const live = getLive(el.dataset.timerDevice);
     const cEl = el.querySelector('.gc-live-clock');
-    if (!live) { if (cEl) cEl.textContent = '--:--'; return; }
+    const lEl = el.querySelector('.gc-live-lag');
+    if (!live) {
+      if (cEl) cEl.textContent = '--:--';
+      if (lEl) lEl.style.display = 'none';
+      return;
+    }
     const ts = teamScores(live, el.dataset.timerFlip === '1');
     const sEl = el.querySelector('[data-live="score"]');
     if (sEl && ts.a != null && ts.b != null) sEl.textContent = `${ts.a} - ${ts.b}`;
     const ct = clockText(live);
     if (cEl && ct) cEl.textContent = `${ct}`;
+    if (lEl) {
+      const lt = lagText(live);
+      lEl.style.display = lt ? '' : 'none';
+      lEl.textContent = lt || '';
+      lEl.className = 'gc-live-lag' + (live.lagSec >= 10 ? ' danger' : '');
+    }
   });
 
   // 4) トーナメント表のライブスコアと時計

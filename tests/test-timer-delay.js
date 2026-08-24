@@ -85,6 +85,80 @@ t('3秒を超える遅れは補正しない', render(26000, 100, true, 0) === '1
 t('負のlagMsは無視する', render(-5000, 100, true, 0) === '1:40');
 t('0秒未満にはならない', render(null, 2, true, 10000) === '0:00');
 
+
+// ===== 運営画面の遅れ表示（観戦ページには出さないこと） =====
+// 2026-08-24 の実測で、TimerLink端末の送信が詰まると時計が33秒遅れた。
+// 運営がそれに画面で気づけるようにするための表示
+{
+  const escSrc = (() => {
+    const i = src.indexOf('const esc = s =>');
+    return src.slice(i, src.indexOf(String.fromCharCode(10), i));   // 行末まで（&amp; の ; で切らない）
+  })();
+  const dom2 = new JSDOM('<!doctype html><html><body>' +
+    '<div class="gc-score gc-score-live" data-timer-device="dev1" data-timer-flip="0">' +
+      '<span class="gc-live-score" data-live="score">-</span>' +
+      '<span class="gc-live-clock">--:--</span>' +
+      '<span class="gc-live-lag" style="display:none"></span>' +
+    '</div>' +
+    '<div class="vt-timer-strip gc-timer-strip" id="editor-strip" data-timer-device="dev1" data-timer-flip="0"></div>' +
+    '<div class="vt-timer-strip" id="viewer-strip" data-timer-device="dev1" data-timer-flip="0"></div>' +
+    '</body></html>');
+  const doc2 = dom2.window.document;
+  const ctx2 = {
+    console, document: doc2, window: dom2.window,
+    Date: { now: () => NOW }, Math, JSON, String, Number, Object,
+    viewerTimerData: {}, viewerTimerReceivedAt: {},
+    viewerTimerAlwaysPoll: true,   // 運営画面として描画する
+    editorRefreshSec: 3, viewerRefreshSec: 10,
+  };
+  vm.createContext(ctx2);
+  vm.runInContext(escSrc, ctx2);
+  vm.runInContext(['_rawClockValue', '_parseGameClockSec', '_parseShotClockSec',
+                   '_fmtGameClock', '_fmtPeriod', 'renderViewerTimerStrips']
+                  .map(extractFn).join(String.fromCharCode(10)), ctx2);
+
+  const render = (extra) => {
+    ctx2.viewerTimerData.dev1 = Object.assign({
+      gameClock: { display: '7:23' }, shotClock: { display: '14' },
+      period: '2', scores: { home: 44, guest: 42 },
+    }, extra);
+    ctx2.viewerTimerReceivedAt.dev1 = NOW;   // 取得直後＝経過0秒
+    vm.runInContext('renderViewerTimerStrips()', ctx2);
+    const lagEl = doc2.querySelector('.gc-live-lag');
+    return {
+      badge: lagEl.style.display === 'none' ? null : lagEl.textContent,
+      danger: lagEl.className.includes('danger'),
+      editorStrip: doc2.getElementById('editor-strip').innerHTML,
+      viewerStrip: doc2.getElementById('viewer-strip').innerHTML,
+    };
+  };
+
+  console.log('14) 運営画面の遅れ表示');
+  let r = render({ lagMs: 400 });
+  t('遅れが小さければバッジを出さない', r.badge === null, String(r.badge));
+  t('その場合スコアと時計は出ている', r.editorStrip.includes('7:23'));
+
+  r = render({ lagMs: 7000 });
+  t('7秒遅れならバッジを出す', r.badge === '● 7秒遅れ', String(r.badge));
+  t('7秒なら警告色（danger ではない）', r.danger === false);
+
+  r = render({ lagMs: 33000 });
+  t('33秒遅れならバッジを出す', r.badge === '● 33秒遅れ', String(r.badge));
+  t('10秒以上は danger 表示', r.danger === true);
+
+  r = render({ lagMs: 200000 });
+  t('1分を超えたら分で出す', r.badge === '● 3分遅れ', String(r.badge));
+
+  r = render({});   // lagMs 無し（Lambda v3 以前）
+  t('lagMs が無ければバッジを出さない', r.badge === null, String(r.badge));
+
+  console.log('15) 観戦ページの帯には遅れを出さない');
+  r = render({ lagMs: 33000 });
+  t('運営画面の帯には遅れが出る', r.editorStrip.includes('遅れ'), r.editorStrip);
+  t('観戦ページの帯には遅れが出ない', !r.viewerStrip.includes('遅れ'), r.viewerStrip);
+  t('観戦ページの帯にも時計は出ている', r.viewerStrip.includes('7:23'));
+}
+
 let pass = true;
 for (const [n, ok] of checks) { console.log((ok ? '✅' : '❌') + ' ' + n); if (!ok) pass = false; }
 process.exit(pass ? 0 : 1);
