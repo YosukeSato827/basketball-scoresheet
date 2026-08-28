@@ -3736,9 +3736,15 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.28-4';
+const APP_VERSION = '2026.08.28-5';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.28-5', notes: [
+    '速報URLでは、クォーター内訳（1Q 3-1 …）を出さないようにしました',
+    '終了した試合の表示も「4Q」ではなく「終了」に揃えました',
+    '記録を取った試合と取らなかった試合が同じ大会に混ざっても、速報ページの見え方が変わりません',
+    'クォーター内訳は詳細URL（合言葉あり）で今までどおり見られます'
+  ] },
   { v: '2026.08.28-4', notes: [
     '速報URL（合言葉なし）では、ライブ記録中の試合もタイマーのスコアと時計を表示するようにしました',
     '会場のスコアボードを正とするためで、記録の入力ミスがそのまま速報に出ないようにします',
@@ -10235,16 +10241,18 @@ function renderTournamentViewer(tData, gameDocs) {
     // PBP記録なしの試合：タイマー/手動で確定した保存スコア（totalA/B）を表示に使う
     const usingFinalScore = plays.length === 0 && d.totalA != null && d.totalB != null;
     if (usingFinalScore) { totalA = d.totalA; totalB = d.totalB; }
+    // 詳細URL（合言葉あり）かどうか。速報URLとは表示の正・出す情報を変える
+    const showDetail = viewerCanSee('detail');
     const maxQ = plays.length > 0 ? Math.max(...plays.map(p => p.quarter)) : 0;
-    const qLabel = maxQ > 4 ? `延長${maxQ - 4}` : maxQ > 0 ? `${maxQ}Q`
-      : (usingFinalScore && d.status === 'finished' ? '終了' : '');
+    // 終了した試合は「終了」と出す。速報URLでは、記録を取った試合も取らなかった試合も
+    // 同じ見え方にするため「4Q」ではなく「終了」に揃える（2026.08.28-5）
+    const qLabel = (d.status === 'finished' && (usingFinalScore || !showDetail)) ? '終了'
+      : maxQ > 4 ? `延長${maxQ - 4}` : maxQ > 0 ? `${maxQ}Q` : '';
     const label = [d.gameDate, d.gameNo ? `Game ${d.gameNo}` : ''].filter(Boolean).join('　');
     const winner = totalA > totalB ? 'A' : totalB > totalA ? 'B' : null;
     const isGameLive = !IS_ARCHIVE && d.updatedAt && (now - new Date(d.updatedAt).getTime()) < 7200000 && plays.length > 0 && d.status !== 'finished';
     const graphSVG = plays.length > 1 ? buildScoreGraphSVG(plays, teamA, teamB) : '';
     const isOpen = expanded.has(gameId);
-    // 詳細URL（合言葉あり）かどうか。速報URLとは表示の正を変える
-    const showDetail = viewerCanSee('detail');
     // タイマーが繋がっている未終了の試合（記録の有無を問わない）。
     // 記録ありの試合の LIVE は updatedAt（＝最後に記録した時刻）だけで判定していたため、
     // 「試合終了→終了取消→タイマー再連携」で記録が止まったままだと、配信中でもLIVEが出なかった。
@@ -10294,10 +10302,12 @@ function renderTournamentViewer(tData, gameDocs) {
         <span class="vt-qcell-b">${st.qScore.B[i]||0}</span>
       </span>`;
     }).join('');
-    // 確定スコアのみ／タイマー速報の試合はクォーター内訳を出さない。
-    // 速報URLの記録中の試合もここに入る（大きな数字はタイマー側なので、
-    // 記録側のクォーター内訳を並べると合計と食い違って見える）
-    const qRowHTML = (usingFinalScore || isTimerLiveGame) ? '' : `<div class="vt-qrow">${qRow}</div>`;
+    // クォーター内訳は詳細URLだけに出す（2026.08.28-5）。
+    // 速報URLでは、記録を取った試合と取らなかった試合が同じ大会に混在しても
+    // 見え方が変わらないようにする（記録のある試合だけ内訳が付くのを避ける）。
+    // 確定スコアのみ／タイマー速報の試合はもともと内訳が無い（全て0になる）
+    const qRowHTML = (usingFinalScore || isTimerLiveGame || !showDetail)
+      ? '' : `<div class="vt-qrow">${qRow}</div>`;
     // 速報URLでは個人データ（スコアシート・記録用紙の写真とも）を出さないため、カードを開けない
     const hasSheetPhotos = showDetail && (d.sheetPhotos || []).length > 0;
 

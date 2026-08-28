@@ -287,6 +287,37 @@ vm.runInContext(`
   vm.runInContext(`viewerFullAccess = true;`, ctx);
 }
 
+// ===== テスト1h: 終了した記録試合の見え方（2026.08.28-5） =====
+// 速報URLは、記録を取った試合と取らなかった試合で見え方が変わらないようにする。
+// クォーター内訳は出さず、ラベルは「4Q」ではなく「終了」
+vm.runInContext(`
+  const finRec = (id) => ({ id, data: () => ({
+    teamAName: 'インディア', teamBName: 'ジュリエット', gameNo: '11',
+    pbpData: recPbp, status: 'finished', totalA: 4, totalB: 3,
+    updatedAt: new Date().toISOString() }) });
+  viewerFullAccess = false;
+  renderTournamentViewer({ name: 'テスト大会' }, [finRec('fin-pub')]);
+`, ctx);
+{
+  const card = document.querySelector('[data-game-id="fin-pub"]');
+  results.finPub = {
+    qrow: !!card.querySelector('.vt-qrow'),
+    label: (card.querySelector('.vt-qlabel') || {}).textContent || null,
+    score: card.querySelector('.vt-scoreline').textContent.replace(/\s+/g, ' ').trim(),
+  };
+}
+vm.runInContext(`
+  viewerFullAccess = true;
+  renderTournamentViewer({ name: 'テスト大会' }, [finRec('fin-det')]);
+`, ctx);
+{
+  const card = document.querySelector('[data-game-id="fin-det"]');
+  results.finDetail = {
+    qrow: !!card.querySelector('.vt-qrow'),
+    label: (card.querySelector('.vt-qlabel') || {}).textContent || null,
+  };
+}
+
 // ===== テスト2: モーダル（game モード・PBPなし・リンク済み） =====
 vm.runInContext(`
   timerModalCtx = {
@@ -438,6 +469,13 @@ const checks = [
   ['速報URL: タイマーが止まったら記録スコアに落とす',
     results.pubTimerStopped.scoreA === '4' && results.pubTimerStopped.scoreB === '3' &&
     results.pubTimerStopped.clock === '--:--', results.pubTimerStopped],
+  ['速報URL: 終了した記録試合も内訳を出さない',
+    !results.finPub.qrow, results.finPub],
+  ['速報URL: 終了した試合は「終了」表示（4Qではない）',
+    results.finPub.label === '終了' && results.finPub.score.includes('4') &&
+    results.finPub.score.includes('3'), results.finPub],
+  ['詳細URL: 終了した記録試合は内訳もクォーター表示も残る',
+    results.finDetail.qrow && results.finDetail.label === '2Q', results.finDetail],
   ['速報URL: 落ちたことが注記で分かる',
     results.pubTimerStopped.noteFallback && results.pubTimerStopped.noteLiveHidden &&
     results.pubTimerStopped.dotHidden, results.pubTimerStopped],
