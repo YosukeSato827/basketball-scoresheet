@@ -66,7 +66,7 @@ vm.runInContext(`const escAttr = s => esc(s).replace(/"/g, '&quot;').replace(/'/
 const fns = [
   'parsePBP', 'parseEvent', 'extractPlayer', 'buildState',
   '_rawClockValue', '_parseGameClockSec', '_parseShotClockSec', '_fmtGameClock', '_fmtPeriod', '_extractRunning', '_timerDocMs',
-  '_viewerApplyTimerData', 'renderViewerTimerStrips',
+  '_viewerApplyTimerData', 'renderViewerTimerStrips', 'timerDeviceUsedBy',
   'renderTournamentViewer', 'renderTimerModalSections', 'renderTimerDeviceList',
   'computeBracket', 'bracketRoundName', 'renderBracketHTML',
   'resolveEntryName', '_gameScorePair', 'rankLeagueTeams', 'leagueMatchId', 'computeLeagueGroup',
@@ -277,6 +277,37 @@ console.log(JSON.stringify(results, null, 2));
 // ===== 判定 =====
 const v = results.viewer, m = results.modal, rm = results.recorderModal;
 const ls = results.liveScoreline, br = results.bracket, gc = results.gcLive;
+// ===== テスト: タイマーの重複リンク警告（複数コート同時進行） =====
+// 別コートのタイマーを誤って選ぶ事故を防ぐための警告。
+// 禁止ではなく警告なので、警告が出ても選べることまで確認する
+vm.runInContext(`
+  timerModalCtx = {
+    mode: 'game', gameId: 'gA',
+    game: { teamAName: 'アルファ', teamBName: 'ブラボー', status: 'live' },
+    linkedDeviceId: null, devices: null,
+    deviceUsage: { 'DEV-2': ['Game 5 チャーリー vs デルタ'] },
+  };
+  renderTimerDeviceList([
+    { id: 'DEV-1', gameClock: { display: '10:00' }, deviceTimestamp: Date.now() - 3000 },
+    { id: 'DEV-2', gameClock: { display: '05:00' }, deviceTimestamp: Date.now() - 3000 },
+  ]);
+`, ctx);
+{
+  const rows = [...document.querySelectorAll('#timer-device-list .timer-device-row')];
+  const rowOf = id => rows.find(r => r.dataset.device === id);
+  const free = rowOf('DEV-1'), used = rowOf('DEV-2');
+  const usedWarn = used && used.querySelector('.timer-device-dup');
+  results.dup = {
+    rowCount: rows.length,
+    freeWarn: !!(free && free.querySelector('.timer-device-dup')),
+    freeClass: !!(free && free.classList.contains('dup')),
+    usedWarn: !!usedWarn,
+    usedClass: !!(used && used.classList.contains('dup')),
+    usedText: usedWarn ? usedWarn.textContent : '',
+    usedClick: used ? (used.getAttribute('onclick') || '') : '',
+  };
+}
+
 const checks = [
   ['確定スコア表示', v.score.includes('66') && v.score.includes('58')],
   ['終了ラベル（スコア行内）', v.score.includes('終了')],
@@ -318,6 +349,13 @@ const checks = [
     results.noGamesGamesTab.hint.includes('対戦表'),
     results.noGamesGamesTab],
   ['試合0件の試合タブでもタブは残る', results.noGamesGamesTab.tabsStillShown === 3],
+  ['重複警告: 2台とも一覧に出る', results.dup.rowCount === 2, results.dup.rowCount],
+  ['重複警告: 空きタイマーには警告を出さない', !results.dup.freeWarn && !results.dup.freeClass],
+  ['重複警告: 使用中のタイマーに警告を出す', results.dup.usedWarn && results.dup.usedClass],
+  ['重複警告: 相手の試合名を出す',
+    results.dup.usedText.includes('Game 5 チャーリー vs デルタ'), results.dup.usedText],
+  ['重複警告: 警告が出ても選択はできる',
+    results.dup.usedClick.includes('selectTimerDevice'), results.dup.usedClick],
 ];
 let pass = true;
 for (const [name, ok] of checks) {

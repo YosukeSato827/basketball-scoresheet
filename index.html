@@ -1268,6 +1268,11 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
 .timer-device-id { font-weight: 600; font-size: 14px; }
 .timer-device-linked { color: var(--blue); font-size: 11px; margin-left: 6px; font-weight: 600; }
 .timer-device-meta { font-size: 12px; color: var(--text-mid); margin-top: 3px; }
+/* 同じタイマーを別の試合が既に使っている場合の警告（選ぶことは可能） */
+.timer-device-row.dup { border-color: #FF9800; background: #FFF8E1; }
+.timer-device-dup {
+  font-size: 11px; font-weight: 600; color: #8a6d00; line-height: 1.6; margin-top: 5px;
+}
 .timer-device-empty { font-size: 13px; color: var(--text-light); padding: 14px 4px; text-align: center; line-height: 1.7; }
 /* 稼働状況のドット（タイマー一覧） */
 .dev-dot {
@@ -3716,9 +3721,19 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.24-1';
+const APP_VERSION = '2026.08.28-1';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.28-1', notes: [
+    'ロスターの「写真から読み込み」が、新しい形式のGemini APIキー（AQ.Ab... で始まるもの）でも使えるようになりました',
+    'Googleが2026年からキーの形式を変えており、これまでの渡し方（URLに付ける方法）では「API key not valid」になっていました',
+    '旧形式（AIza... で始まるもの）のキーもこれまでどおり使えます'
+  ] },
+  { v: '2026.08.24-2', notes: [
+    'タイマーを選ぶ画面で、そのタイマーが別の試合で使われている場合に警告を出すようにしました',
+    '警告が出ても選ぶことはできます（同じタイマーを意図的に共有する場合のため）',
+    '複数コート同時進行で、別コートのタイマーを間違えて選ぶのを防ぐためです'
+  ] },
   { v: '2026.08.24-1', notes: [
     '運営画面の試合一覧にも、タイマー速報の「● N秒遅れ」表示を追加しました',
     'タイマー端末の通信が詰まって時計が遅れているとき、画面で気づけるようになります',
@@ -8161,6 +8176,33 @@ function openTimerDeviceModalFor(ctx) {
   }).catch(err => {
     listEl.innerHTML = `<div class="timer-device-empty">読み込みエラー: ${esc(err.message)}</div>`;
   });
+  loadTimerDeviceUsage(ctx);
+}
+
+// 同じデバイスを他の試合が既に使っていないか調べる（重複リンクの警告用）。
+// 複数コート同時進行では、運営が別コートのデバイスを選んでしまう事故が起きやすい。
+// 重複を禁止はしない（同じタイマーを意図的に共有する運用もありうる）ので、警告だけ出す。
+// 調べられなくてもリンク自体は妨げない（deviceUsage が空なら警告が出ないだけ）
+function loadTimerDeviceUsage(ctx) {
+  ctx.deviceUsage = {};
+  if (!currentTournamentId) return;
+  withTimeout(db.collection('games').where('tournamentId', '==', currentTournamentId).get())
+    .then(snap => {
+      if (timerModalCtx !== ctx) return;
+      const usage = {};
+      snap.docs.forEach(doc => {
+        const g = doc.data();
+        // 自分自身と、終了済みの試合（タイマー速報の対象外）は競合にならない
+        if (doc.id === ctx.gameId || !g.timerDeviceId || g.status === 'finished') return;
+        const label = [g.gameNo ? `Game ${g.gameNo}` : '',
+                       `${g.teamAName || 'チームA'} vs ${g.teamBName || 'チームB'}`]
+                      .filter(Boolean).join(' ');
+        (usage[g.timerDeviceId] = usage[g.timerDeviceId] || []).push(label);
+      });
+      ctx.deviceUsage = usage;
+      if (ctx.devices) renderTimerDeviceList(ctx.devices);
+    })
+    .catch(() => {});
 }
 
 // モーダル内の各セクション表示を更新
@@ -8226,6 +8268,12 @@ function renderTimerModalSections() {
   document.getElementById('timer-device-unlink').style.display = ctx.linkedDeviceId ? '' : 'none';
 }
 
+// そのデバイスを使っている「他の試合」の一覧（重複の警告用）
+function timerDeviceUsedBy(deviceId) {
+  const u = timerModalCtx && timerModalCtx.deviceUsage;
+  return (u && u[deviceId]) ? u[deviceId] : [];
+}
+
 function renderTimerDeviceList(devices) {
   const listEl = document.getElementById('timer-device-list');
   if (!devices || devices.length === 0) {
@@ -8249,9 +8297,15 @@ function renderTimerDeviceList(devices) {
           ? `<span class="dev-dot warn"></span>${Math.max(1, Math.floor(ageMs / 60000))}分前`
           : `<span class="dev-dot idle"></span>${Math.floor(ageMs / 3600000)}時間以上前`;
     const linked = d.id === linkedId ? '<span class="timer-device-linked">この試合に登録済み</span>' : '';
-    return `<div class="timer-device-row" data-device="${escAttr(d.id)}" onclick="selectTimerDevice(this.dataset.device)">
+    // 他の試合が同じデバイスを使っていれば警告を添える（選ぶことは可能）
+    const usedBy = timerDeviceUsedBy(d.id);
+    const dup = usedBy.length
+      ? `<div class="timer-device-dup">⚠ 別の試合で使用中：${esc(usedBy.join('／'))}<br>選べますが、同じ時計とスコアが両方の試合に出ます</div>`
+      : '';
+    return `<div class="timer-device-row${usedBy.length ? ' dup' : ''}" data-device="${escAttr(d.id)}" onclick="selectTimerDevice(this.dataset.device)">
       <div class="timer-device-id">${esc(d.id)}${linked}</div>
       <div class="timer-device-meta">${clock != null ? '' + esc(String(clock)) + '　' : ''}${score ? score + '　' : ''}${ageTxt}</div>
+      ${dup}
     </div>`;
   }).join('');
 }
@@ -8265,6 +8319,16 @@ function selectTimerDevice(deviceId) {
   if (ctx.game && ctx.game.status === 'finished') {
     showToast('この試合は終了しています。タイマーと連携するには「試合終了」を解除してください', 5000);
     return;
+  }
+  // 他の試合が同じデバイスを使っている場合は確認する。禁止はしない（意図的な共有もありうる）。
+  // 一覧からの選択だけでなく、デバイスIDを直接入力した場合もここを通る
+  const usedBy = timerDeviceUsedBy(deviceId);
+  if (usedBy.length) {
+    const msg = [`${deviceId} は別の試合で使用中です。`, '']
+      .concat(usedBy)
+      .concat(['', 'このまま登録すると、同じ時計とスコアが両方の試合に表示されます。', '続けますか？'])
+      .join(String.fromCharCode(10));
+    if (!confirm(msg)) return;
   }
   ctx.linkedDeviceId = deviceId;
   ctx.game.timerDeviceId = deviceId;
@@ -9184,7 +9248,9 @@ async function handleOCRToTable(input, target) {
     let response = null, lastError = '';
     for (const model of GEMINI_MODELS) {
       setProgress(60, 'AIが読み取り中...');
-      const res = await fetch(`${GEMINI_BASE}${model}:generateContent?key=${apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: requestBody });
+      // キーはヘッダーで渡す。2026年からAI Studioが発行する新形式キー（AQ.Ab...）は
+      // URLの ?key= を受け付けず「API key not valid」になる。旧形式（AIza...）もヘッダーで通る
+      const res = await fetch(`${GEMINI_BASE}${model}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, body: requestBody });
       if (res.ok) { response = res; break; }
       const err = await res.json().catch(() => ({}));
       const msg = (err?.error?.message || '').toLowerCase();
@@ -9244,7 +9310,7 @@ async function checkGeminiModels() {
   const statusMsg = document.getElementById('ocr-status-msg');
   statusMsg.textContent = 'モデル一覧を取得中...';
   try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}&pageSize=50`);
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=50', { headers: { 'x-goog-api-key': key } });
     const data = await res.json();
     if (!res.ok) { statusMsg.textContent = 'エラー: ' + (data?.error?.message || res.status); return; }
     const models = (data.models || [])
