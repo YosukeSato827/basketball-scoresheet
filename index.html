@@ -1312,6 +1312,14 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .vt-scoreline.vt-live .vt-team-name:last-child { text-align: right; }
+/* ライブ記録中の試合に時計を差し込んだときも同じ組み方にする（時計が出ている間だけ付く）。
+   末尾にはクォーター表示（非表示中）が残るので :last-child ではなく2つ目の名前を指す */
+.vt-scoreline.vt-has-clock { flex-wrap: nowrap; }
+.vt-scoreline.vt-has-clock .vt-team-name {
+  flex: 1 1 0; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.vt-scoreline.vt-has-clock .vt-team-name ~ .vt-team-name { text-align: right; }
 .vt-live-clock {
   font-family: 'Poppins', sans-serif; font-size: 15px; font-weight: 600;
   background: #f2f6fb; color: var(--blue); padding: 4px 12px; border-radius: 8px;
@@ -1349,6 +1357,11 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
   border-radius: 8px; padding: 0 5px; margin-right: 3px;
   font-size: 9px; font-weight: 800; letter-spacing: .04em;
   animation: liveBlink 2s ease-in-out infinite;
+}
+/* 星取表：記録スコアがある試合にも出すタイマーの時計（配信中だけ表示） */
+.lg-live-clock {
+  display: block; font-size: 9px; font-weight: 700; color: var(--blue);
+  letter-spacing: .02em; margin-top: 1px;
 }
 /* 予選リーグ（総当たり）表 */
 .league-block { margin-bottom: 18px; }
@@ -3721,9 +3734,20 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.28-1';
+const APP_VERSION = '2026.08.28-3';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.28-3', notes: [
+    '写真から読み込みで「429」が出たとき、別のAIモデルで自動的に切り替えて再試行するようにしました',
+    'エラー表示に、どの利用枠に当たったのかを出すようにしました',
+    '読み取り結果が空で返ってくる問題（AIが考えるだけで出力枠を使い切る）も直しました'
+  ] },
+  { v: '2026.08.28-2', notes: [
+    '観戦ページで、ライブ記録中の試合にもタイマーの時計を表示するようにしました',
+    'スコアの大きな数字は記録側のまま。その中央に「2Q 7:23」と時計が入ります',
+    '対戦表・星取表でも、記録中の試合のLIVE表示に時計が付くようになりました',
+    'カード下の帯はタイマー側のスコアとショットクロックの表示になりました'
+  ] },
   { v: '2026.08.28-1', notes: [
     'ロスターの「写真から読み込み」が、新しい形式のGemini APIキー（AQ.Ab... で始まるもの）でも使えるようになりました',
     'Googleが2026年からキーの形式を変えており、これまでの渡し方（URLに付ける方法）では「API key not valid」になっていました',
@@ -4872,9 +4896,12 @@ function renderLeagueHTML(bracket, games, editable, viewerClick) {
         // デジタル記録中（2時間以内に更新があり未終了）はLIVE表示
         const isRecLive = !IS_ARCHIVE && g && g.status !== 'finished' && g.updatedAt &&
           (Date.now() - new Date(g.updatedAt).getTime()) < 7200000;
+        // 記録スコアがある試合でも、タイマーが配信中なら時計を下に添える（2026.08.28-2）
+        const recTimerClock = !IS_ARCHIVE && g && g.timerDeviceId && g.status !== 'finished';
         return `<td class="lg-cell${cls}${win ? ' lg-win' : lose ? ' lg-lose' : ''}${isRecLive ? ' lg-live' : ''}"${click}>
           ${isRecLive ? '<span class="lg-live-badge">LIVE</span>' : `<span class="lg-mark">${win ? '○' : lose ? '●' : '△'}</span>`}
           <span class="lg-score">${c.own}-${c.opp}</span>
+          ${recTimerClock ? `<span class="lg-live-clock" data-timer-clock="1" data-timer-device="${escAttr(g.timerDeviceId)}" style="display:none"></span>` : ''}
         </td>`;
       }).join('');
       const s = r.stats[t];
@@ -4954,7 +4981,11 @@ function renderBracketHTML(bracket, games, editable, viewerClick, allBrackets, s
         scoreB = `<span class="br-live-score" data-timer-device="${dev}" data-timer-flip="${tflip}" data-side="${swap ? 'a' : 'b'}">–</span>`;
         chip = `<span class="br-live br-timer-clock" data-timer-device="${dev}" style="display:none">LIVE</span>`;
       } else if (!IS_ARCHIVE && g && g.status !== 'finished' && m.sa != null) {
-        chip = '<span class="br-live">LIVE</span>';
+        // ライブ記録中の試合。タイマーも繋がっていればチップに時計を足す（2026.08.28-2）。
+        // スコアは記録側のまま。data-timer-keep は「配信が止まってもLIVEは消さない」印
+        chip = g.timerDeviceId
+          ? `<span class="br-live br-timer-clock" data-timer-device="${escAttr(g.timerDeviceId)}" data-timer-keep="1">LIVE</span>`
+          : '<span class="br-live">LIVE</span>';
       }
       // 予定（日付・開始時刻・コート）は試合開始前のみ表示
       const schText = (!slotEdit && m.sa == null && !timerLive && !(g && g.status === 'finished'))
@@ -8800,6 +8831,29 @@ function promptGeminiApiKey() {
 }
 
 
+// モデルごとのリクエスト本文。
+// gemini-2.5 系は既定で「思考」に出力トークンを使うため、そのままだと出力枠を
+// 思考で使い切って本文が空（finishReason: MAX_TOKENS）で返る。番号と名前を写すだけなので
+// 思考は要らない。thinkingConfig を知らない旧モデルには付けない（400になるため）
+function geminiRequestBody(model, prompt, base64Image) {
+  const generationConfig = { temperature: 0.1, maxOutputTokens: 2048 };
+  if (/2.5|gemini-3|latest/.test(model)) generationConfig.thinkingConfig = { thinkingBudget: 0 };
+  return JSON.stringify({
+    contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: 'image/jpeg', data: base64Image } }] }],
+    generationConfig,
+  });
+}
+
+// 429 の応答から「どの枠に当たったか」を取り出す。
+// 枠は 1分あたり / 1日あたり / 課金の有無 で別物なので、名前が分からないと対処できない
+function geminiQuotaHint(err) {
+  const details = err?.error?.details || [];
+  const violation = (details.find(d => Array.isArray(d.violations)) || {}).violations?.[0] || {};
+  const retry = (details.find(d => d.retryDelay) || {}).retryDelay || '';
+  const what = violation.quotaId || violation.quotaMetric || err?.error?.message || '詳細不明';
+  return what + (retry ? `（再試行まで ${retry}）` : '');
+}
+
 // 画像ファイルをbase64に変換（必要に応じてリサイズ）
 async function fileToBase64Gemini(file) {
   // 大きな画像は圧縮（Gemini APIの上限 ~4MBまで）
@@ -9244,27 +9298,38 @@ async function handleOCRToTable(input, target) {
     const base64Image = await fileToBase64Gemini(file);
     setProgress(50, 'AIに送信中...');
     const prompt = `この画像はバスケットボールの選手登録票または名簿です。表や一覧から背番号（ユニフォームナンバー）と選手名を全員分抽出してください。結果は必ず以下の形式で出力してください（他の説明は一切不要）：\n番号 名前\n番号 名前\n例：\n4 山田太郎\n7 田中次郎\n10 佐藤一郎\n背番号が数字1〜99の範囲であること、名前は日本語であることを確認してください。`;
-    const requestBody = JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: 'image/jpeg', data: base64Image } }] }], generationConfig: { temperature: 0.1, maxOutputTokens: 512 } });
-    let response = null, lastError = '';
+    let response = null, lastError = '', lastStatus = 0;
     for (const model of GEMINI_MODELS) {
       setProgress(60, 'AIが読み取り中...');
       // キーはヘッダーで渡す。2026年からAI Studioが発行する新形式キー（AQ.Ab...）は
       // URLの ?key= を受け付けず「API key not valid」になる。旧形式（AIza...）もヘッダーで通る
-      const res = await fetch(`${GEMINI_BASE}${model}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, body: requestBody });
+      const res = await fetch(`${GEMINI_BASE}${model}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, body: geminiRequestBody(model, prompt, base64Image) });
       if (res.ok) { response = res; break; }
       const err = await res.json().catch(() => ({}));
       const msg = (err?.error?.message || '').toLowerCase();
+      lastStatus = res.status;
+      // 429（利用枠の超過）は「モデルごと」に枠が分かれているので、次のモデルで試す。
+      // ここで即あきらめると、他のモデルには枠が残っていても読み取れない
+      if (res.status === 429) { lastError = `${model}: ${geminiQuotaHint(err)}`; continue; }
       if (res.status === 404 || msg.includes('no longer available') || msg.includes('not found')) { lastError = `[${res.status}] ${err?.error?.message||''}`; continue; }
       throw new Error(`[${res.status}] ${err?.error?.message||'APIエラー'}`);
     }
-    if (!response) throw new Error('利用可能なモデルが見つかりませんでした。' + lastError);
+    if (!response) {
+      throw new Error(lastStatus === 429
+        ? `Gemini APIの利用枠を使い切っています（429）。時間をおくか、Google Cloud で課金を有効にしてください。／${lastError}`
+        : '利用可能なモデルが見つかりませんでした。' + lastError);
+    }
     setProgress(90, '結果を解析中...');
     const data = await response.json();
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     setProgress(100, '完了！');
     await new Promise(r => setTimeout(r, 400));
     progressWrap.style.display = 'none';
-    if (!text.trim()) throw new Error('Geminiから応答がありませんでした');
+    // 応答が空のときは打ち切り理由を出す。思考のしすぎで出力枠を使い切ると MAX_TOKENS になる
+    if (!text.trim()) {
+      const fin = data?.candidates?.[0]?.finishReason || '';
+      throw new Error('Geminiから応答がありませんでした' + (fin ? `（${fin}）` : ''));
+    }
     const parsed = parseOCRRoster(text);
     const hasNames = parsed.some(p => p.name && p.name.trim().length > 0);
     if (parsed.length > 0 && hasNames) {
@@ -9955,14 +10020,18 @@ function renderViewerTimerStrips() {
   document.querySelectorAll('.vt-timer-strip').forEach(el => {
     const live = getLive(el.dataset.timerDevice);
     if (!live) { el.style.display = 'none'; return; }
+    // 運営画面の帯（gc-timer-strip）は今までどおり時計から。観戦ページのカードは
+    // スコア欄の中央に時計を出すようにしたので、帯では繰り返さない（2026.08.28-2）
+    const isEditorStrip = el.classList.contains('gc-timer-strip');
     const parts = [];
     const ct = clockText(live);
-    if (ct) parts.push(`${ct}`);
+    if (ct && isEditorStrip) parts.push(`${ct}`);
     if (live.shotSec != null) parts.push(`SHOT ${Math.ceil(live.shotSec)}`);
     const ts = teamScores(live, el.dataset.timerFlip === '1');
-    if (ts.a != null && ts.b != null) parts.push(`${ts.a} - ${ts.b}`);
+    // 記録側のスコアと並ぶので、観戦ページではタイマー側だと分かるようにする
+    if (ts.a != null && ts.b != null) parts.push(`${isEditorStrip ? '' : 'タイマー '}${ts.a} - ${ts.b}`);
     // 遅れ表示は運営画面の帯（gc-timer-strip）だけに出す。観戦ページの帯には出さない
-    const lt = el.classList.contains('gc-timer-strip') ? lagText(live) : null;
+    const lt = isEditorStrip ? lagText(live) : null;
     if (parts.length === 0 && !lt) { el.style.display = 'none'; return; }
     el.style.display = '';
     el.innerHTML = '<span class="vt-timer-live-dot"></span>' + esc(parts.join('　'))
@@ -9981,6 +10050,30 @@ function renderViewerTimerStrips() {
     if (bEl && ts.b != null) bEl.textContent = ts.b;
     const ct = clockText(live);
     if (cEl && ct) cEl.textContent = ct;
+  });
+
+  // 2b) ライブ記録中の試合に差し込む時計（速報カードのスコア欄・星取表のマス）。
+  // スコアの数字は記録側のままにして、時計だけタイマーから足す。配信が止まったら
+  // 時計を消して、記録側の「-」とクォーター表示を元に戻す（2026.08.28-2）
+  document.querySelectorAll('[data-timer-clock]').forEach(el => {
+    const live = getLive(el.dataset.timerDevice);
+    const ct = live ? clockText(live) : null;
+    const row = el.parentElement;
+    const dash  = row ? row.querySelector('.vt-dash') : null;
+    const qLbl  = row ? row.querySelector('.vt-qlabel') : null;
+    // 速報カードのスコア欄は、時計が入っている間だけタイマー取得試合と同じ組み方にする
+    if (row && el.classList.contains('vt-clock-inline')) row.classList.toggle('vt-has-clock', !!ct);
+    if (!ct) {
+      el.style.display = 'none';
+      if (dash) dash.style.display = '';
+      if (qLbl) qLbl.style.display = '';
+      return;
+    }
+    el.textContent = ct;
+    el.style.display = '';
+    // 時計に「2Q」が入るので、記録側のクォーター表示と区切りの「-」は隠す
+    if (dash) dash.style.display = 'none';
+    if (qLbl) qLbl.style.display = 'none';
   });
 
   // 3) 編集者の試合一覧のライブスコア欄
@@ -10014,10 +10107,15 @@ function renderViewerTimerStrips() {
     const v = el.dataset.side === 'b' ? ts.b : ts.a;
     if (v != null) el.textContent = v;
   });
-  // 配信中のみ「LIVE 2Q 7:23」を表示（止まったら非表示）
+  // 配信中のみ「LIVE 2Q 7:23」を表示（止まったら非表示）。
+  // ただし記録スコアがある試合（data-timer-keep）は、配信が止まっても「LIVE」は残す
   document.querySelectorAll('.br-timer-clock').forEach(el => {
     const live = getLive(el.dataset.timerDevice);
-    if (!live) { el.style.display = 'none'; return; }
+    const keep = el.dataset.timerKeep === '1';
+    if (!live) {
+      if (!keep) { el.style.display = 'none'; return; }
+      el.style.display = ''; el.textContent = 'LIVE'; return;
+    }
     el.style.display = '';
     const ct = clockText(live);
     el.textContent = ct ? `LIVE ${ct}` : 'LIVE';
@@ -10122,6 +10220,10 @@ function renderTournamentViewer(tData, gameDocs) {
     // 「試合終了→終了取消→タイマー再連携」で記録が止まったままだと、配信中でもLIVEが出なかった。
     // 配信が生きている間は LIVE を点けるため、チップ自体は記録ありの試合にも出しておく
     const hasLiveTimer = !IS_ARCHIVE && d.timerDeviceId && d.status !== 'finished';
+    // ライブ記録中でも、タイマーの時計はスコア欄の中央に出す（2026.08.28-2）。
+    // 数字は記録側のまま（タイマーの配信が止まってもスコアが消えないように）で、
+    // タイマー側のスコアとショットクロックは下の帯に残す
+    const inlineTimerClock = hasLiveTimer && plays.length > 0;
     // 黒ストリップはデジタルスコア記録中の試合の補助表示としてのみ使用
     const timerStrip = (!IS_ARCHIVE && d.timerDeviceId && d.status !== 'finished' && plays.length > 0)
       ? `<div class="vt-timer-strip" data-timer-device="${escAttr(d.timerDeviceId)}" data-timer-flip="${d.timerScoreFlip ? 1 : 0}" style="display:none"></div>`
@@ -10139,6 +10241,7 @@ function renderTournamentViewer(tData, gameDocs) {
       : `<div class="vt-scoreline">
           <span class="vt-team-name${winner==='A' ? ' vt-winner' : ''}">${esc(teamA)}</span>
           <span class="vt-score-a${winner==='A' ? ' vt-winner' : ''}">${totalA}</span>
+          ${inlineTimerClock ? `<span class="vt-live-clock vt-clock-inline" data-timer-clock="1" data-timer-device="${escAttr(d.timerDeviceId)}" style="display:none">--:--</span>` : ''}
           <span class="vt-dash">-</span>
           <span class="vt-score-b${winner==='B' ? ' vt-winner' : ''}">${totalB}</span>
           <span class="vt-team-name${winner==='B' ? ' vt-winner' : ''}">${esc(teamB)}</span>

@@ -156,7 +156,11 @@ t('0秒未満にはならない', render(null, 2, true, 10000) === '0:00');
   r = render({ lagMs: 33000 });
   t('運営画面の帯には遅れが出る', r.editorStrip.includes('遅れ'), r.editorStrip);
   t('観戦ページの帯には遅れが出ない', !r.viewerStrip.includes('遅れ'), r.viewerStrip);
-  t('観戦ページの帯にも時計は出ている', r.viewerStrip.includes('7:23'));
+  // 時計は観戦カードのスコア欄の中央に出すようにしたので、帯では繰り返さない（2026.08.28-2）
+  t('観戦ページの帯に時計は繰り返さない', !r.viewerStrip.includes('7:23'), r.viewerStrip);
+  t('運営画面の帯には時計が出ている', r.editorStrip.includes('7:23'), r.editorStrip);
+  t('観戦ページの帯はタイマー側スコアと分かる表記',
+    r.viewerStrip.includes('タイマー 44 - 42'), r.viewerStrip);
 }
 
 let pass = true;

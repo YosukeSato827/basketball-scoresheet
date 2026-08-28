@@ -51,6 +51,7 @@ const ctx = {
   recTimerDeviceId: null, recTimerScoreFlip: false,
   isOnline: true,
   ensureViewerTimerSync: () => {},        // db購読はスタブ
+  buildScoreGraphSVG: () => '',           // グラフ描画はこのテストの対象外
   showToast: () => {},
   db: null, firebase: null,
   Date: Date, Math: Math, JSON: JSON,
@@ -197,6 +198,52 @@ results.viewer = {
   };
 }
 
+// ===== テスト1f: ライブ記録中でもタイマーの時計を出す（2026.08.28-2） =====
+// 記録スコアは大きな数字のまま、その中央に時計を差し込む。
+// 帯（黒ストリップ）は時計を繰り返さず、タイマー側スコアとショットクロックだけにする
+vm.runInContext(`
+  const recPbp = ['1\\t10:00\\t#4 2P成功\\t\\t',
+                  '1\\t09:30\\t\\t\\t#7 3P成功',
+                  '2\\t08:00\\t#4 2P成功\\t\\t'].join('\\n');
+  renderTournamentViewer({ name: 'テスト大会' }, [
+    { id: 'rec-timer', data: () => ({
+        teamAName: 'ゴルフ', teamBName: 'ホテル', gameNo: '10',
+        pbpData: recPbp, timerDeviceId: 'FLIPDEV', timerScoreFlip: false,
+        status: 'live', updatedAt: new Date().toISOString() }) },
+  ]);
+  renderViewerTimerStrips();
+`, ctx);
+{
+  const card = document.querySelector('.vt-game-detail[data-game-id="rec-timer"]');
+  const line = card.querySelector('.vt-scoreline');
+  const clk = line.querySelector('.vt-clock-inline');
+  const strip = card.querySelector('.vt-timer-strip');
+  results.recTimer = {
+    clockVisible: !!clk && clk.style.display !== 'none',
+    clock: clk ? clk.textContent : null,
+    // 時計はスコアAとスコアBの間（＝中央）に入る
+    order: [...line.children].map(c => c.className.split(' ')[0]),
+    scoreA: line.querySelector('.vt-score-a').textContent,
+    scoreB: line.querySelector('.vt-score-b').textContent,
+    dashHidden: line.querySelector('.vt-dash').style.display === 'none',
+    qHidden: line.querySelector('.vt-qlabel').style.display === 'none',
+    stripVisible: !!strip && strip.style.display !== 'none',
+    stripText: strip ? strip.textContent : '',
+  };
+  // 配信が止まったら（60秒以上未受信）時計は消え、「-」とクォーター表示が戻る
+  vm.runInContext(`
+    viewerTimerReceivedAt['FLIPDEV'] = Date.now() - 600000;
+    renderViewerTimerStrips();
+  `, ctx);
+  results.recTimerStopped = {
+    clockHidden: clk.style.display === 'none',
+    dashBack: line.querySelector('.vt-dash').style.display !== 'none',
+    qBack: line.querySelector('.vt-qlabel').style.display !== 'none',
+    scoreKept: line.querySelector('.vt-score-a').textContent,
+    stripHidden: strip.style.display === 'none',
+  };
+}
+
 // ===== テスト2: モーダル（game モード・PBPなし・リンク済み） =====
 vm.runInContext(`
   timerModalCtx = {
@@ -324,6 +371,23 @@ const checks = [
   ['ブラケット ライブスコア2枠', br.liveScoreCount === 2],
   ['ブラケット swap正常（アルファ=20/ガンマ=10）', br.sides[0] === 'b' && br.values[0] === '20' && br.sides[1] === 'a' && br.values[1] === '10'],
   ['ブラケット 時計＋Q表示', (br.clock || '').includes('2Q 5:30')],
+  ['記録中の試合にも時計を出す',
+    results.recTimer.clockVisible && results.recTimer.clock === '2Q 5:30', results.recTimer],
+  ['記録中の時計はスコアの中央',
+    results.recTimer.order[2] === 'vt-live-clock', results.recTimer.order],
+  ['記録中でもスコアは記録側の数字（4-3）',
+    results.recTimer.scoreA === '4' && results.recTimer.scoreB === '3', results.recTimer],
+  ['時計が出ている間は「-」とQ表示を隠す',
+    results.recTimer.dashHidden && results.recTimer.qHidden, results.recTimer],
+  ['帯はタイマー側スコアとショットのみ（時計は重複させない）',
+    results.recTimer.stripVisible &&
+    results.recTimer.stripText.includes('SHOT 14') &&
+    results.recTimer.stripText.includes('タイマー 10 - 20') &&
+    !results.recTimer.stripText.includes('5:30'), results.recTimer.stripText],
+  ['配信が止まったら時計を消して記録表示に戻す',
+    results.recTimerStopped.clockHidden && results.recTimerStopped.dashBack &&
+    results.recTimerStopped.qBack && results.recTimerStopped.scoreKept === '4' &&
+    results.recTimerStopped.stripHidden, results.recTimerStopped],
   ['編集者一覧 ライブスコア＋Q表示', gc.score === '20 - 10' && gc.clock.includes('2Q 5:30')],
   ['取得直後の時計表示', results.noInterpolation.justFetched === '3Q 7:20', results.noInterpolation],
   ['時計をローカルで進めない（設定した間隔でだけ動く）',
