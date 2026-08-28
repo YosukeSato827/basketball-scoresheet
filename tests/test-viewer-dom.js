@@ -244,6 +244,49 @@ vm.runInContext(`
   };
 }
 
+// ===== テスト1g: 速報URL（合言葉なし）は記録中でもタイマー側が正（2026.08.28-4） =====
+// 会場のスコアボードを正とするため、大きなスコアもタイマーの値にする。
+// タイマーが止まっている間だけ記録スコアに落として、注記でそれと分かるようにする
+vm.runInContext(`
+  viewerFullAccess = false;
+  viewerTimerReceivedAt['FLIPDEV'] = Date.now();
+  renderTournamentViewer({ name: 'テスト大会' }, [
+    { id: 'rec-pub', data: () => ({
+        teamAName: 'ゴルフ', teamBName: 'ホテル', gameNo: '10',
+        pbpData: recPbp, timerDeviceId: 'FLIPDEV', timerScoreFlip: false,
+        status: 'live', updatedAt: new Date().toISOString() }) },
+  ]);
+`, ctx);
+{
+  const card = document.querySelector('[data-game-id="rec-pub"]');
+  const line = card.querySelector('.vt-scoreline');
+  const note = card.querySelector('.vt-live-note');
+  const val = sel => (line.querySelector(sel) || {}).textContent;
+  results.pubTimer = {
+    noDetail: card.classList.contains('vt-no-detail'),
+    isLiveVariant: line.classList.contains('vt-live'),
+    scoreA: val('[data-live="a"]'), scoreB: val('[data-live="b"]'),   // タイマー home10/guest20
+    clock: val('.vt-live-clock'),
+    noQRow: !card.querySelector('.vt-qrow'),
+    noStrip: !card.querySelector('.vt-timer-strip'),
+    noteLive: note.querySelector('.vt-note-live').style.display !== 'none',
+    noteFallbackHidden: note.querySelector('.vt-note-fallback').style.display === 'none',
+  };
+  // 配信が止まったら記録スコア（4-3）に落として、注記を切り替える
+  vm.runInContext(`
+    viewerTimerReceivedAt['FLIPDEV'] = Date.now() - 600000;
+    renderViewerTimerStrips();
+  `, ctx);
+  results.pubTimerStopped = {
+    scoreA: val('[data-live="a"]'), scoreB: val('[data-live="b"]'),
+    clock: val('.vt-live-clock'),
+    noteFallback: note.querySelector('.vt-note-fallback').style.display !== 'none',
+    noteLiveHidden: note.querySelector('.vt-note-live').style.display === 'none',
+    dotHidden: note.querySelector('.vt-timer-live-dot').style.display === 'none',
+  };
+  vm.runInContext(`viewerFullAccess = true;`, ctx);
+}
+
 // ===== テスト2: モーダル（game モード・PBPなし・リンク済み） =====
 vm.runInContext(`
   timerModalCtx = {
@@ -384,6 +427,20 @@ const checks = [
     results.recTimer.stripText.includes('SHOT 14') &&
     results.recTimer.stripText.includes('タイマー 10 - 20') &&
     !results.recTimer.stripText.includes('5:30'), results.recTimer.stripText],
+  ['速報URL: 記録中でもタイマー表示（スコアも時計も）',
+    results.pubTimer.noDetail && results.pubTimer.isLiveVariant &&
+    results.pubTimer.scoreA === '10' && results.pubTimer.scoreB === '20' &&
+    results.pubTimer.clock === '2Q 5:30', results.pubTimer],
+  ['速報URL: 記録側のQ内訳と帯は出さない',
+    results.pubTimer.noQRow && results.pubTimer.noStrip, results.pubTimer],
+  ['速報URL: 注記はタイマー速報',
+    results.pubTimer.noteLive && results.pubTimer.noteFallbackHidden, results.pubTimer],
+  ['速報URL: タイマーが止まったら記録スコアに落とす',
+    results.pubTimerStopped.scoreA === '4' && results.pubTimerStopped.scoreB === '3' &&
+    results.pubTimerStopped.clock === '--:--', results.pubTimerStopped],
+  ['速報URL: 落ちたことが注記で分かる',
+    results.pubTimerStopped.noteFallback && results.pubTimerStopped.noteLiveHidden &&
+    results.pubTimerStopped.dotHidden, results.pubTimerStopped],
   ['配信が止まったら時計を消して記録表示に戻す',
     results.recTimerStopped.clockHidden && results.recTimerStopped.dashBack &&
     results.recTimerStopped.qBack && results.recTimerStopped.scoreKept === '4' &&

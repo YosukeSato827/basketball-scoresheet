@@ -1330,6 +1330,8 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
   display: flex; align-items: center; gap: 6px;
   font-size: 11px; font-weight: 600; color: #FF7043; margin-top: 4px;
 }
+/* タイマーが止まっている間の注記（そのときだけ記録スコアを出す） */
+.vt-note-fallback { color: var(--text-light); }
 .gc-score-live { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
 .gc-live-clock {
   font-family: 'Poppins', sans-serif; font-size: 11px; font-weight: 600;
@@ -3734,9 +3736,15 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.28-3';
+const APP_VERSION = '2026.08.28-4';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.28-4', notes: [
+    '速報URL（合言葉なし）では、ライブ記録中の試合もタイマーのスコアと時計を表示するようにしました',
+    '会場のスコアボードを正とするためで、記録の入力ミスがそのまま速報に出ないようにします',
+    '詳細URL（合言葉あり）は記録側のスコアを表示します（中央にタイマーの時計、下の帯にタイマー側のスコア）',
+    'タイマーが止まっている間だけ、速報URLでも記録スコアを出します（「記録スコア（タイマー停止中）」と表示）'
+  ] },
   { v: '2026.08.28-3', notes: [
     '写真から読み込みで「429」が出たとき、別のAIモデルで自動的に切り替えて再試行するようにしました',
     'エラー表示に、どの利用枠に当たったのかを出すようにしました',
@@ -10042,10 +10050,32 @@ function renderViewerTimerStrips() {
   document.querySelectorAll('.vt-scoreline.vt-live').forEach(el => {
     const live = getLive(el.dataset.timerDevice);
     const cEl = el.querySelector('.vt-live-clock');
-    if (!live) { if (cEl) cEl.textContent = '--:--'; return; }  // スコアは最後の値を維持
-    const ts = teamScores(live, el.dataset.timerFlip === '1');
     const aEl = el.querySelector('[data-live="a"]');
     const bEl = el.querySelector('[data-live="b"]');
+    // 記録もある試合（速報URL）は、タイマーが止まっている間だけ記録スコアに落とす。
+    // 空欄（–）のまま配信しないため。落ちていることは注記で分かるようにする（2026.08.28-4）
+    const note = el.parentElement ? el.parentElement.querySelector('.vt-live-note') : null;
+    const fbNote = note ? note.querySelector('.vt-note-fallback') : null;
+    const setNote = (isLive) => {
+      if (!fbNote) return;
+      const dot = note.querySelector('.vt-timer-live-dot');
+      const lv  = note.querySelector('.vt-note-live');
+      if (dot) dot.style.display = isLive ? '' : 'none';
+      if (lv)  lv.style.display  = isLive ? '' : 'none';
+      fbNote.style.display = isLive ? 'none' : '';
+    };
+    if (!live) {
+      if (cEl) cEl.textContent = '--:--';
+      setNote(false);
+      // 記録が無ければスコアは最後の値のまま（従来どおり）
+      if (el.dataset.fallbackA != null) {
+        if (aEl) aEl.textContent = el.dataset.fallbackA;
+        if (bEl) bEl.textContent = el.dataset.fallbackB;
+      }
+      return;
+    }
+    setNote(true);
+    const ts = teamScores(live, el.dataset.timerFlip === '1');
     if (aEl && ts.a != null) aEl.textContent = ts.a;
     if (bEl && ts.b != null) bEl.textContent = ts.b;
     const ct = clockText(live);
@@ -10213,31 +10243,38 @@ function renderTournamentViewer(tData, gameDocs) {
     const isGameLive = !IS_ARCHIVE && d.updatedAt && (now - new Date(d.updatedAt).getTime()) < 7200000 && plays.length > 0 && d.status !== 'finished';
     const graphSVG = plays.length > 1 ? buildScoreGraphSVG(plays, teamA, teamB) : '';
     const isOpen = expanded.has(gameId);
-    // タイマー取得試合（記録なし・未確定）：タイマーのスコアを正規のスコア欄に表示（中央に時計）
-    const isTimerLiveGame = !IS_ARCHIVE && d.timerDeviceId && d.status !== 'finished' && plays.length === 0;
+    // 詳細URL（合言葉あり）かどうか。速報URLとは表示の正を変える
+    const showDetail = viewerCanSee('detail');
     // タイマーが繋がっている未終了の試合（記録の有無を問わない）。
     // 記録ありの試合の LIVE は updatedAt（＝最後に記録した時刻）だけで判定していたため、
     // 「試合終了→終了取消→タイマー再連携」で記録が止まったままだと、配信中でもLIVEが出なかった。
     // 配信が生きている間は LIVE を点けるため、チップ自体は記録ありの試合にも出しておく
     const hasLiveTimer = !IS_ARCHIVE && d.timerDeviceId && d.status !== 'finished';
-    // ライブ記録中でも、タイマーの時計はスコア欄の中央に出す（2026.08.28-2）。
-    // 数字は記録側のまま（タイマーの配信が止まってもスコアが消えないように）で、
-    // タイマー側のスコアとショットクロックは下の帯に残す
-    const inlineTimerClock = hasLiveTimer && plays.length > 0;
+    // タイマーのスコアを正規のスコア欄に表示する（中央に時計）条件（2026.08.28-4）。
+    // ・記録なしの試合：従来どおりタイマー表示
+    // ・速報URL：記録があってもタイマー表示。会場のスコアボードが正で、
+    //   記録側の入力ミスをそのまま配信しないため（一般の閲覧者向け）
+    // ・詳細URL：記録側のスコアを出す（記録の確認が目的なので、記録した値を見せる）
+    const isTimerLiveGame = hasLiveTimer && (plays.length === 0 || !showDetail);
+    // 詳細URLで記録中の試合：数字は記録側のまま、中央に時計だけ足す（2026.08.28-2）。
+    // タイマー側のスコアとショットクロックは下の帯に出して突き合わせられるようにする
+    const inlineTimerClock = hasLiveTimer && plays.length > 0 && !isTimerLiveGame;
     // 黒ストリップはデジタルスコア記録中の試合の補助表示としてのみ使用
-    const timerStrip = (!IS_ARCHIVE && d.timerDeviceId && d.status !== 'finished' && plays.length > 0)
+    const timerStrip = (hasLiveTimer && plays.length > 0 && !isTimerLiveGame)
       ? `<div class="vt-timer-strip" data-timer-device="${escAttr(d.timerDeviceId)}" data-timer-flip="${d.timerScoreFlip ? 1 : 0}" style="display:none"></div>`
       : '';
     // 合計スコアは速報URLでも表示する（個人データのみ詳細URL限定）
     const scorelineHTML = isTimerLiveGame
-      ? `<div class="vt-scoreline vt-live" data-timer-device="${escAttr(d.timerDeviceId)}" data-timer-flip="${d.timerScoreFlip ? 1 : 0}">
+      ? `<div class="vt-scoreline vt-live" data-timer-device="${escAttr(d.timerDeviceId)}" data-timer-flip="${d.timerScoreFlip ? 1 : 0}"${
+          plays.length > 0 ? ` data-fallback-a="${totalA}" data-fallback-b="${totalB}"` : ''}>
           <span class="vt-team-name">${esc(teamA)}</span>
           <span class="vt-score-a" data-live="a">–</span>
           <span class="vt-live-clock">--:--</span>
           <span class="vt-score-b" data-live="b">–</span>
           <span class="vt-team-name">${esc(teamB)}</span>
         </div>
-        <div class="vt-live-note"><span class="vt-timer-live-dot"></span>タイマー速報（未確定）</div>`
+        <div class="vt-live-note"><span class="vt-timer-live-dot"></span><span class="vt-note-live">タイマー速報（未確定）</span>${
+          plays.length > 0 ? '<span class="vt-note-fallback" style="display:none">記録スコア（タイマー停止中）</span>' : ''}</div>`
       : `<div class="vt-scoreline">
           <span class="vt-team-name${winner==='A' ? ' vt-winner' : ''}">${esc(teamA)}</span>
           <span class="vt-score-a${winner==='A' ? ' vt-winner' : ''}">${totalA}</span>
@@ -10257,11 +10294,12 @@ function renderTournamentViewer(tData, gameDocs) {
         <span class="vt-qcell-b">${st.qScore.B[i]||0}</span>
       </span>`;
     }).join('');
-    // 確定スコアのみ／タイマー速報の試合はクォーター内訳（全て0）を出さない
+    // 確定スコアのみ／タイマー速報の試合はクォーター内訳を出さない。
+    // 速報URLの記録中の試合もここに入る（大きな数字はタイマー側なので、
+    // 記録側のクォーター内訳を並べると合計と食い違って見える）
     const qRowHTML = (usingFinalScore || isTimerLiveGame) ? '' : `<div class="vt-qrow">${qRow}</div>`;
     // 速報URLでは個人データ（スコアシート・記録用紙の写真とも）を出さないため、カードを開けない
-    const hasSheetPhotos = viewerCanSee('detail') && (d.sheetPhotos || []).length > 0;
-    const showDetail = viewerCanSee('detail');
+    const hasSheetPhotos = showDetail && (d.sheetPhotos || []).length > 0;
 
     // 詳細を見せない場合は details ではなく通常の枠として描画（開けない）
     if (!showDetail) {
