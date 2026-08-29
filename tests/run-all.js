@@ -14,6 +14,7 @@ const files = [
   'test-timer-delay.js',   // 記録画面のタイマー同期（遅れ表示・補間）
   'test-league.js',        // 予選リーグの順位計算
   'test-league-editor.js', // リーグのブロック編集
+  'test-photo-upload.js',  // スコアシート写真のアップロード（複数枚・進捗・継続）
 ];
 
 let ng = 0;

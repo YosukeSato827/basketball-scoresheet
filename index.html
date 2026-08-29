@@ -1136,6 +1136,31 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
   padding: 2px 8px; font-size: 10px; font-weight: 700; cursor: pointer; font-family: inherit;
 }
 .sheet-photo-progress { font-size: 12px; color: var(--blue); font-weight: 600; margin-top: 6px; }
+/* まだ送信できていない枚数を、写真と同じ大きさの枠で見せる */
+.sheet-photo-pending {
+  width: 132px; height: 99px; border-radius: 8px;
+  border: 1px dashed var(--blue); background: #f5f8fd;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600; color: var(--blue);
+}
+/* アップロードの進捗（モーダルを閉じても出したままにする常時表示） */
+.photo-upload-status {
+  display: none; position: fixed; left: 12px; bottom: 12px; z-index: 9998;
+  background: white; border-radius: 12px; padding: 8px 13px 9px;
+  box-shadow: 0 2px 12px rgba(0,0,0,.2);
+  font-size: 11.5px; font-weight: 600; color: var(--blue);
+  min-width: 170px; max-width: 60vw; user-select: none; pointer-events: none;
+}
+.photo-upload-status.show { display: block; }
+.pu-label { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.pu-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--blue); flex: none;
+  animation: pu-blink 1.2s ease-in-out infinite;
+}
+@keyframes pu-blink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+.pu-bar { height: 4px; border-radius: 3px; background: #e3e8ef; margin-top: 6px; overflow: hidden; }
+.pu-fill { height: 100%; width: 0; background: var(--blue); border-radius: 3px; transition: width .2s linear; }
+@media print { .photo-upload-status { display: none !important; } }
 .btn-photo.has-photo { background: var(--blue); color: #fff; border-color: var(--blue); }
 /* 拡大表示 */
 .photo-lightbox {
@@ -1703,6 +1728,16 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
 }
 .rec-shot-display.warning { color: #FFAB40; }
 .rec-shot-display.danger  { color: #FFAB40; }
+/* タイマー実機のスコア・クォーター（2026.08.30-2）。
+   大きいスコアは記録側の値なので、こちらは突き合わせ用に小さく添えるだけ */
+.rec-timer-live {
+  display: flex; align-items: center; gap: 5px;
+  background: #3a3a3a; border-radius: 5px; padding: 1px 7px;
+  font-family: 'Poppins', sans-serif; line-height: 1.2; white-space: nowrap;
+}
+.rec-tl-tag { font-size: 8px; font-weight: 600; color: rgba(255,255,255,.5); letter-spacing: .08em; }
+.rec-tl-q { font-size: 11px; font-weight: 600; color: #FFD600; }
+.rec-tl-score { font-size: 12px; font-weight: 700; color: #fff; }
 /* タイマー同期：中身が空だと灰色の丸にしか見えないので、時計アイコン＋「同期」を出す
    （絵文字を廃止したときに中身ごと消えて空欄になっていた） */
 .rec-timer-sync-btn {
@@ -2689,6 +2724,9 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
   .rec-team-box { padding: 6px 10px; gap: 8px; border-radius: 10px; }
   #view-recorder .rec-timer-display { font-size: 20px; min-width: 72px; }
   .rec-shot-display { font-size: 15px; }
+  .rec-timer-live { gap: 4px; padding: 1px 6px; }
+  .rec-tl-q { font-size: 10px; }
+  .rec-tl-score { font-size: 11px; }
   .rec-pbp-select { font-size: 10px; padding: 3px 2px; }
 }
 
@@ -2722,6 +2760,14 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
   .rec-shot-clock-wrap { padding: 1px 6px; }
   .rec-shot-label { font-size: 7px; }
   .rec-shot-display { font-size: 13px; }
+  .rec-timer-live { gap: 4px; padding: 0 6px; }
+  /* 横持ちは1行に全部並べるので幅が足りない。時計のすぐ隣にあれば分かるのでラベルは省く */
+  .rec-tl-tag { display: none; }
+  .rec-tl-q { font-size: 9px; }
+  .rec-tl-score { font-size: 10px; }
+  /* 中央が広がったぶん、長いチーム名は「…」で省略させて右のスコアを画面内に残す。
+     min-width を 0 にしないと flex の既定（min-content）で縮まず、そのまま横にはみ出す */
+  .rec-score-team, .rec-team-box, .rec-score-name { min-width: 0; }
   .rec-timer-btns { gap: 5px; align-items: center; }
   #view-recorder .rec-timer-btn,
   #view-recorder .rec-timer-reset { width: 24px; height: 24px; font-size: 11px; }
@@ -2877,6 +2923,12 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
 <div id="net-status" class="net-status online">
   <span class="net-dot"></span>
   <span class="net-label">オンライン</span>
+</div>
+
+<!-- 写真アップロードの進捗。モーダルを閉じても・別の画面へ移っても出したままにする -->
+<div id="photo-upload-status" class="photo-upload-status" role="status" aria-live="polite">
+  <div class="pu-label"><span class="pu-dot"></span><span id="photo-upload-text"></span></div>
+  <div class="pu-bar"><div class="pu-fill" id="photo-upload-fill"></div></div>
 </div>
 
 <!-- メンバー管理モーダル -->
@@ -3118,9 +3170,10 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
     <div class="form-group" style="margin-top:12px">
       <label>写真を追加（複数選択できます）</label>
       <input type="file" id="sheet-photo-input" accept="image/*" multiple
-        onchange="uploadSheetPhotos(this.files); this.value='';">
+        onchange="uploadSheetPhotos(Array.from(this.files)); this.value='';">
       <div style="font-size:10.5px;color:var(--text-light);margin-top:4px">
-        ※ スマホではカメラで撮影できます。保存時に自動で圧縮されます
+        ※ スマホではカメラで撮影できます。保存時に自動で圧縮されます<br>
+        ※ このウィンドウを閉じても保存は続きます（進捗は画面の左下に出ます）
       </div>
       <div id="sheet-photo-progress" class="sheet-photo-progress" style="display:none"></div>
     </div>
@@ -3369,6 +3422,12 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
             <span class="rec-shot-label">SHOT</span>
             <span class="rec-shot-display" id="rec-shot-clock">24</span>
           </div>
+        </div>
+        <!-- タイマー実機のスコア・クォーター（同期ONで値が届いているときだけ出す） -->
+        <div class="rec-timer-live" id="rec-timer-live" style="display:none">
+          <span class="rec-tl-tag">TIMER</span>
+          <span class="rec-tl-q" id="rec-tl-q"></span>
+          <span class="rec-tl-score" id="rec-tl-score"></span>
         </div>
         <div class="rec-timer-btns">
           <button class="rec-timer-btn" id="rec-timer-btn" onclick="toggleRecTimer()">▶</button>
@@ -3745,9 +3804,19 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.30-1';
+const APP_VERSION = '2026.08.30-2';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.30-2', notes: [
+    '記録画面のタイマー同期で、時計に加えてタイマー実機のスコアとクォーターも小さく表示するようにしました',
+    '記録している点数と会場のスコアボードがずれていないか、その場で見比べられます',
+    'スコアシートの写真を2枚以上まとめて選んだとき、1枚目しか保存されなかったのを直しました',
+    'アップロード中の進み具合をパーセントで出すようにしました（○枚目/全○枚 と％）',
+    '写真のウィンドウを閉じても、別の画面へ移っても、保存はそのまま続きます（進み具合は画面の左下に出ます）',
+    '保存は1枚ごとに試合データへ反映します（途中で閉じても、送れたぶんは残ります）',
+    '写真の送信中は画面が消えないようにしました（消灯で通信が止まる端末があるため）',
+    '送信に失敗したときは同じ写真を3回まで送り直します。Wi-Fiが切れた場合は復帰を待ちます'
+  ] },
   { v: '2026.08.30-1', notes: [
     'タイマーの配信が止まったことを速報ページが検知できるようにしました（Bluetooth切れ対策）',
     'これまでは、止まっていても取得自体は成功するため、止まった時計がLIVEのまま出ていました',
@@ -8160,7 +8229,10 @@ let timerSyncState = {
   gameSec: null,    // 最後に受信したゲームクロック（秒）
   shotSec: null,    // 最後に受信したショットクロック（秒）
   running: false,   // カウント中か
-  receivedAt: 0     // 受信時刻（Date.now()）
+  receivedAt: 0,    // 受信時刻（Date.now()）
+  period: '',       // クォーター表示（"2Q" / "OT"）。受信時に整形して入れる
+  scoreA: null,     // タイマー実機のスコア（チームA側。向きは受信時に解決済み）
+  scoreB: null
 };
 
 // 補間して表示を更新（カウント中はローカルで減算）
@@ -8188,6 +8260,21 @@ function renderSyncedTimer() {
     const sv = Math.ceil(shotSec);
     shotEl.textContent = String(sv);
     shotEl.className = 'rec-shot-display' + (sv <= 5 ? ' danger' : sv <= 10 ? ' warning' : '');
+  }
+  // タイマー実機のスコア・クォーター。時計と違って補間するものが無いので受信値をそのまま出す。
+  // 片方しか届かない機種もあるので、届いた項目だけ出し、何も無ければ行ごと隠す
+  const liveEl = document.getElementById('rec-timer-live');
+  if (liveEl) {
+    const qEl = document.getElementById('rec-tl-q');
+    const sEl = document.getElementById('rec-tl-score');
+    const q = timerSyncState.period || '';
+    const hasScore = timerSyncState.scoreA != null && timerSyncState.scoreB != null;
+    if (qEl) { qEl.textContent = q; qEl.style.display = q ? '' : 'none'; }
+    if (sEl) {
+      sEl.textContent = hasScore ? `${timerSyncState.scoreA} - ${timerSyncState.scoreB}` : '';
+      sEl.style.display = hasScore ? '' : 'none';
+    }
+    liveEl.style.display = (q || hasScore) ? '' : 'none';
   }
 }
 
@@ -8636,6 +8723,14 @@ function _applyRecorderTimerData(data) {
   if (shotSec != null) { timerSyncState.shotSec = shotSec; accepted = true; }
   timerSyncState.running = running;
   if (accepted) timerSyncState.receivedAt = Date.now();
+  // スコアの向き（timerScoreFlip）はここで解決して state に入れる。
+  // renderSyncedTimer は state と DOM だけを見るようにしておく
+  const sc = data.scores || {};
+  const num = v => (v == null || v === '' || isNaN(Number(v))) ? null : Number(v);
+  const home = num(sc.home), guest = num(sc.guest);
+  timerSyncState.scoreA = recTimerScoreFlip ? guest : home;
+  timerSyncState.scoreB = recTimerScoreFlip ? home  : guest;
+  timerSyncState.period = _fmtPeriod(data.period);
   renderSyncedTimer();
   updateTimerSyncStatus();
 }
@@ -8646,7 +8741,10 @@ function stopTimerSync() {
   timerSyncMode = false;
   timerLastUpdatedAt = null;
   timerSyncLagMs = null;
-  timerSyncState = { gameSec: null, shotSec: null, running: false, receivedAt: 0 };
+  timerSyncState = { gameSec: null, shotSec: null, running: false, receivedAt: 0,
+                     period: '', scoreA: null, scoreB: null };
+  const liveEl = document.getElementById('rec-timer-live');
+  if (liveEl) liveEl.style.display = 'none';
   const btn = document.getElementById('timer-sync-btn');
   if (btn) btn.classList.remove('active');
   updateTimerSyncStatus();
@@ -9521,6 +9619,65 @@ async function applyRosterToGame(teamId) {
 let sheetPhotoGameId = null;   // 編集中の試合
 let sheetPhotoGame   = null;   // その試合データ
 
+// --- アップロードの待ち行列（2026.08.30-2）-------------------------------
+// モーダルを閉じても・別の画面へ移っても続けたいので、進行中の状態は
+// 画面ではなくこの待ち行列だけに持つ。画面側はこの状態を見て描き直すだけ
+const photoUploadQueue  = [];    // { gameId, file } を先頭から1枚ずつ処理する
+let photoUploadRunning  = false;
+let photoUploadTotal    = 0;     // いま受け付けている合計枚数
+let photoUploadDone     = 0;     // うち保存できた枚数
+let photoUploadFailed   = 0;     // うち失敗した枚数
+let photoUploadRatio    = 0;     // 送信中の1枚の進み具合（0〜1）
+let photoUploadPhase    = '';    // 「準備中」など、パーセントに添える状態
+let photoUploadWakeLock = null;  // 送信中は画面を消灯させない
+
+// 送信中にスリープすると、端末によっては通信ごと止まる
+async function acquirePhotoWakeLock() {
+  try {
+    if (!navigator.wakeLock || photoUploadWakeLock) return;
+    photoUploadWakeLock = await navigator.wakeLock.request('screen');
+    photoUploadWakeLock.addEventListener('release', () => { photoUploadWakeLock = null; });
+  } catch (e) { /* 取れなくても送信自体は続く */ }
+}
+function releasePhotoWakeLock() {
+  try { if (photoUploadWakeLock) photoUploadWakeLock.release(); } catch (e) { /* 解放済み */ }
+  photoUploadWakeLock = null;
+}
+// ブラウザは画面が非表示になると勝手に手放すので、戻ってきたら取り直す
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && photoUploadRunning) acquirePhotoWakeLock();
+});
+// 送信の途中で閉じられると、その写真は消える
+window.addEventListener('beforeunload', e => {
+  if (!photoUploadRunning) return;
+  e.preventDefault();
+  e.returnValue = '';
+});
+
+// 左下の常時表示バッジと、モーダル内の行を同じ内容で書き換える
+function renderPhotoUploadProgress() {
+  const badge = document.getElementById('photo-upload-status');
+  const prog  = document.getElementById('sheet-photo-progress');
+  if (!photoUploadRunning) {
+    if (badge) badge.classList.remove('show');
+    if (prog)  { prog.style.display = 'none'; prog.textContent = ''; }
+    return;
+  }
+  // 全体に対する割合。送信中の1枚ぶんも小数で足すので、1枚でも数字が動く
+  const pct = photoUploadTotal
+    ? Math.min(100, Math.round(((photoUploadDone + photoUploadFailed + photoUploadRatio) / photoUploadTotal) * 100))
+    : 0;
+  const nth  = Math.min(photoUploadDone + photoUploadFailed + 1, photoUploadTotal);
+  const text = `写真を保存中 ${nth}/${photoUploadTotal}　${pct}%` +
+               (photoUploadPhase ? `（${photoUploadPhase}）` : '');
+  if (badge) {
+    badge.classList.add('show');
+    document.getElementById('photo-upload-text').textContent = text;
+    document.getElementById('photo-upload-fill').style.width = pct + '%';
+  }
+  if (prog) { prog.style.display = ''; prog.textContent = text; }
+}
+
 // 大きすぎる写真は縮小してから保存する（通信量と保存容量を抑える）
 function compressImageFile(file, maxSide = 2000, quality = 0.82) {
   return new Promise((resolve, reject) => {
@@ -9562,9 +9719,12 @@ async function openSheetPhotoModal(gameId) {
 }
 
 function renderSheetPhotoList() {
-  const photos = (sheetPhotoGame && sheetPhotoGame.sheetPhotos) || [];
   const el = document.getElementById('sheet-photo-list');
-  if (!photos.length) {
+  if (!el) return;
+  const photos = (sheetPhotoGame && sheetPhotoGame.sheetPhotos) || [];
+  // この試合ぶんで、まだ送信できていない枚数（送信中の1枚を含む）
+  const pending = photoUploadQueue.filter(j => j.gameId === sheetPhotoGameId).length;
+  if (!photos.length && !pending) {
     el.innerHTML = '<div class="timer-device-empty">まだ写真がありません。<br>下の欄から撮影・選択してください。</div>';
     return;
   }
@@ -9572,38 +9732,132 @@ function renderSheetPhotoList() {
     <div class="sheet-photo-item">
       <img src="${escAttr(p.url)}" alt="スコアシート${i + 1}" onclick="openPhotoLightbox('${escAttr(p.url)}')">
       <button class="sheet-photo-del" onclick="deleteSheetPhoto(${i})">削除</button>
-    </div>`).join('');
+    </div>`).join('')
+    + Array.from({ length: pending }, () =>
+        '<div class="sheet-photo-pending">保存中...</div>').join('');
 }
 
-async function uploadSheetPhotos(files) {
-  if (!files || !files.length || !sheetPhotoGameId) return;
+// ファイル選択の受け口。
+// input.files は「生きた一覧」で、呼び出し側の this.value='' で中身が空になる。
+// 非同期処理に FileList のまま渡すと、最初の await の後に長さが 0 になり、
+// 2枚目以降が黙って消える（2枚選ぶと1枚しか保存されなかった原因）。
+// 必ず配列に写してから待ち行列へ入れる
+function uploadSheetPhotos(files) {
+  const list = Array.from(files || []);
+  if (!list.length) return;
+  if (!sheetPhotoGameId) { showToast('試合が選ばれていません'); return; }
   if (!storage) { showToast('写真の保存機能が利用できません'); return; }
-  if (!isOnline) { showToast('オフラインのため写真を保存できません', 4000); return; }
-  const prog = document.getElementById('sheet-photo-progress');
-  prog.style.display = '';
-  const added = [];
-  try {
-    for (let i = 0; i < files.length; i++) {
-      prog.textContent = `アップロード中... (${i + 1}/${files.length})`;
-      const blob = await compressImageFile(files[i]);
-      const name = `${Date.now()}_${i}.jpg`;
-      const path = `score_sheets/${sheetPhotoGameId}/${name}`;
-      const ref = storage.ref(path);
-      await ref.put(blob, { contentType: 'image/jpeg' });
-      const url = await ref.getDownloadURL();
-      added.push({ url, path, uploadedAt: new Date().toISOString() });
-    }
-    const photos = ((sheetPhotoGame && sheetPhotoGame.sheetPhotos) || []).concat(added);
-    await db.collection('games').doc(sheetPhotoGameId).update({ sheetPhotos: photos });
-    sheetPhotoGame.sheetPhotos = photos;
-    renderSheetPhotoList();
-    track('upload_score_sheet', { count: added.length, tournament_id: currentTournamentId || '' });
-    showToast(`写真を${added.length}枚保存しました`);
-  } catch (e) {
-    showToast('保存エラー: ' + e.message, 5000);
-  } finally {
-    prog.style.display = 'none';
+  const gameId = sheetPhotoGameId;   // 途中でモーダルを閉じられても迷子にしない
+  // 前の一連が終わっていれば数え直す（終わったぶんを引きずらない）
+  if (!photoUploadRunning) { photoUploadTotal = 0; photoUploadDone = 0; photoUploadFailed = 0; }
+  list.forEach(file => photoUploadQueue.push({ gameId, file }));
+  photoUploadTotal += list.length;
+  renderPhotoUploadProgress();
+  renderSheetPhotoList();
+  runPhotoUploadQueue();
+}
+
+// 会場内の移動でWi-Fiが切れることがあるので、少しだけ戻りを待つ
+async function waitForOnline(maxMs = 60000) {
+  if (isOnline) return;
+  const until = Date.now() + maxMs;
+  photoUploadPhase = '接続待ち';
+  renderPhotoUploadProgress();
+  while (!isOnline && Date.now() < until) {
+    await new Promise(r => setTimeout(r, 2000));
   }
+  photoUploadPhase = '';
+  renderPhotoUploadProgress();
+}
+
+// 待ち行列を空になるまで1枚ずつ処理する。動いている間は1本だけ走らせる
+async function runPhotoUploadQueue() {
+  if (photoUploadRunning) return;
+  photoUploadRunning = true;
+  acquirePhotoWakeLock();
+  renderPhotoUploadProgress();
+  while (photoUploadQueue.length) {
+    const job = photoUploadQueue[0];
+    photoUploadRatio = 0;
+    photoUploadPhase = '準備中';
+    renderPhotoUploadProgress();
+    try {
+      await uploadOneSheetPhoto(job);
+      photoUploadDone++;
+    } catch (e) {
+      photoUploadFailed++;
+      showToast('写真の保存に失敗しました: ' + e.message, 5000);
+    }
+    photoUploadQueue.shift();
+    photoUploadRatio = 0;
+    photoUploadPhase = '';
+    renderPhotoUploadProgress();
+    renderSheetPhotoList();
+  }
+  photoUploadRunning = false;
+  releasePhotoWakeLock();
+  renderPhotoUploadProgress();
+  if (photoUploadDone) {
+    track('upload_score_sheet', { count: photoUploadDone, tournament_id: currentTournamentId || '' });
+  }
+  if (photoUploadFailed) {
+    showToast(`写真を${photoUploadDone}枚保存しました（${photoUploadFailed}枚は失敗）`, 6000);
+  } else if (photoUploadDone) {
+    showToast(`写真を${photoUploadDone}枚保存しました`);
+  }
+}
+
+// 1枚ぶん。回線が不安定な会場を想定して、同じ保存先へ3回まで送り直す
+async function uploadOneSheetPhoto(job) {
+  const blob = await compressImageFile(job.file);
+  photoUploadPhase = '';
+  photoUploadRatio = 0;
+  renderPhotoUploadProgress();
+
+  // 保存先は最初に決めておく。送り直しは同じ場所へ上書きするので、
+  // 失敗したぶんがゴミとして残らない
+  const name = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`;
+  const path = `score_sheets/${job.gameId}/${name}`;
+  const ref  = storage.ref(path);
+
+  let lastErr = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt) {
+      photoUploadPhase = '送り直し中';
+      photoUploadRatio = 0;
+      renderPhotoUploadProgress();
+      await new Promise(r => setTimeout(r, 1500));
+      photoUploadPhase = '';
+    }
+    await waitForOnline();
+    try {
+      // put() は UploadTask を返す。進み具合はここから受け取る
+      await new Promise((resolve, reject) => {
+        const task = ref.put(blob, { contentType: 'image/jpeg' });
+        task.on('state_changed',
+          snap => {
+            photoUploadRatio = snap.totalBytes ? snap.bytesTransferred / snap.totalBytes : 0;
+            renderPhotoUploadProgress();
+          },
+          reject,
+          resolve);
+      });
+      const url = await ref.getDownloadURL();
+      const entry = { url, path, uploadedAt: new Date().toISOString() };
+      // 1枚ごとに試合データへ足す。最後にまとめて書くと、
+      // 途中でアプリを閉じられたぶんが行き場を失う。
+      // arrayUnion なので、別の端末が同時に足しても消し合わない
+      await db.collection('games').doc(job.gameId)
+        .update({ sheetPhotos: firebase.firestore.FieldValue.arrayUnion(entry) });
+      if (sheetPhotoGame && sheetPhotoGameId === job.gameId) {
+        sheetPhotoGame.sheetPhotos = (sheetPhotoGame.sheetPhotos || []).concat(entry);
+      }
+      return;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr || new Error('送信できませんでした');
 }
 
 async function deleteSheetPhoto(index) {
@@ -9616,9 +9870,11 @@ async function deleteSheetPhoto(index) {
     if (target.path && storage) {
       await storage.ref(target.path).delete().catch(() => { /* 既に無い場合は無視 */ });
     }
-    const rest = photos.filter((_, i) => i !== index);
-    await db.collection('games').doc(sheetPhotoGameId).update({ sheetPhotos: rest });
-    sheetPhotoGame.sheetPhotos = rest;
+    // 配列ごと上書きすると、裏で進んでいるアップロードのぶんを消してしまう。
+    // arrayRemove なら、その1件だけを外せる
+    await db.collection('games').doc(sheetPhotoGameId)
+      .update({ sheetPhotos: firebase.firestore.FieldValue.arrayRemove(target) });
+    sheetPhotoGame.sheetPhotos = photos.filter((_, i) => i !== index);
     renderSheetPhotoList();
     showToast('写真を削除しました');
   } catch (e) { showToast('削除エラー: ' + e.message); }
