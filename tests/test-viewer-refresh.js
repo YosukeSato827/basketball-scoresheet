@@ -117,7 +117,7 @@ const pollKey = (opts, viewerSec, editorSec) => {
     IS_ARCHIVE: false, viewerRefreshSec: viewerSec, editorRefreshSec: editorSec,
     viewerTimerAlwaysPoll: false, viewerTimerSourceDocs: [],
     viewerTimerPollIv: null, viewerTimerPollKey: '', viewerTimerIv: null,
-    viewerTimerData: {}, viewerTimerReceivedAt: {},
+    viewerTimerData: {}, viewerTimerReceivedAt: {}, viewerTimerRetryAt: {},
     fetchViewerTimers: () => {}, renderViewerTimerStrips: () => {},
     setInterval: () => 1, clearInterval: () => {},
   };
@@ -136,7 +136,7 @@ t('終了済みの試合は取得対象にしない', (() => {
     IS_ARCHIVE: false, viewerRefreshSec: 10, editorRefreshSec: 3,
     viewerTimerAlwaysPoll: false, viewerTimerSourceDocs: [],
     viewerTimerPollIv: null, viewerTimerPollKey: '', viewerTimerIv: null,
-    viewerTimerData: {}, viewerTimerReceivedAt: {},
+    viewerTimerData: {}, viewerTimerReceivedAt: {}, viewerTimerRetryAt: {},
     fetchViewerTimers: () => {}, renderViewerTimerStrips: () => {},
     setInterval: () => 1, clearInterval: () => {},
   };

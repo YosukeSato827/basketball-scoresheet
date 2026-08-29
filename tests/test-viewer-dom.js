@@ -46,7 +46,7 @@ const ctx = {
   viewerLastTData: null, viewerLastGameDocs: [],
   viewerBrackets: [],
   viewerTimerUnsubscribe: null, viewerTimerIv: null,
-  viewerTimerData: {}, viewerTimerReceivedAt: {},
+  viewerTimerData: {}, viewerTimerReceivedAt: {}, viewerTimerRetryAt: {},
   timerModalCtx: null,
   recTimerDeviceId: null, recTimerScoreFlip: false,
   isOnline: true,
@@ -67,7 +67,7 @@ vm.runInContext(`const escAttr = s => esc(s).replace(/"/g, '&quot;').replace(/'/
 const fns = [
   'parsePBP', 'parseEvent', 'extractPlayer', 'buildState',
   '_rawClockValue', '_parseGameClockSec', '_parseShotClockSec', '_fmtGameClock', '_fmtPeriod', '_extractRunning', '_timerDocMs',
-  '_viewerApplyTimerData', 'renderViewerTimerStrips', 'timerDeviceUsedBy',
+  '_timerDataChanged', '_viewerApplyTimerData', 'renderViewerTimerStrips', 'timerDeviceUsedBy',
   'renderTournamentViewer', 'renderTimerModalSections', 'renderTimerDeviceList',
   'computeBracket', 'bracketRoundName', 'renderBracketHTML',
   'resolveEntryName', '_gameScorePair', 'rankLeagueTeams', 'leagueMatchId', 'computeLeagueGroup',
@@ -230,7 +230,8 @@ vm.runInContext(`
     stripVisible: !!strip && strip.style.display !== 'none',
     stripText: strip ? strip.textContent : '',
   };
-  // 配信が止まったら（60秒以上未受信）時計は消え、「-」とクォーター表示が戻る
+  // 配信が止まったら（90秒以上未受信）差し込んだ時計は消え、「-」とクォーター表示が戻る。
+  // 帯は消さず「受信停止中」を添えて最後に受信した値を残す（2026.08.30-1）
   vm.runInContext(`
     viewerTimerReceivedAt['FLIPDEV'] = Date.now() - 600000;
     renderViewerTimerStrips();
@@ -240,8 +241,16 @@ vm.runInContext(`
     dashBack: line.querySelector('.vt-dash').style.display !== 'none',
     qBack: line.querySelector('.vt-qlabel').style.display !== 'none',
     scoreKept: line.querySelector('.vt-score-a').textContent,
-    stripHidden: strip.style.display === 'none',
+    stripShown: strip.style.display !== 'none',
+    stripText: strip.textContent,
   };
+  // 1時間を超えたら帯ごと消す（古い数字を出し続けない）
+  vm.runInContext(`
+    viewerTimerReceivedAt['FLIPDEV'] = Date.now() - 4000000;
+    renderViewerTimerStrips();
+  `, ctx);
+  results.recTimerDropped = { stripHidden: strip.style.display === 'none' };
+  vm.runInContext(`viewerTimerReceivedAt['FLIPDEV'] = Date.now();`, ctx);
 }
 
 // ===== テスト1g: 速報URL（合言葉なし）は記録中でもタイマー側が正（2026.08.28-4） =====
@@ -479,10 +488,16 @@ const checks = [
   ['速報URL: 落ちたことが注記で分かる',
     results.pubTimerStopped.noteFallback && results.pubTimerStopped.noteLiveHidden &&
     results.pubTimerStopped.dotHidden, results.pubTimerStopped],
-  ['配信が止まったら時計を消して記録表示に戻す',
+  ['配信が止まったら差し込んだ時計を消して記録表示に戻す',
     results.recTimerStopped.clockHidden && results.recTimerStopped.dashBack &&
-    results.recTimerStopped.qBack && results.recTimerStopped.scoreKept === '4' &&
-    results.recTimerStopped.stripHidden, results.recTimerStopped],
+    results.recTimerStopped.qBack && results.recTimerStopped.scoreKept === '4',
+    results.recTimerStopped],
+  ['配信が止まっても帯は「受信停止中」で最後の値を残す',
+    results.recTimerStopped.stripShown &&
+    results.recTimerStopped.stripText.includes('受信停止中') &&
+    results.recTimerStopped.stripText.includes('タイマー 10 - 20'), results.recTimerStopped],
+  ['1時間以上なにも届かなければ帯ごと消す',
+    results.recTimerDropped.stripHidden, results.recTimerDropped],
   ['編集者一覧 ライブスコア＋Q表示', gc.score === '20 - 10' && gc.clock.includes('2Q 5:30')],
   ['取得直後の時計表示', results.noInterpolation.justFetched === '3Q 7:20', results.noInterpolation],
   ['時計をローカルで進めない（設定した間隔でだけ動く）',

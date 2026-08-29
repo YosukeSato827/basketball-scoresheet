@@ -1332,6 +1332,15 @@ td.rs-jersey.q-5, td.rs-jersey.q-6 { --mark-color: #1565c0; }
 }
 /* タイマーが止まっている間の注記（そのときだけ記録スコアを出す） */
 .vt-note-fallback { color: var(--text-light); }
+/* 受信停止中の表示。最後に受信した数字は残したまま、動いていないことを淡さで示す。
+   1時間以上なにも届かなければ数字自体を消す（描画側で「–」に戻す） */
+.vt-scoreline.vt-stale .vt-score-a, .vt-scoreline.vt-stale .vt-score-b,
+.gc-score-live.vt-stale .gc-live-score { color: var(--text-light); }
+.vt-scoreline.vt-stale .vt-live-clock, .gc-score-live.vt-stale .gc-live-clock {
+  background: #f4f5f6; color: var(--text-light); border-color: #e6e8ea;
+}
+/* 運営画面の帯（gc-timer-strip）は淡くしない。「更新なし」を目立たせるのが目的なので */
+.vt-timer-strip.vt-strip-stopped:not(.gc-timer-strip) { opacity: .6; }
 .gc-score-live { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
 .gc-live-clock {
   font-family: 'Poppins', sans-serif; font-size: 11px; font-weight: 600;
@@ -3736,9 +3745,19 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.28-5';
+const APP_VERSION = '2026.08.30-1';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.30-1', notes: [
+    'タイマーの配信が止まったことを速報ページが検知できるようにしました（Bluetooth切れ対策）',
+    'これまでは、止まっていても取得自体は成功するため、止まった時計がLIVEのまま出ていました',
+    '90秒なにも届かなければ「受信停止中」と出し、LIVEマークを消します',
+    'そのときスコアと時計は、最後に受信した値をそのまま残します（薄い表示に変わります）',
+    '1時間なにも届かなければ数字も消します（古いスコアを出し続けないため）',
+    '記録がある試合は、受信が止まっている間だけ記録スコアに切り替えます',
+    '運営画面の試合一覧には「● 更新なし N秒」を出して、Bluetoothの切断に早く気づけるようにしました',
+    '記録画面のタイマー状態も、値が古いだけの「遅れ」と、何も届かない「更新なし」を分けて出します'
+  ] },
   { v: '2026.08.28-5', notes: [
     '速報URLでは、クォーター内訳（1Q 3-1 …）を出さないようにしました',
     '終了した試合の表示も「4Q」ではなく「終了」に揃えました',
@@ -8050,6 +8069,15 @@ function updateTimerSyncStatus() {
   el.title = hasLag
     ? `タイマー実機からの遅れ（配信 ${(timerSyncLagMs / 1000).toFixed(1)}秒 ＋ 受信後 ${sinceRecv.toFixed(1)}秒）`
     : '最後にデータを受け取ってからの経過時間';
+  // 新しい値がひとつも届かなくなった状態は「遅れ」ではなく「配信の停止」。
+  // TimerLink の Bluetooth が切れると、遅れずに“何も来なくなる”ので言葉を分ける。
+  // timerLastUpdatedAt は onSnapshot（＝実際に中身が変わったときだけ）で進む
+  if (sinceRecv >= 15) {
+    el.textContent = `● 更新なし ${sinceRecv >= 60 ? Math.floor(sinceRecv / 60) + '分' : Math.floor(sinceRecv) + '秒'}`;
+    el.className = 'rec-timer-sync-status offline';
+    el.title = 'タイマーから新しい値が届いていません。TimerLink 端末の Bluetooth 接続を確認してください';
+    return;
+  }
   if (age < 3)  { el.textContent = '● LIVE';    el.className = 'rec-timer-sync-status live'; }
   else if (age < 10) { el.textContent = `● ${Math.floor(age)}秒${unit}`; el.className = 'rec-timer-sync-status stale'; }
   else if (age < 60) { el.textContent = `● ${Math.floor(age)}秒${unit}`; el.className = 'rec-timer-sync-status offline'; }
@@ -9892,7 +9920,8 @@ let viewerTimerIv = null;       // LIVE表示の期限切れチェック（通�
 let viewerTimerSourceDocs = []; // タイマー取得の対象試合（閲覧ページ／運営画面で共通）
 let viewerTimerAlwaysPoll = false; // 現在の取得が運営画面向けか（鮮度判定の基準を切り替える）
 let viewerTimerData = {};       // deviceId → timer_sync ドキュメント
-let viewerTimerReceivedAt = {}; // deviceId → 受信時刻（Date.now()）
+let viewerTimerReceivedAt = {}; // deviceId → 新しい値が届いた時刻（Date.now()）。取得時刻ではない
+let viewerTimerRetryAt = {};    // deviceId → 打ち切り後に様子を見た時刻（Date.now()）
 
 // 運営画面（試合一覧・対戦表）のタイマー速報の取得間隔。観戦ページとは別に持つ。
 // 観戦者は数百人になりうるので下限5秒にしているが、運営は数人なのでその制限を共有する
@@ -9940,9 +9969,22 @@ async function fetchViewerTimers() {
   // 対象は「最後に ensureViewerTimerSync に渡された試合」（閲覧ページ／編集者一覧の両方に対応）
   const devs = viewerActiveTimerDevices(viewerTimerSourceDocs);
   if (!devs.length) return;
+  // 1時間以上なにも届いていないデバイスは、毎回取りに行くのをやめる（表示も数字を消している）。
+  // 閲覧者1人につき「稼働中のコート数」ぶんの読み取りが毎回発生するので、
+  // 死んだデバイスを回し続けると無駄が大きい。ただし完全に止めると Bluetooth を
+  // 繋ぎ直しても復帰しないので、5分に1回だけ様子を見る（2026.08.30-1）
+  const now = Date.now();
+  const targets = devs.filter(id => {
+    const recv = viewerTimerReceivedAt[id];
+    if (!recv || now - recv <= 3600000) return true;
+    if (now - (viewerTimerRetryAt[id] || 0) < 300000) return false;
+    viewerTimerRetryAt[id] = now;
+    return true;
+  });
+  if (!targets.length) { renderViewerTimerStrips(); return; }
   try {
-    const snaps = await Promise.all(devs.map(id => db.collection('timer_sync').doc(id).get()));
-    snaps.forEach((s, i) => { if (s.exists) _viewerApplyTimerData(devs[i], s.data()); });
+    const snaps = await Promise.all(targets.map(id => db.collection('timer_sync').doc(id).get()));
+    snaps.forEach((s, i) => { if (s.exists) _viewerApplyTimerData(targets[i], s.data()); });
   } catch (e) {
     console.warn('[viewer timer] 取得エラー:', e);
   }
@@ -9967,7 +10009,7 @@ function ensureViewerTimerSync(gameDocs, opts) {
   clearInterval(viewerTimerPollIv); viewerTimerPollIv = null;
   if (!devs.length) {
     clearInterval(viewerTimerIv); viewerTimerIv = null;
-    viewerTimerData = {}; viewerTimerReceivedAt = {};
+    viewerTimerData = {}; viewerTimerReceivedAt = {}; viewerTimerRetryAt = {};
     renderViewerTimerStrips();
     return;
   }
@@ -9980,10 +10022,36 @@ function ensureViewerTimerSync(gameDocs, opts) {
   if (!viewerTimerIv) viewerTimerIv = setInterval(renderViewerTimerStrips, 5000);
 }
 
+// 2つの timer_sync データが「別の更新」かどうか。
+// updatedAt（serverTimestamp）は Lambda が書くたびに必ず変わるので、これが最も確実。
+// 入っていない場合（古い Lambda・テスト）は、表示に使う値の組み合わせで見る
+function _timerDataChanged(prev, cur) {
+  const a = _timerDocMs(prev), b = _timerDocMs(cur);
+  if (a && b) return a !== b;
+  const sig = d => [_rawClockValue(d, 'gameClock', 'gameTime'),
+                    _rawClockValue(d, 'shotClock', 'subTime'),
+                    (d.scores || {}).home, (d.scores || {}).guest, d.period].join('|');
+  return sig(prev) !== sig(cur);
+}
+
 // 受信データを保持して表示を更新（テスト用に単体関数化）
 function _viewerApplyTimerData(deviceId, data) {
+  const prev = viewerTimerData[deviceId];
   viewerTimerData[deviceId] = data;
-  viewerTimerReceivedAt[deviceId] = Date.now();
+  // viewerTimerReceivedAt は「取得できた時刻」ではなく「新しい値が届いた時刻」。
+  // TimerLink の Bluetooth が切れて配信が止まっても、Firestore からの取得自体は
+  // 成功し続ける（同じ中身が返るだけ）ので、取得時刻で鮮度を測っていると
+  // 止まった時計がいつまでも LIVE のまま出てしまう（2026.08.30-1 で修正）
+  if (viewerTimerReceivedAt[deviceId] == null) {
+    // 初回だけは、ドキュメント自身の更新時刻を起点にする。これが無いと、
+    // 既に止まっているところへ後から開いた人には、しばらく LIVE に見えてしまう。
+    // 端末の時計がずれている場合に備えて、常識的な範囲（0〜6時間前）だけ採用する
+    const docMs = _timerDocMs(data);
+    const back  = docMs ? Date.now() - docMs : 0;
+    viewerTimerReceivedAt[deviceId] = (back > 0 && back < 21600000) ? docMs : Date.now();
+  } else if (!prev || _timerDataChanged(prev, data)) {
+    viewerTimerReceivedAt[deviceId] = Date.now();
+  }
   renderViewerTimerStrips();
 }
 
@@ -9996,20 +10064,39 @@ function renderViewerTimerStrips() {
   // 運営が回線の異常（TimerLink端末の送信詰まり）に気づけるようにするためのもので、
   // 観戦ページには出さない（2026.08.24-1）
   const lagLimitSec = Math.max(5, (activeSec > 0 ? activeSec : 10) + 2);
+  const fmtDur = (sec) => sec >= 60 ? `${Math.floor(sec / 60)}分` : `${Math.floor(sec)}秒`;
   const lagText = (live) => {
     if (live.lagSec == null || live.lagSec < lagLimitSec) return null;
-    return live.lagSec >= 60
-      ? `● ${Math.floor(live.lagSec / 60)}分遅れ`
-      : `● ${Math.floor(live.lagSec)}秒遅れ`;
+    return `● ${fmtDur(live.lagSec)}遅れ`;
   };
-  // デバイスの現在値を取得（60秒以上更新がなければ null＝停止・配信終了扱い）
-  const getLive = (dev) => {
+  // 「更新なし」の表示。値が古いだけの「遅れ」とは別で、こちらは新しい値が
+  // 一つも届かなくなった状態＝配信そのものの停止（TimerLink の Bluetooth 切れなど）。
+  // 遅れ表示と同じく運営画面だけに出し、停止判定（stopSec）より手前で気づけるようにする
+  const stallWarnSec = Math.max(15, (activeSec > 0 ? activeSec : 10) * 3);
+  const stallSecOf = (dev) => {
+    const recv = viewerTimerReceivedAt[dev];
+    return recv ? (now - recv) / 1000 : null;
+  };
+  const stallText = (dev) => {
+    const s = stallSecOf(dev);
+    return (s == null || s < stallWarnSec) ? null : `● 更新なし ${fmtDur(s)}`;
+  };
+  // 受信が途絶えたときの3段階。
+  //  ・90秒以内     … 受信中。今までどおり
+  //  ・90秒〜1時間  … 受信停止中。**最後に受信した数字はそのまま残す**（消すと何も分からない）
+  //  ・1時間以上    … 数字も消す。いつまでも古いスコアを出し続けない
+  // 90秒より短くしてはいけない。タイムアウトやクォーター間は時計も点数も動かず、
+  // TimerLink が何も送らないことがありうるので、正常な小休止で「停止」と出てしまう。
+  // 手動更新モード（0）は閲覧者が自分で取得を止めているだけなので、判定をゆるめる
+  const stopSec = activeSec > 0 ? Math.max(90, activeSec * 3) : 900;
+  const dropSec = 3600;
+  // デバイスの現在値。live が false なら「受信停止中（最後に受信した値）」。
+  // 1時間以上なにも届かなければ null＝数字も消す
+  const getState = (dev) => {
     const data = viewerTimerData[dev];
     const recv = viewerTimerReceivedAt[dev];
     const age = recv ? (now - recv) / 1000 : Infinity;
-    // 手動更新モードでは取得間隔が長くなるため、鮮度の判定もゆるめる
-    const staleSec = activeSec > 0 ? Math.max(60, activeSec * 4) : 900;
-    if (!data || age > staleSec) return null;
+    if (!data || age > dropSec) return null;
     // 時計は「取得したときの値」をそのまま出す。端末側で秒を進める補間はしない。
     // 補間すると running を送ってくるタイマーだけが1秒ごとに動き、同じページの中で
     // 更新間隔の設定と食い違う表示になっていた（2026.08.18-1 で廃止）
@@ -10019,8 +10106,11 @@ function renderViewerTimerStrips() {
     // データの鮮度＝「配信経路の遅れ（lagMs）＋こちらが取得してからの経過」。
     // lagMs は Lambda v5 以降でのみ入る。無ければ null で、遅れ表示は出さない
     const lagSec = typeof data.lagMs === 'number' ? data.lagMs / 1000 + age : null;
-    return { gameSec, shotSec, home: sc.home, guest: sc.guest, period: _fmtPeriod(data.period), lagSec };
+    return { gameSec, shotSec, home: sc.home, guest: sc.guest, period: _fmtPeriod(data.period),
+             lagSec, live: age <= stopSec };
   };
+  // 「受信中のときだけ」出す表示（LIVEマーク・対戦表のライブ時計など）用
+  const getLive = (dev) => { const s = getState(dev); return s && s.live ? s : null; };
   // 試合ごとのスコア向き設定（home側をチームA/Bどちらに表示するか）を適用
   const teamScores = (live, flipped) => flipped
     ? { a: live.guest, b: live.home }
@@ -10032,29 +10122,36 @@ function renderViewerTimerStrips() {
 
   // 1) 黒ストリップ（デジタルスコア記録中の試合の補助表示）
   document.querySelectorAll('.vt-timer-strip').forEach(el => {
-    const live = getLive(el.dataset.timerDevice);
-    if (!live) { el.style.display = 'none'; return; }
+    const dev = el.dataset.timerDevice;
+    const s   = getState(dev);
     // 運営画面の帯（gc-timer-strip）は今までどおり時計から。観戦ページのカードは
     // スコア欄の中央に時計を出すようにしたので、帯では繰り返さない（2026.08.28-2）
     const isEditorStrip = el.classList.contains('gc-timer-strip');
+    // 遅れ／更新なしの表示は運営画面の帯（gc-timer-strip）だけに出す。観戦ページには出さない。
+    // 「更新なし」は停止と判定したあとも出し続ける（止まったこと自体を知らせるため）
+    const stall = isEditorStrip ? stallText(dev) : null;
+    const lt = stall || (isEditorStrip && s && s.live ? lagText(s) : null);
+    // 受信が止まっても最後に受信した値は残す。動いていないことは先頭の断り書きで示す
     const parts = [];
-    const ct = clockText(live);
-    if (ct && isEditorStrip) parts.push(`${ct}`);
-    if (live.shotSec != null) parts.push(`SHOT ${Math.ceil(live.shotSec)}`);
-    const ts = teamScores(live, el.dataset.timerFlip === '1');
-    // 記録側のスコアと並ぶので、観戦ページではタイマー側だと分かるようにする
-    if (ts.a != null && ts.b != null) parts.push(`${isEditorStrip ? '' : 'タイマー '}${ts.a} - ${ts.b}`);
-    // 遅れ表示は運営画面の帯（gc-timer-strip）だけに出す。観戦ページの帯には出さない
-    const lt = isEditorStrip ? lagText(live) : null;
+    if (s && !s.live && !isEditorStrip) parts.push('受信停止中');
+    if (s) {
+      const ct = clockText(s);
+      if (ct && isEditorStrip) parts.push(`${ct}`);
+      if (s.shotSec != null) parts.push(`SHOT ${Math.ceil(s.shotSec)}`);
+      const ts = teamScores(s, el.dataset.timerFlip === '1');
+      // 記録側のスコアと並ぶので、観戦ページではタイマー側だと分かるようにする
+      if (ts.a != null && ts.b != null) parts.push(`${isEditorStrip ? '' : 'タイマー '}${ts.a} - ${ts.b}`);
+    }
     if (parts.length === 0 && !lt) { el.style.display = 'none'; return; }
     el.style.display = '';
-    el.innerHTML = '<span class="vt-timer-live-dot"></span>' + esc(parts.join('　'))
-      + (lt ? `<span class="gc-strip-lag${live.lagSec >= 10 ? ' danger' : ''}">${esc(lt)}</span>` : '');
+    el.classList.toggle('vt-strip-stopped', !(s && s.live));
+    el.innerHTML = (s && s.live ? '<span class="vt-timer-live-dot"></span>' : '') + esc(parts.join('　'))
+      + (lt ? `<span class="gc-strip-lag${(stall || (s && s.live && s.lagSec >= 10)) ? ' danger' : ''}">${esc(lt)}</span>` : '');
   });
 
   // 2) 速報カードのライブスコアライン（タイマー取得試合：正規のスコア欄に表示）
   document.querySelectorAll('.vt-scoreline.vt-live').forEach(el => {
-    const live = getLive(el.dataset.timerDevice);
+    const s = getState(el.dataset.timerDevice);
     const cEl = el.querySelector('.vt-live-clock');
     const aEl = el.querySelector('[data-live="a"]');
     const bEl = el.querySelector('[data-live="b"]');
@@ -10070,22 +10167,31 @@ function renderViewerTimerStrips() {
       if (lv)  lv.style.display  = isLive ? '' : 'none';
       fbNote.style.display = isLive ? 'none' : '';
     };
-    if (!live) {
-      if (cEl) cEl.textContent = '--:--';
+    const paint = (a, b, clock) => {
+      if (aEl && a != null) aEl.textContent = a;
+      if (bEl && b != null) bEl.textContent = b;
+      if (cEl && clock != null) cEl.textContent = clock;
+    };
+    // 受信が止まっている間は数字を淡くして、動いていないことを見た目でも分かるようにする
+    el.classList.toggle('vt-stale', !(s && s.live));
+    if (!s || !s.live) {
       setNote(false);
-      // 記録が無ければスコアは最後の値のまま（従来どおり）
       if (el.dataset.fallbackA != null) {
-        if (aEl) aEl.textContent = el.dataset.fallbackA;
-        if (bEl) bEl.textContent = el.dataset.fallbackB;
+        // 記録がある試合は記録スコアに落とす（2026.08.28-4）
+        paint(el.dataset.fallbackA, el.dataset.fallbackB, '--:--');
+      } else if (s) {
+        // 記録が無い試合は「最後に受信した値」を残す。再描画で消えないよう毎回描き直す
+        const ts = teamScores(s, el.dataset.timerFlip === '1');
+        paint(ts.a, ts.b, clockText(s) || '--:--');
+      } else {
+        // 1時間以上なにも届いていない：古い数字を出し続けず消す
+        paint('–', '–', '--:--');
       }
       return;
     }
     setNote(true);
-    const ts = teamScores(live, el.dataset.timerFlip === '1');
-    if (aEl && ts.a != null) aEl.textContent = ts.a;
-    if (bEl && ts.b != null) bEl.textContent = ts.b;
-    const ct = clockText(live);
-    if (cEl && ct) cEl.textContent = ct;
+    const ts = teamScores(s, el.dataset.timerFlip === '1');
+    paint(ts.a, ts.b, clockText(s));
   });
 
   // 2b) ライブ記録中の試合に差し込む時計（速報カードのスコア欄・星取表のマス）。
@@ -10114,30 +10220,40 @@ function renderViewerTimerStrips() {
 
   // 3) 編集者の試合一覧のライブスコア欄
   document.querySelectorAll('.gc-score-live').forEach(el => {
-    const live = getLive(el.dataset.timerDevice);
+    const dev = el.dataset.timerDevice;
+    const s   = getState(dev);
     const cEl = el.querySelector('.gc-live-clock');
     const lEl = el.querySelector('.gc-live-lag');
-    if (!live) {
+    const sEl = el.querySelector('[data-live="score"]');
+    // 「更新なし」は遅れより優先し、停止と判定したあとも出し続ける。
+    // これが運営にとって「TimerLink の Bluetooth が切れた」ことに気づく唯一の手がかりになる
+    const stall = stallText(dev);
+    const setWarn = (text, danger) => {
+      if (!lEl) return;
+      lEl.style.display = text ? '' : 'none';
+      lEl.textContent = text || '';
+      lEl.className = 'gc-live-lag' + (danger ? ' danger' : '');
+    };
+    el.classList.toggle('vt-stale', !(s && s.live));
+    if (!s) {
+      // 1時間以上なにも届いていない：数字も消す
       if (cEl) cEl.textContent = '--:--';
-      if (lEl) lEl.style.display = 'none';
+      if (sEl) sEl.textContent = '– - –';
+      setWarn(stall, true);
       return;
     }
-    const ts = teamScores(live, el.dataset.timerFlip === '1');
-    const sEl = el.querySelector('[data-live="score"]');
+    // 受信が止まっていても、最後に受信した値はそのまま残す
+    const ts = teamScores(s, el.dataset.timerFlip === '1');
     if (sEl && ts.a != null && ts.b != null) sEl.textContent = `${ts.a} - ${ts.b}`;
-    const ct = clockText(live);
+    const ct = clockText(s);
     if (cEl && ct) cEl.textContent = `${ct}`;
-    if (lEl) {
-      const lt = lagText(live);
-      lEl.style.display = lt ? '' : 'none';
-      lEl.textContent = lt || '';
-      lEl.className = 'gc-live-lag' + (live.lagSec >= 10 ? ' danger' : '');
-    }
+    setWarn(stall || (s.live ? lagText(s) : null), !!stall || (s.live && s.lagSec >= 10));
   });
 
   // 4) トーナメント表のライブスコアと時計
   document.querySelectorAll('.br-live-score').forEach(el => {
-    const live = getLive(el.dataset.timerDevice);
+    // 受信が止まっても最後に受信したスコアは残す（1時間以上なら null＝「–」のまま）
+    const live = getState(el.dataset.timerDevice);
     if (!live) return;
     const ts = teamScores(live, el.dataset.timerFlip === '1');
     const v = el.dataset.side === 'b' ? ts.b : ts.a;
@@ -10281,8 +10397,8 @@ function renderTournamentViewer(tData, gameDocs) {
           <span class="vt-score-b" data-live="b">–</span>
           <span class="vt-team-name">${esc(teamB)}</span>
         </div>
-        <div class="vt-live-note"><span class="vt-timer-live-dot"></span><span class="vt-note-live">タイマー速報（未確定）</span>${
-          plays.length > 0 ? '<span class="vt-note-fallback" style="display:none">記録スコア（タイマー停止中）</span>' : ''}</div>`
+        <div class="vt-live-note"><span class="vt-timer-live-dot"></span><span class="vt-note-live">タイマー速報（未確定）</span><span class="vt-note-fallback" style="display:none">${
+          plays.length > 0 ? '受信停止中（記録スコアを表示）' : '受信停止中'}</span></div>`
       : `<div class="vt-scoreline">
           <span class="vt-team-name${winner==='A' ? ' vt-winner' : ''}">${esc(teamA)}</span>
           <span class="vt-score-a${winner==='A' ? ' vt-winner' : ''}">${totalA}</span>

@@ -59,6 +59,10 @@ t('26秒遅れは offline 表示', status(26000, 100).cls.includes('offline'));
 t('配信4秒＋受信後2秒＝6秒遅れ', status(4000, 2000).text === '● 6秒遅れ');
 t('6秒遅れは stale 表示', status(4000, 2000).cls.includes('stale'));
 t('1分を超えたら分で出す', status(200000, 0).text === '● 3分遅れ');
+// 新しい値が一つも届かなくなった状態は「遅れ」ではなく「更新なし」（Bluetooth 切れ・2026.08.30-1）
+t('15秒以上なにも届かなければ更新なし', status(null, 20000).text === '● 更新なし 20秒');
+t('更新なしは遅れ表示より優先する', status(500, 180000).text === '● 更新なし 3分');
+t('更新なしは offline 表示', status(500, 180000).cls.includes('offline'));
 t('受信が無ければ待機中', (() => {
   ctx.timerLastUpdatedAt = null;
   vm.runInContext('updateTimerSyncStatus()', ctx);
@@ -161,6 +165,102 @@ t('0秒未満にはならない', render(null, 2, true, 10000) === '0:00');
   t('運営画面の帯には時計が出ている', r.editorStrip.includes('7:23'), r.editorStrip);
   t('観戦ページの帯はタイマー側スコアと分かる表記',
     r.viewerStrip.includes('タイマー 44 - 42'), r.viewerStrip);
+}
+
+// ===== 16) 配信停止の検知（TimerLink の Bluetooth 切れ・2026.08.30-1）=====
+// 配信が止まっても Firestore の取得自体は成功し続ける（同じ中身が返るだけ）ので、
+// 「取得できた時刻」で鮮度を測っていると、止まった時計がいつまでも LIVE に見えていた。
+// 「新しい値が届いた時刻」で測れているかを見る
+{
+  const escSrc = (() => {
+    const i = src.indexOf('const esc = s =>');
+    return src.slice(i, src.indexOf(String.fromCharCode(10), i));
+  })();
+  let T = 1787400000000;
+  const dom3 = new JSDOM('<!doctype html><html><body>' +
+    '<div class="gc-score gc-score-live" data-timer-device="dev1" data-timer-flip="0">' +
+      '<span class="gc-live-score" data-live="score">-</span>' +
+      '<span class="gc-live-clock">--:--</span>' +
+      '<span class="gc-live-lag" style="display:none"></span>' +
+    '</div>' +
+    '<div class="vt-timer-strip gc-timer-strip" id="ed-strip" data-timer-device="dev1" data-timer-flip="0"></div>' +
+    '<div class="vt-timer-strip" id="vw-strip" data-timer-device="dev1" data-timer-flip="0"></div>' +
+    '</body></html>');
+  const doc3 = dom3.window.document;
+  const ctx3 = {
+    console, document: doc3, window: dom3.window,
+    Date: { now: () => T }, Math, JSON, String, Number, Object,
+    viewerTimerData: {}, viewerTimerReceivedAt: {},
+    viewerTimerAlwaysPoll: true,   // 運営画面として描画する（「更新なし」が出る側）
+    editorRefreshSec: 3, viewerRefreshSec: 10,
+  };
+  vm.createContext(ctx3);
+  vm.runInContext(escSrc, ctx3);
+  vm.runInContext(['_rawClockValue', '_parseGameClockSec', '_parseShotClockSec',
+                   '_fmtGameClock', '_fmtPeriod', '_timerDocMs', '_timerDataChanged',
+                   '_viewerApplyTimerData', 'renderViewerTimerStrips']
+                  .map(extractFn).join(String.fromCharCode(10)), ctx3);
+
+  // Lambda が書いた時刻（updatedAt = serverTimestamp）を持つ timer_sync ドキュメント
+  const mkData = (atMs, extra) => Object.assign({
+    gameClock: { display: '7:23' }, shotClock: { display: '14' }, period: '2',
+    scores: { home: 44, guest: 42 },
+    updatedAt: { toDate: () => new Date(atMs) },
+  }, extra);
+  const apply = (data) => { ctx3.__d = data; vm.runInContext('_viewerApplyTimerData("dev1", __d)', ctx3); };
+  const el3 = sel => doc3.querySelector(sel);
+  const view = () => ({
+    clock: el3('.gc-live-clock').textContent,
+    score: el3('[data-live="score"]').textContent,
+    warn: el3('.gc-live-lag').style.display === 'none' ? null : el3('.gc-live-lag').textContent,
+    editorStrip: doc3.getElementById('ed-strip').style.display === 'none'
+      ? null : doc3.getElementById('ed-strip').textContent,
+    viewerStrip: doc3.getElementById('vw-strip').style.display === 'none'
+      ? null : doc3.getElementById('vw-strip').textContent,
+  });
+
+  console.log('16) 配信停止の検知');
+  apply(mkData(T));
+  let v = view();
+  t('届いた直後はライブ表示', v.clock === '2Q 7:23' && v.score === '44 - 42', JSON.stringify(v));
+  t('その間は「更新なし」を出さない', v.warn === null, String(v.warn));
+
+  // 20秒経過。取得は成功し続けるが中身は同じ＝配信は止まっている
+  T += 20000; apply(mkData(T - 20000));
+  v = view();
+  t('同じ値を取り続けても鮮度は戻らない', v.warn === '● 更新なし 20秒', String(v.warn));
+  t('停止と判定する前は時計を出したまま', v.clock === '2Q 7:23', v.clock);
+  t('鮮度の起点は取得時刻ではなく更新時刻', ctx3.viewerTimerReceivedAt.dev1 === T - 20000);
+
+  // 90秒を超えたら受信停止中。数字は最後に受信した値を残し、「更新なし」は出し続ける
+  T += 100000; apply(mkData(T - 120000));
+  v = view();
+  t('停止しても最後に受信した値は残す', v.clock === '2Q 7:23' && v.score === '44 - 42', JSON.stringify(v));
+  t('停止後も「更新なし」は出し続ける', v.warn === '● 更新なし 2分', String(v.warn));
+  t('停止後も運営画面の帯に「更新なし」が出る', (v.editorStrip || '').includes('更新なし'), String(v.editorStrip));
+  t('観戦ページの帯には「更新なし」を出さない', !(v.viewerStrip || '').includes('更新なし'), String(v.viewerStrip));
+  t('観戦ページの帯は「受信停止中」で最後の値を残す',
+    (v.viewerStrip || '').includes('受信停止中') && (v.viewerStrip || '').includes('タイマー 44 - 42'),
+    String(v.viewerStrip));
+
+  // 1時間を超えたら数字も消す（古いスコアを出し続けない）
+  T += 3600000; apply(mkData(T - 3720000));
+  v = view();
+  t('1時間以上なにも届かなければ数字を消す', v.clock === '--:--' && v.score === '– - –', JSON.stringify(v));
+  t('その場合も「更新なし」は出し続ける', (v.warn || '').includes('更新なし'), String(v.warn));
+  t('1時間を超えたら観戦ページの帯は消える', v.viewerStrip === null, String(v.viewerStrip));
+
+  // 新しい値が届けば復帰する
+  T += 1000; apply(mkData(T, { gameClock: { display: '7:12' } }));
+  v = view();
+  t('新しい値が届けば復帰する', v.clock === '2Q 7:12' && v.warn === null, JSON.stringify(v));
+
+  // 既に止まっているところへ後から開いた場合、初回の取得で停止と分かること
+  ctx3.viewerTimerData = {}; ctx3.viewerTimerReceivedAt = {};
+  apply(mkData(T - 300000));
+  v = view();
+  t('開いた時点で既に古ければ初回から停止扱い', (v.warn || '') === '● 更新なし 5分', String(v.warn));
+  t('その場合も最後に受信した値は出す', v.clock === '2Q 7:23', v.clock);
 }
 
 let pass = true;
