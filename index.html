@@ -1611,8 +1611,29 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
   padding: 0 14px; height: 50px;
 }
 .rec-back { background: rgba(255,255,255,.18); color: white; border: none; border-radius: var(--radius-sm); padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
-.rec-title { flex: 1; font-weight: 600; font-size: 14px; text-align: center; }
+/* min-width:0 と省略が無いと、幅の狭い端末で日本語タイトルが1文字ずつ縦に折り返して
+   ヘッダーが崩れる（オフライン表示が出たときに顕著）。はみ出す分は「…」で切る */
+.rec-title { flex: 1; min-width: 0; font-weight: 600; font-size: 14px; text-align: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rec-status { font-size: 11px; color: rgba(255,255,255,.8); white-space: nowrap; min-width: 60px; text-align: right; }
+/* 記録画面ヘッダーの通信状態（2026.08.30-3）。
+   固定表示の .net-status は右上に出るためスコアボードの得点にちょうど重なる。
+   記録中はこのヘッダー内の表示に置き換える（body.rec-view で .net-status を隠す）。
+   ・オンライン＝緑の点だけ（文字なし）
+   ・オフライン＝赤いチップに「オフライン」＋白い点が点滅 */
+.rec-net {
+  display: inline-flex; align-items: center; gap: 5px;
+  flex-shrink: 0; border-radius: 10px;
+}
+.rec-net-dot {
+  width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+  background: #66bb6a; box-shadow: 0 0 0 2px rgba(255,255,255,.3);
+}
+.rec-net-label { display: none; font-size: 11px; font-weight: 700; letter-spacing: .03em; }
+body.net-offline .rec-net { background: #c62828; padding: 3px 9px 3px 7px; }
+body.net-offline .rec-net-dot { background: white; box-shadow: none; animation: offline-blink 1.6s ease-in-out infinite; }
+body.net-offline .rec-net-label { display: inline; color: white; }
+body.net-hidden .rec-net { display: none; }
 .rec-mode-tag {
   font-size: 10px; font-weight: 600; letter-spacing: .04em;
   background: rgba(255,255,255,.18); color: rgba(255,255,255,.95);
@@ -1636,6 +1657,13 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
 }
 .net-status.online  { color: #2e7d32; }
 .net-status.online  .net-dot { background: #2e7d32; }
+/* オンラインは「緑の点」だけにする。文字を出すと得点に重なって読めなくなるため
+   （記録画面ではスコアボードの右側にちょうど掛かる）。
+   異常であるオフラインのときだけ文字を出す（2026.08.30-3） */
+.net-status.online { padding: 5px; gap: 0; }
+.net-status.online .net-label { display: none; }
+/* 記録画面はヘッダーの .rec-net で状態が分かるので、固定バッジは出さない（得点に重なるため） */
+body.rec-view .net-status { display: none; }
 .net-status.offline { color: white; background: #c62828; }
 .net-status.offline .net-dot {
   background: white;
@@ -2728,6 +2756,9 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
   .rec-tl-q { font-size: 10px; }
   .rec-tl-score { font-size: 11px; }
   .rec-pbp-select { font-size: 10px; padding: 3px 2px; }
+  /* 縦持ちはヘッダーの幅が足りない。オフライン中は赤いチップと同じ意味の
+     「オフライン保存」を隠して、試合名が「…」だけに潰れないようにする */
+  body.net-offline .rec-status { display: none; }
 }
 
 /* =====================================================
@@ -2748,6 +2779,7 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
   .rec-back, .rec-end-btn { padding: 3px 8px; font-size: 11px; }
   .rec-title { font-size: 12px; }
   .rec-status { font-size: 10px; min-width: 0; }
+  .rec-net-label { font-size: 10px; }
 
   /* スコアボード：時計の操作ボタンを時計の下ではなく横に並べ、2段ぶんの高さを1段にする */
   .rec-scoreboard { padding: 3px 8px; }
@@ -3405,6 +3437,7 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
       <button class="rec-back" onclick="backFromRecorder()">← 戻る</button>
       <span class="rec-title" id="rec-title">記録中</span>
       <span class="rec-mode-tag" id="rec-mode-tag"></span>
+      <span class="rec-net" id="rec-net" title="オンライン"><span class="rec-net-dot"></span><span class="rec-net-label">オフライン</span></span>
       <span class="rec-status" id="rec-status"></span>
       <button class="rec-end-btn" onclick="endGame()">試合終了</button>
     </div>
@@ -3804,9 +3837,15 @@ details[open] .vt-expand-icon { transform: rotate(-135deg); margin: 4px 4px 0 0;
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.30-2';
+const APP_VERSION = '2026.08.30-3';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.08.30-3', notes: [
+    '記録中に右上へ出ていた「オンライン」の表示が得点に重なって見えにくかったのを直しました',
+    '記録画面では上の青いバーの中に移し、通信が正常なときは文字を出さず緑の丸だけにしました',
+    'オフラインになったときは同じ場所に赤い「オフライン」が点滅して出ます（得点には重なりません）',
+    'ほかの画面の通信バッジも、正常なときは緑の丸だけの小さい表示にしました'
+  ] },
   { v: '2026.08.30-2', notes: [
     '記録画面のタイマー同期で、時計に加えてタイマー実機のスコアとクォーターも小さく表示するようにしました',
     '記録している点数と会場のスコアボードがずれていないか、その場で見比べられます',
@@ -4230,9 +4269,15 @@ function renderNetStatus() {
   const el = document.getElementById('net-status');
   if (!el) return;
   // アーカイブ版はサーバー接続しないため接続状態の表示自体が不要
-  if (IS_ARCHIVE) { el.style.display = 'none'; return; }
+  if (IS_ARCHIVE) { el.style.display = 'none'; document.body.classList.add('net-hidden'); return; }
   el.className = 'net-status ' + (isOnline ? 'online' : 'offline');
+  // オンライン時は文字を出さない（CSSで非表示）ので、代わりに title で読めるようにしておく
+  el.title = isOnline ? 'オンライン' : 'オフライン';
   el.querySelector('.net-label').textContent = isOnline ? 'オンライン' : 'オフライン';
+  // 記録画面ヘッダーの表示も同じ状態にする
+  document.body.classList.toggle('net-offline', !isOnline);
+  const recNet = document.getElementById('rec-net');
+  if (recNet) recNet.title = isOnline ? 'オンライン' : 'オフライン';
 }
 
 function updateOnlineStatus() {
@@ -4287,6 +4332,8 @@ function showView(name) {
   document.getElementById('view-recorder').style.display    = name === 'recorder'    ? 'flex' : 'none';
   document.getElementById('view-roster').style.display      = name === 'roster'      ? 'block' : 'none';
   document.getElementById('view-register').style.display    = name === 'register'    ? 'block' : 'none';
+  // 記録画面だけ通信バッジの出し方を変える（得点に重なるため）
+  document.body.classList.toggle('rec-view', name === 'recorder');
   _currentView = name;
 }
 
