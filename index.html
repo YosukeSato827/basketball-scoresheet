@@ -83,6 +83,9 @@ h1, h2, h3 { font-weight: 600; letter-spacing: .02em; }
 .app-version:hover { color: rgba(255,255,255,.85); }
 /* 編集者専用UI：非編集者には非表示 */
 body.not-editor .editor-only { display: none !important; }
+/* チーム向けは権限のしくみが別（teams/{id}/members が正）。
+   大会運営の許可リスト判定で編集画面の保存・ライブ記録まで消えないようにする */
+body.team-mode #view-editor .editor-only { display: inline-block !important; }
 /* 認証UI */
 .auth-block { display: flex; align-items: center; gap: 8px; }
 .btn-login {
@@ -3726,8 +3729,11 @@ body.rec-view .net-status { display: none; }
 .tm-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
 .tm-tab:hover:not(.active) { color: var(--text); }
 .tm-note { font-size: 12px; color: var(--text-mid); line-height: 1.85; margin-bottom: 14px; }
+.tm-row-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.tm-btn-go { border-color: var(--blue); color: var(--blue); }
+.tm-btn-go:hover { border-color: var(--blue-dark); color: var(--blue-dark); }
 .tm-member-row {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   background: var(--white); border: 1px solid var(--border); border-radius: var(--radius-sm);
   padding: 11px 14px; margin-bottom: 8px;
 }
@@ -4032,9 +4038,15 @@ body.rec-view .net-status { display: none; }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.09.08-3';
+const APP_VERSION = '2026.09.08-5';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.09.08-5', notes: [
+    'ScoreLink for Team で、記録した試合のスコアシートとボックススコアを表示できるようにしました',
+    '試合一覧の「スコアシート」から開けます。得点推移グラフもそのまま出ます',
+    'A4縦での印刷も大会運営側と同じように使えます',
+    'スコアシートの画面からチーム名や選手名を直して保存できます'
+  ] },
   { v: '2026.09.08-3', notes: [
     'ScoreLink for Team に「試合」タブを追加しました。チームの試合を記録できます',
     '相手チーム名と日付を入れるだけで記録を始められます（自チームの選手は名簿から自動で入ります）',
@@ -6915,6 +6927,9 @@ async function openGame(id) {
 }
 
 async function saveGame() {
+  // チームの試合は保存先が違う。ここを通すと大会側の games に
+  // 迷子のドキュメントができるので、必ず手前で分ける
+  if (recTeamId) return saveTeamGameFromEditor();
   const btn = document.getElementById('btn-save');
   btn.disabled = true; btn.textContent = '保存中...';
   try {
@@ -7028,6 +7043,8 @@ async function toggleGameFinished(id, isFinished) {
 }
 
 function backToDetail() {
+  // チームの試合は大会側の履歴に乗っていない
+  if (recTeamId) { openTeamHome(recTeamId); return; }
   history.back();
 }
 
@@ -11854,6 +11871,9 @@ function updateTeamAuthUI() {
 // -------------------- 起動と画面遷移 --------------------
 async function initTeamApp() {
   document.body.classList.add('team-mode');
+  // 編集画面は大会側と共用なので、戻り先の呼び方だけ合わせておく
+  const back = document.querySelector('#view-editor .btn-back');
+  if (back) back.textContent = '← チームに戻る';
   showView('team-login');
   // 招待は認証より先に読む。ログイン画面を出した時点で
   // 「どのチームに招待されているか」が見えていないと不安になるため
@@ -12018,6 +12038,9 @@ function renderTeamSelect() {
 function openTeamHome(teamId) {
   const t = myTeams.find(x => x.id === teamId);
   if (!t) { openTeamSelect(); return; }
+  // 試合から出たので保存先の文脈を捨てる。残っていると
+  // 次に開いた大会側の画面が誤ってチーム側に書く恐れがある
+  recTeamId = null;
   currentTeamId   = teamId;
   currentTeamName = t.name;
   lastInviteUrl   = '';
@@ -12178,10 +12201,11 @@ async function renderGamesTab() {
         return '<div class="tm-member-row"><div class="tm-member-main">'
           + '<div class="tm-member-name">' + esc(g.teamAName || currentTeamName) + ' ' + a + ' - ' + b + ' ' + esc(g.teamBName || '相手') + '</div>'
           + '<div class="tm-member-mail">' + esc(meta) + '</div></div>'
-          + '<button class="tm-btn-sm" style="border-color:var(--blue);color:var(--blue)" '
-          + 'onclick="openTeamGame(\'' + escAttr(g.id) + '\')">開く</button>'
+          + '<div class="tm-row-actions">'
+          + '<button class="tm-btn-sm tm-btn-go" onclick="openTeamGame(\'' + escAttr(g.id) + '\')">記録</button>'
+          + '<button class="tm-btn-sm tm-btn-go" onclick="openTeamGameSheet(\'' + escAttr(g.id) + '\')">スコアシート</button>'
           + '<button class="tm-btn-sm" onclick="deleteTeamGame(\'' + escAttr(g.id) + '\')">削除</button>'
-          + '</div>';
+          + '</div></div>';
       }).join('');
   body.innerHTML = html;
   const dateEl = document.getElementById('tm-game-date');
@@ -12240,10 +12264,10 @@ async function deleteTeamGame(gameId) {
   }
 }
 
-// 記録画面は大会側とまったく同じものを使う。
-// openRecorder() が編集画面のフォームから値を読む作りなので、
-// そこに流し込んでから呼ぶ（記録・集計のロジックを二重に持たないため）
-function startTeamGameRecorder(gameId, d) {
+// 記録画面もスコアシートも、大会側とまったく同じものを使う。
+// どちらも編集画面のフォームから値を読む作りなので、そこへ流し込んでから呼ぶ。
+// 計算・描画のロジックを二重に持たないための約束事
+function fillEditorFromTeamGame(gameId, d) {
   recTeamId         = currentTeamId;
   currentGameId     = gameId;
   currentGameStatus = d.status || null;
@@ -12256,10 +12280,68 @@ function startTeamGameRecorder(gameId, d) {
   document.getElementById('pbpInput').value  = d.pbpData   || '';
   document.getElementById('playersA').value  = playersToText(d.playersA || []);
   document.getElementById('playersB').value  = playersToText(d.playersB || []);
+  // スコアシートの「大会名」欄は view-detail の見出しから取っている。
+  // チームの試合に大会は無いので空にしておく
+  const dt = document.getElementById('detail-title');
+  if (dt) dt.textContent = '';
+  const tt = document.getElementById('toolbar-title');
+  if (tt) tt.textContent = (d.teamAName || currentTeamName) + '  vs  ' + (d.teamBName || '相手');
+}
+
+function startTeamGameRecorder(gameId, d) {
+  fillEditorFromTeamGame(gameId, d);
   // 大会側のようなユニフォーム選択は挟まないので、見分けのつく既定色を入れる
   recUniformsA = [{ bg: '#1565C0', text: '#FFFFFF' }];
   recUniformsB = [{ bg: '#E53935', text: '#FFFFFF' }];
   openRecorder();
+}
+
+// スコアシート・ボックススコアの表示。大会側の編集画面をそのまま使うので
+// 印刷（A4縦）もそのまま効く
+async function openTeamGameSheet(gameId) {
+  try {
+    const doc = await withTimeout(teamGamesCol().doc(gameId).get(), 10000);
+    if (!doc.exists) { showToast('試合が見つかりません'); return; }
+    fillEditorFromTeamGame(gameId, doc.data());
+    generate();
+    showView('editor');
+    window.scrollTo(0, 0);
+  } catch (e) {
+    showToast('開けませんでした: ' + e.message);
+  }
+}
+
+// 編集画面の「保存」。チームの試合は teams/{teamId}/games に書く
+async function saveTeamGameFromEditor() {
+  const btn = document.getElementById('btn-save');
+  if (btn) { btn.disabled = true; btn.textContent = '保存中...'; }
+  try {
+    const pbp = document.getElementById('pbpInput').value;
+    const data = {
+      teamAName: document.getElementById('teamAName').value,
+      teamBName: document.getElementById('teamBName').value,
+      gameNo:    document.getElementById('gameNo').value,
+      gameDate:  document.getElementById('gameDate').value,
+      venue:     document.getElementById('venue').value,
+      pbpData:   pbp,
+      playersA:  parsePlayers(document.getElementById('playersA').value),
+      playersB:  parsePlayers(document.getElementById('playersB').value),
+      updatedAt: new Date().toISOString()
+    };
+    // 合計は PBP から数え直す。空のときは既存値を残す（大会側と同じ考え方）
+    if ((pbp || '').trim()) {
+      const st = buildState(parsePBP(pbp));
+      data.totalA = st.qScore.A.reduce((a, b) => a + b, 0);
+      data.totalB = st.qScore.B.reduce((a, b) => a + b, 0);
+    }
+    await withTimeout(
+      db.collection('teams').doc(recTeamId).collection('games').doc(currentGameId).update(data));
+    showToast('保存しました');
+  } catch (e) {
+    showToast('保存エラー: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '保存'; }
+  }
 }
 
 // -------------------- 選手名簿 --------------------
