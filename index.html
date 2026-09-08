@@ -3649,6 +3649,111 @@ body.rec-view .net-status { display: none; }
   color: var(--blue); border-bottom-color: var(--blue);
 }
 .viewer-tab:hover:not(.active) { color: var(--text); }
+
+/* =====================================================
+   molten ScoreLink for Team
+   大会運営側の画面とはCSSも混ぜない（tm- 接頭辞で閉じる）
+   ===================================================== */
+#view-team-login, #view-team-select, #view-team-home { min-height: 100vh; background: var(--bg); }
+
+.tm-auth-wrap { display: flex; justify-content: center; padding: 48px 20px; }
+.tm-card {
+  width: 100%; max-width: 380px; background: var(--white);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow-md); padding: 28px 26px;
+}
+.tm-card-title { font-size: 17px; font-weight: 600; margin-bottom: 5px; }
+.tm-card-sub { font-size: 12px; color: var(--text-mid); line-height: 1.75; margin-bottom: 20px; }
+.tm-invite-banner {
+  background: var(--blue-dim); border: 1px solid #bcd9f0; border-radius: var(--radius-sm);
+  padding: 12px 14px; font-size: 12.5px; line-height: 1.75; margin-bottom: 18px;
+}
+.tm-invite-banner strong { color: var(--blue); }
+.tm-btn-google {
+  width: 100%; background: var(--white); color: var(--text); font-family: inherit;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 11px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.tm-btn-google:hover { background: #f7fafd; border-color: #c6d5e4; }
+.tm-or { display: flex; align-items: center; gap: 10px; margin: 18px 0; color: var(--text-light); font-size: 11px; }
+.tm-or::before, .tm-or::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.tm-field { display: block; margin-bottom: 12px; }
+.tm-field > span { display: block; font-size: 11px; font-weight: 600; color: var(--text-mid); margin-bottom: 5px; letter-spacing: .04em; }
+.tm-field input, .tm-field textarea {
+  width: 100%; padding: 10px 12px; font-size: 13px; font-family: inherit;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--white); color: var(--text);
+}
+.tm-field textarea { min-height: 190px; line-height: 1.9; resize: vertical; }
+.tm-field input:focus, .tm-field textarea:focus {
+  outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0,91,172,.10);
+}
+.tm-btn-primary {
+  width: 100%; background: var(--blue); color: #fff; font-family: inherit;
+  border: none; border-radius: var(--radius-sm); padding: 12px;
+  font-size: 13.5px; font-weight: 600; cursor: pointer; margin-top: 6px;
+}
+.tm-btn-primary:hover { background: var(--blue-dark); }
+.tm-btn-primary:disabled { background: #9db8d2; cursor: default; }
+.tm-msg { font-size: 12px; line-height: 1.75; border-radius: var(--radius-sm); padding: 9px 11px; margin-top: 12px; }
+.tm-msg.err  { background: #fdecea; color: #a3261a; border: 1px solid #f5c6c0; }
+.tm-msg.info { background: var(--blue-dim); color: var(--blue); border: 1px solid #bcd9f0; }
+.tm-links { display: flex; justify-content: space-between; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+.tm-links a { font-size: 12px; color: var(--blue); cursor: pointer; }
+.tm-links a:hover { text-decoration: underline; }
+
+/* チーム選択 */
+.tm-team-row {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  background: var(--white); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px 16px; margin-bottom: 10px; cursor: pointer; font-family: inherit;
+}
+.tm-team-row:hover { border-color: var(--blue); box-shadow: var(--shadow-sm); }
+.tm-team-name { font-size: 14px; font-weight: 600; flex: 1; }
+.tm-role-tag {
+  font-size: 10px; font-weight: 600; letter-spacing: .06em; white-space: nowrap;
+  padding: 3px 9px; border-radius: 999px; background: var(--blue-dim); color: var(--blue);
+}
+
+/* チームホーム */
+.tm-home-title { font-size: 21px; font-weight: 600; margin-bottom: 18px; }
+.tm-tabs { display: flex; gap: 2px; border-bottom: 2px solid var(--border); margin-bottom: 20px; }
+.tm-tab {
+  background: none; border: none; font-family: inherit; cursor: pointer;
+  padding: 10px 16px; font-size: 13px; font-weight: 600; color: var(--text-mid);
+  border-bottom: 3px solid transparent; margin-bottom: -2px;
+}
+.tm-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+.tm-tab:hover:not(.active) { color: var(--text); }
+.tm-note { font-size: 12px; color: var(--text-mid); line-height: 1.85; margin-bottom: 14px; }
+.tm-member-row {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--white); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 11px 14px; margin-bottom: 8px;
+}
+.tm-member-main { flex: 1; min-width: 0; }
+.tm-member-name { font-size: 13px; font-weight: 600; }
+.tm-member-mail { font-size: 11px; color: var(--text-light); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tm-btn-sm {
+  background: none; border: 1px solid var(--border); border-radius: 4px; font-family: inherit;
+  padding: 5px 11px; font-size: 11.5px; color: var(--text-mid); cursor: pointer; white-space: nowrap;
+}
+.tm-btn-sm:hover { border-color: #c9271f; color: #c9271f; }
+.tm-invite-box {
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px; margin-bottom: 18px;
+}
+.tm-invite-row { display: flex; gap: 8px; margin-top: 10px; }
+.tm-invite-row input {
+  flex: 1; min-width: 0; padding: 9px 11px; font-size: 12px; font-family: inherit;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: #f7fafd; color: var(--text-mid);
+}
+.tm-empty { text-align: center; color: var(--text-light); font-size: 13px; padding: 36px 12px; line-height: 1.9; }
+@media (max-width: 520px) {
+  .tm-auth-wrap { padding: 26px 14px; }
+  .tm-card { padding: 24px 20px; }
+}
 </style>
 
 <!-- =====================================================
@@ -3832,14 +3937,114 @@ body.rec-view .net-status { display: none; }
 </div>
 
 
+<!-- =====================================================
+     molten ScoreLink for Team (1): ログイン
+     ホーム＝ログイン画面。大会運営側の画面とは行き来しない
+     ===================================================== -->
+<div id="view-team-login" style="display:none">
+  <div class="app-header">
+    <div class="logo-block">
+      <div class="logo-wordmark"><svg class="molten-mark" role="img" aria-label="molten"><use href="#molten-logo"/></svg></div>
+      <div class="logo-product">ScoreLink for Team</div>
+    </div>
+    <span class="app-version" onclick="openChangelogModal()" title="更新履歴を表示"></span>
+  </div>
+  <div class="tm-auth-wrap">
+    <div class="tm-card">
+      <div id="tm-invite-banner" class="tm-invite-banner" style="display:none"></div>
+      <div class="tm-card-title" id="tm-auth-title">ログイン</div>
+      <div class="tm-card-sub" id="tm-auth-sub">チームで記録したスコアは、そのチームのメンバーだけが見られます。</div>
+      <button class="tm-btn-google" onclick="teamSignInGoogle()">Google でログイン</button>
+      <div class="tm-or">または</div>
+      <label class="tm-field" id="tm-field-name" style="display:none"><span>お名前</span><input type="text" id="tm-name" autocomplete="name" placeholder="例：佐藤 洋輔"></label>
+      <label class="tm-field"><span>メールアドレス</span><input type="email" id="tm-email" autocomplete="email"></label>
+      <label class="tm-field"><span>パスワード</span><input type="password" id="tm-password" autocomplete="current-password" placeholder="6文字以上"></label>
+      <div id="tm-auth-msg" class="tm-msg" style="display:none"></div>
+      <button class="tm-btn-primary" id="tm-auth-submit" onclick="teamAuthSubmit()">ログイン</button>
+      <div class="tm-links">
+        <a id="tm-toggle-mode" onclick="teamToggleAuthMode()">はじめての方 — 新規登録</a>
+        <a onclick="teamResetPassword()">パスワードを忘れた</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =====================================================
+     molten ScoreLink for Team (2): チーム選択・作成
+     所属が1つなら通らない。0のときは作成フォームだけが出る
+     ===================================================== -->
+<div id="view-team-select" style="display:none">
+  <div class="app-header">
+    <div class="logo-block">
+      <div class="logo-wordmark"><svg class="molten-mark" role="img" aria-label="molten"><use href="#molten-logo"/></svg></div>
+      <div class="logo-product">ScoreLink for Team</div>
+    </div>
+    <span class="app-version" onclick="openChangelogModal()" title="更新履歴を表示"></span>
+    <div class="logo-divider"></div>
+    <div class="auth-user" style="display:flex">
+      <span class="auth-user-name tm-user-name"></span>
+      <button class="btn-logout" onclick="signOutUser()">ログアウト</button>
+    </div>
+  </div>
+  <div class="page-body">
+    <div class="section-eyebrow">TEAMS</div>
+    <div id="tm-team-list"></div>
+    <div class="tm-card" style="max-width:420px;margin-top:22px">
+      <div class="tm-card-title">チームを作る</div>
+      <div class="tm-card-sub">作った人がそのチームの代表になります。あとから招待リンクでメンバーを追加できます。</div>
+      <label class="tm-field"><span>チーム名</span><input type="text" id="tm-new-team-name" placeholder="例：モルテン高校 男子バスケットボール部"></label>
+      <button class="tm-btn-primary" id="tm-create-btn" onclick="createTeamFromInput()">チームを作る</button>
+    </div>
+  </div>
+</div>
+
+<!-- =====================================================
+     molten ScoreLink for Team (3): チームホーム
+     ===================================================== -->
+<div id="view-team-home" style="display:none">
+  <div class="app-header">
+    <div class="logo-block">
+      <div class="logo-wordmark"><svg class="molten-mark" role="img" aria-label="molten"><use href="#molten-logo"/></svg></div>
+      <div class="logo-product">ScoreLink for Team</div>
+    </div>
+    <span class="app-version" onclick="openChangelogModal()" title="更新履歴を表示"></span>
+    <div class="logo-divider"></div>
+    <button class="btn-hdr" id="tm-switch-team" onclick="openTeamSelect()" style="display:none">チームを切り替え</button>
+    <div class="auth-user" style="display:flex">
+      <span class="auth-user-name tm-user-name"></span>
+      <button class="btn-logout" onclick="signOutUser()">ログアウト</button>
+    </div>
+  </div>
+  <div class="page-body">
+    <div class="section-eyebrow">TEAM</div>
+    <div class="tm-home-title" id="tm-home-team-name"></div>
+    <div class="tm-tabs">
+      <button class="tm-tab" data-tab="players" onclick="setTeamTab('players')">選手</button>
+      <button class="tm-tab" data-tab="members" onclick="setTeamTab('members')">メンバー</button>
+    </div>
+    <div id="tm-tab-body"></div>
+  </div>
+</div>
+
 <!--ARCHIVE:DATA-->
 <script>
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.08.30-3';
+const APP_VERSION = '2026.09.08-2';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.09.08-2', notes: [
+    'molten ScoreLink for Team（チーム向け）の試験版を追加しました',
+    'ホーム画面がログイン画面になり、ログイン後にご自分のチームの画面が開きます',
+    'Google ログインに加えて、メールアドレスとパスワードでも登録・ログインできます',
+    '代表の方は招待リンクを発行してメンバーを追加できます（有効期間72時間）',
+    'チームの選手名簿を登録できるようにしました',
+    'チームで記録した内容は、そのチームのメンバー以外は見られません（大会運営側のデータとは完全に分かれています）'
+  ] },
+  { v: '2026.09.08-1', notes: [
+    '開発用の接続先を追加しました（チーム向け機能の実験環境。通常のご利用には影響ありません）'
+  ] },
   { v: '2026.08.30-3', notes: [
     '記録中に右上へ出ていた「オンライン」の表示が得点に重なって見えにくかったのを直しました',
     '記録画面では上の青いバーの中に移し、通信が正常なときは文字を出さず緑の丸だけにしました',
@@ -4178,16 +4383,64 @@ const APP_CHANGELOG = [
 // =====================================================
 // Firebase 初期化
 // =====================================================
-const firebaseConfig = {
-  apiKey: "AIzaSyCURuyJfsPu8R0GVhMVQEHQBtAC9WCdtjM",
-  authDomain: "molten-scorelink.firebaseapp.com",
-  projectId: "molten-scorelink",
-  storageBucket: "molten-scorelink.firebasestorage.app",
-  messagingSenderId: "956502602785",
-  appId: "1:956502602785:web:cab678cf57e0c7f5b21f60"
+// 接続先は配信ホストで切り替える。index.html 1ファイルのまま
+// 本番と実験用の両方へ配信するための仕掛け（2026.09.08-1）。
+// 既定は必ず本番にして、dev の側をホスト名で名指しする。
+// 「実験のつもりで本番を触る」事故の方が、その逆よりはるかに高くつくため
+const FIREBASE_ENVS = {
+  prod: {
+    config: {
+      apiKey: "AIzaSyCURuyJfsPu8R0GVhMVQEHQBtAC9WCdtjM",
+      authDomain: "molten-scorelink.firebaseapp.com",
+      projectId: "molten-scorelink",
+      storageBucket: "molten-scorelink.firebasestorage.app",
+      messagingSenderId: "956502602785",
+      appId: "1:956502602785:web:cab678cf57e0c7f5b21f60"
+    },
+    // 分析の送信先（Googleアナリティクス GA4 の測定ID）
+    ga: 'G-QB7HSCG2Z5'
+  },
+  // チーム向けサービスの実験用。実験中のアクセスが協会の分析データに
+  // 混ざらないよう、測定IDも dev 専用のものにしてある
+  dev: {
+    config: {
+      apiKey: "AIzaSyDjdH7nmDbfy7WzGHr27pgSllgBQwClZ58",
+      authDomain: "molten-scorelink-dev.firebaseapp.com",
+      projectId: "molten-scorelink-dev",
+      storageBucket: "molten-scorelink-dev.firebasestorage.app",
+      messagingSenderId: "272300318587",
+      appId: "1:272300318587:web:9ba1bfe21892cba432e7de"
+    },
+    ga: 'G-KFCYNQN1RJ'
+  }
 };
-// 分析の送信先（Googleアナリティクス GA4 の測定ID）
-const GA_MEASUREMENT_ID = 'G-QB7HSCG2Z5';
+const APP_ENV = (function() {
+  try {
+    if (/^molten-scorelink-dev\./.test(location.hostname)) return 'dev';
+    // ローカル確認用。本番ホストで付けても dev（中身の無いプロジェクト）を見るだけ
+    if (new URLSearchParams(location.search).get('env') === 'dev') return 'dev';
+  } catch (e) { /* 古い端末で URLSearchParams が無い場合 */ }
+  return 'prod';
+})();
+const firebaseConfig    = FIREBASE_ENVS[APP_ENV].config;
+const GA_MEASUREMENT_ID = FIREBASE_ENVS[APP_ENV].ga;
+
+// 製品モード。APP_ENV（どのプロジェクトに繋ぐか）とは必ず別にしておく。
+// 「dev だからチーム向け」にすると、チーム向けを本番に出すときに作り直しになる
+//   assoc … molten ScoreLink（大会運営）
+//   team  … molten ScoreLink for Team（チーム向け）
+const TEAM_HOSTS = ['molten-scorelink-dev.web.app', 'molten-scorelink-dev.firebaseapp.com'];
+function isTeamHost() { return TEAM_HOSTS.indexOf(location.hostname) !== -1; }
+const APP_MODE = (function() {
+  try {
+    const q = new URLSearchParams(location.search);
+    if (q.get('mode') === 'team')  return 'team';
+    if (q.get('mode') === 'assoc') return 'assoc';
+    // 招待リンクは常にチーム向けとして開く
+    if (q.get('invite')) return 'team';
+  } catch (e) { /* 古い端末で URLSearchParams が無い場合 */ }
+  return isTeamHost() ? 'team' : 'assoc';
+})();
 // アーカイブHTML（書き出し版）：大会データが焼き込まれており、Firebaseには一切接続しない
 const IS_ARCHIVE = !!window.ARCHIVE_DATA;
 let db = null, auth = null, analytics = null, storage = null;
@@ -4332,6 +4585,9 @@ function showView(name) {
   document.getElementById('view-recorder').style.display    = name === 'recorder'    ? 'flex' : 'none';
   document.getElementById('view-roster').style.display      = name === 'roster'      ? 'block' : 'none';
   document.getElementById('view-register').style.display    = name === 'register'    ? 'block' : 'none';
+  document.getElementById('view-team-login').style.display  = name === 'team-login'  ? 'block' : 'none';
+  document.getElementById('view-team-select').style.display = name === 'team-select' ? 'block' : 'none';
+  document.getElementById('view-team-home').style.display   = name === 'team-home'   ? 'block' : 'none';
   // 記録画面だけ通信バッジの出し方を変える（得点に重なるため）
   document.body.classList.toggle('rec-view', name === 'recorder');
   _currentView = name;
@@ -11369,6 +11625,8 @@ function initAuth() {
   auth.onAuthStateChanged(async (user) => {
     authReady = true;
     currentUser = user;
+    // チーム向けは編集者許可リストを使わない（権限はチームの members が正）
+    if (APP_MODE === 'team') { await onTeamAuthChanged(user); return; }
     if (user) {
       await loadAllowedEditors();
       const email = (user.email || '').toLowerCase().trim();
@@ -11407,6 +11665,498 @@ function applyEditorPermissions() {
   document.body.classList.toggle('is-editor', isEditor);
   document.body.classList.toggle('not-editor', !isEditor);
 }
+
+// =====================================================
+// molten ScoreLink for Team
+// 大会運営側（tournaments / games / brackets …）とは完全に別系統。
+// チームの記録は teams/{teamId}/ の下に閉じ、公開ビューの対象にもしない。
+// 共有するのは記録・集計のロジックだけで、データは行き来しない（2026.09.08-2）
+// =====================================================
+let myTeams         = [];        // 所属チーム [{ id, name, role }]
+let currentTeamId   = null;      // 表示中のチーム
+let currentTeamName = '';
+let teamHomeTab     = 'members'; // 実験中は招待から始めることが多いのでメンバーを既定にする
+let teamAuthMode    = 'login';   // 'login' | 'signup'
+let pendingInvite   = null;      // ?invite= で開いたときの { token, teamId, teamName }
+let lastInviteUrl   = '';        // 直近に発行した招待URL（画面に出すだけ。保存はしない）
+const INVITE_TTL_HOURS = 72;     // 招待リンクの有効期間。流出時の影響を短く抑える
+
+function myUid() { return currentUser ? currentUser.uid : null; }
+function currentTeamRole() {
+  const t = myTeams.find(x => x.id === currentTeamId);
+  return t ? t.role : 'member';
+}
+
+// 招待トークンは、知っている人が誰でもチームに入れてしまう鍵そのもの。
+// generateToken() は Math.random なので、ここでは暗号用の乱数を使う
+function generateInviteToken() {
+  const c = window.crypto || window.msCrypto;
+  if (c && c.getRandomValues) {
+    const a = new Uint8Array(24);
+    c.getRandomValues(a);
+    return Array.from(a, b => ('0' + b.toString(16)).slice(-2)).join('');
+  }
+  // 暗号用の乱数が使えない古い端末向けの保険
+  return generateToken() + generateToken() + generateToken();
+}
+
+// チーム向けのURLを組み立てる。チーム専用ホスト以外では ?mode=team を保つ
+function teamAppUrl(params) {
+  const q = new URLSearchParams(params || {});
+  if (!isTeamHost()) q.set('mode', 'team');
+  const qs = q.toString();
+  return location.origin + location.pathname + (qs ? '?' + qs : '');
+}
+
+// -------------------- 認証 --------------------
+function teamAuthMessage(text, kind) {
+  const el = document.getElementById('tm-auth-msg');
+  if (!el) return;
+  if (!text) { el.style.display = 'none'; return; }
+  el.className = 'tm-msg ' + (kind || 'err');
+  el.textContent = text;
+  el.style.display = 'block';
+}
+
+// Firebase のエラーコードを日本語にする。
+// そのまま出すと英語で、しかも原因が分からない文言が多い
+function teamAuthErrorText(e) {
+  const map = {
+    'auth/invalid-email':          'メールアドレスの形式が正しくありません',
+    'auth/user-not-found':         'このメールアドレスは登録されていません',
+    'auth/wrong-password':         'パスワードが違います',
+    'auth/invalid-credential':     'メールアドレスまたはパスワードが違います',
+    'auth/email-already-in-use':   'このメールアドレスは既に登録されています。ログインしてください',
+    'auth/weak-password':          'パスワードは6文字以上にしてください',
+    'auth/too-many-requests':      '試行が多すぎます。しばらく待ってからお試しください',
+    'auth/popup-closed-by-user':   'ログイン画面が閉じられました',
+    'auth/popup-blocked':          'ポップアップがブロックされました。ブラウザの設定をご確認ください',
+    'auth/network-request-failed': '通信できませんでした。電波の良い場所でお試しください',
+    'auth/operation-not-allowed':  'この方法でのログインが有効になっていません'
+  };
+  return map[(e && e.code) || ''] || (e && e.message) || 'エラーが発生しました';
+}
+
+async function teamSignInGoogle() {
+  teamAuthMessage('');
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    await auth.signInWithPopup(provider);
+  } catch (e) {
+    teamAuthMessage(teamAuthErrorText(e));
+  }
+}
+
+function teamToggleAuthMode() {
+  teamAuthMode = (teamAuthMode === 'login') ? 'signup' : 'login';
+  teamAuthMessage('');
+  renderTeamLogin();
+}
+
+function renderTeamLogin() {
+  const signup = (teamAuthMode === 'signup');
+  const set = (id, prop, val) => { const el = document.getElementById(id); if (el) el[prop] = val; };
+  set('tm-auth-title',  'textContent', signup ? '新規登録' : 'ログイン');
+  set('tm-auth-sub',    'textContent', signup
+    ? 'アカウントを作ると、チームを新しく作れます。'
+    : 'チームで記録したスコアは、そのチームのメンバーだけが見られます。');
+  set('tm-auth-submit', 'textContent', signup ? 'アカウントを作る' : 'ログイン');
+  set('tm-toggle-mode', 'textContent', signup ? 'アカウントをお持ちの方 — ログイン' : 'はじめての方 — 新規登録');
+  const nameField = document.getElementById('tm-field-name');
+  if (nameField) nameField.style.display = signup ? 'block' : 'none';
+  const pw = document.getElementById('tm-password');
+  if (pw) pw.setAttribute('autocomplete', signup ? 'new-password' : 'current-password');
+
+  // 招待リンクから開いた場合の案内
+  const banner = document.getElementById('tm-invite-banner');
+  if (banner) {
+    if (pendingInvite) {
+      banner.innerHTML = '<strong>' + esc(pendingInvite.teamName) + '</strong> に招待されています。<br>'
+        + 'ログインすると、そのままチームに参加できます。';
+      banner.style.display = 'block';
+    } else {
+      banner.style.display = 'none';
+    }
+  }
+}
+
+async function teamAuthSubmit() {
+  const email = (document.getElementById('tm-email').value || '').trim();
+  const pass  = document.getElementById('tm-password').value || '';
+  const name  = (document.getElementById('tm-name').value || '').trim();
+  if (!email || !pass) { teamAuthMessage('メールアドレスとパスワードを入力してください'); return; }
+  const btn = document.getElementById('tm-auth-submit');
+  const label = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '処理中...'; }
+  teamAuthMessage('');
+  try {
+    if (teamAuthMode === 'signup') {
+      const cred = await auth.createUserWithEmailAndPassword(email, pass);
+      if (name && cred.user) await cred.user.updateProfile({ displayName: name });
+      // 確認メールを送る。パスワード再設定の宛先が実在することを担保するため
+      try { if (cred.user) await cred.user.sendEmailVerification(); } catch (e) { console.warn('[team] 確認メール送信に失敗:', e); }
+    } else {
+      await auth.signInWithEmailAndPassword(email, pass);
+    }
+  } catch (e) {
+    teamAuthMessage(teamAuthErrorText(e));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = label; }
+  }
+}
+
+async function teamResetPassword() {
+  const email = (document.getElementById('tm-email').value || '').trim();
+  if (!email) { teamAuthMessage('メールアドレスを入力してから押してください'); return; }
+  try {
+    await auth.sendPasswordResetEmail(email);
+    teamAuthMessage(email + ' に再設定メールを送りました', 'info');
+  } catch (e) {
+    teamAuthMessage(teamAuthErrorText(e));
+  }
+}
+
+function updateTeamAuthUI() {
+  const label = currentUser ? (currentUser.displayName || currentUser.email || 'ユーザー') : '';
+  document.querySelectorAll('.tm-user-name').forEach(el => { el.textContent = label; });
+}
+
+// -------------------- 起動と画面遷移 --------------------
+async function initTeamApp() {
+  document.body.classList.add('team-mode');
+  showView('team-login');
+  // 招待は認証より先に読む。ログイン画面を出した時点で
+  // 「どのチームに招待されているか」が見えていないと不安になるため
+  const token = new URLSearchParams(location.search).get('invite');
+  if (token) await loadInviteInfo(token);
+  renderTeamLogin();
+  initAuth();
+}
+
+async function loadInviteInfo(token) {
+  try {
+    const doc = await withTimeout(db.collection('invites').doc(token).get(), 8000);
+    if (!doc.exists) { showToast('招待リンクが見つかりません'); return; }
+    const d = doc.data();
+    const exp = d.expiresAt && d.expiresAt.toDate ? d.expiresAt.toDate() : null;
+    if (exp && exp.getTime() < Date.now()) { showToast('この招待リンクは期限切れです'); return; }
+    pendingInvite = { token, teamId: d.teamId, teamName: d.teamName || 'チーム' };
+  } catch (e) {
+    console.warn('[team] 招待を読めません:', e);
+    showToast('招待リンクを確認できませんでした');
+  }
+}
+
+async function onTeamAuthChanged(user) {
+  updateTeamAuthUI();
+  if (!user) {
+    myTeams = []; currentTeamId = null; currentTeamName = '';
+    renderTeamLogin();
+    showView('team-login');
+    return;
+  }
+  await loadMyTeams();
+  if (pendingInvite) await acceptPendingInvite();
+  if (myTeams.length === 1) {
+    openTeamHome(myTeams[0].id);
+  } else {
+    openTeamSelect();
+  }
+}
+
+// 所属チームの索引は users/{uid} に持つ。権限の正は teams/{id}/members/{uid} の方で、
+// この索引は「どのチームを開けばよいか」を知るためだけの控え。
+// 中身が古くても偽られても権限は増えない（開くときに必ず本体で弾かれる）
+async function loadMyTeams() {
+  myTeams = [];
+  const uid = myUid();
+  if (!uid) return;
+  let listed = [];
+  try {
+    const doc = await withTimeout(db.collection('users').doc(uid).get(), 8000);
+    if (doc.exists && Array.isArray(doc.data().teams)) listed = doc.data().teams;
+  } catch (e) {
+    console.warn('[team] 所属チームの索引を読めません:', e);
+  }
+  // 索引に載っていてもメンバーから外されていれば読めない。
+  // 実際に開けたものだけを残す（自己修復）
+  const rows = await Promise.all(listed.map(async t => {
+    if (!t || !t.id) return null;
+    try {
+      const [teamDoc, memDoc] = await Promise.all([
+        withTimeout(db.collection('teams').doc(t.id).get(), 8000),
+        withTimeout(db.collection('teams').doc(t.id).collection('members').doc(uid).get(), 8000)
+      ]);
+      if (!teamDoc.exists || !memDoc.exists) return null;
+      return { id: t.id, name: teamDoc.data().name || '(名称未設定)', role: memDoc.data().role || 'member' };
+    } catch (e) { return null; }
+  }));
+  myTeams = rows.filter(Boolean);
+  // 外されたチームが索引に残っていたら消しておく
+  if (myTeams.length !== listed.length) { try { await saveMyTeamIndex(); } catch (e) {} }
+}
+
+async function saveMyTeamIndex() {
+  const uid = myUid();
+  if (!uid) return;
+  await db.collection('users').doc(uid).set({
+    teams: myTeams.map(t => ({ id: t.id, name: t.name, role: t.role })),
+    email: (currentUser.email || '').toLowerCase(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: true });
+}
+
+// -------------------- チームの作成・参加 --------------------
+async function createTeamFromInput() {
+  const input = document.getElementById('tm-new-team-name');
+  const name  = (input.value || '').trim();
+  if (!name) { showToast('チーム名を入力してください'); return; }
+  const uid = myUid();
+  if (!uid) { showToast('ログインし直してください'); return; }
+  const btn = document.getElementById('tm-create-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '作成中...'; }
+  try {
+    const now = firebase.firestore.FieldValue.serverTimestamp();
+    // チーム本体 → 自分のメンバー登録、の順。ルールが teams.ownerUid を見て
+    // 代表の登録を許可する作りなので、この順番でないと通らない
+    const ref = await db.collection('teams').add({ name, ownerUid: uid, createdAt: now });
+    await ref.collection('members').doc(uid).set({
+      uid,
+      email:       (currentUser.email || '').toLowerCase(),
+      displayName: currentUser.displayName || '',
+      role:        'owner',
+      joinedAt:    now
+    });
+    myTeams.push({ id: ref.id, name, role: 'owner' });
+    await saveMyTeamIndex();
+    input.value = '';
+    openTeamHome(ref.id);
+    showToast('チームを作成しました');
+  } catch (e) {
+    showToast('作成できませんでした: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'チームを作る'; }
+  }
+}
+
+async function acceptPendingInvite() {
+  if (!pendingInvite || !currentUser) return;
+  const uid = myUid();
+  const inv = pendingInvite;
+  if (myTeams.some(t => t.id === inv.teamId)) { pendingInvite = null; return; }
+  try {
+    const now = firebase.firestore.FieldValue.serverTimestamp();
+    await db.collection('teams').doc(inv.teamId).collection('members').doc(uid).set({
+      uid,
+      email:       (currentUser.email || '').toLowerCase(),
+      displayName: currentUser.displayName || '',
+      role:        'member',
+      inviteToken: inv.token,
+      joinedAt:    now
+    });
+    myTeams.push({ id: inv.teamId, name: inv.teamName, role: 'member' });
+    await saveMyTeamIndex();
+    pendingInvite = null;
+    showToast(inv.teamName + ' に参加しました');
+  } catch (e) {
+    showToast('参加できませんでした: ' + e.message);
+    pendingInvite = null;
+  }
+}
+
+// -------------------- チーム選択 --------------------
+function openTeamSelect() {
+  currentTeamId = null;
+  renderTeamSelect();
+  showView('team-select');
+}
+
+function renderTeamSelect() {
+  updateTeamAuthUI();
+  const list = document.getElementById('tm-team-list');
+  if (!list) return;
+  list.innerHTML = myTeams.length === 0
+    ? '<div class="tm-empty">まだチームがありません。<br>下のフォームから作るか、代表の方から招待リンクを受け取ってください。</div>'
+    : myTeams.map(t => `
+      <button class="tm-team-row" onclick="openTeamHome('${escAttr(t.id)}')">
+        <span class="tm-team-name">${esc(t.name)}</span>
+        <span class="tm-role-tag">${t.role === 'owner' ? '代表' : 'メンバー'}</span>
+      </button>`).join('');
+}
+
+// -------------------- チームホーム --------------------
+function openTeamHome(teamId) {
+  const t = myTeams.find(x => x.id === teamId);
+  if (!t) { openTeamSelect(); return; }
+  currentTeamId   = teamId;
+  currentTeamName = t.name;
+  lastInviteUrl   = '';
+  showView('team-home');
+  renderTeamHome();
+}
+
+function renderTeamHome() {
+  updateTeamAuthUI();
+  const nameEl = document.getElementById('tm-home-team-name');
+  if (nameEl) nameEl.textContent = currentTeamName;
+  const sw = document.getElementById('tm-switch-team');
+  if (sw) sw.style.display = myTeams.length > 1 ? '' : 'none';
+  document.querySelectorAll('#view-team-home .tm-tab').forEach(el => {
+    el.classList.toggle('active', el.dataset.tab === teamHomeTab);
+  });
+  if (teamHomeTab === 'members') renderMembersTab();
+  else renderPlayersTab();
+}
+
+function setTeamTab(tab) {
+  teamHomeTab = tab;
+  renderTeamHome();
+}
+
+// -------------------- メンバーと招待 --------------------
+async function renderMembersTab() {
+  const body = document.getElementById('tm-tab-body');
+  if (!body) return;
+  const isOwner = currentTeamRole() === 'owner';
+  body.innerHTML = '<div class="tm-empty">読み込み中...</div>';
+  let members = [];
+  try {
+    const snap = await withTimeout(
+      db.collection('teams').doc(currentTeamId).collection('members').get(), 10000);
+    snap.forEach(d => members.push(Object.assign({ id: d.id }, d.data())));
+  } catch (e) {
+    body.innerHTML = '<div class="tm-empty">メンバーを読み込めませんでした<br>' + esc(e.message) + '</div>';
+    return;
+  }
+  members.sort((a, b) => (a.role === 'owner' ? 0 : 1) - (b.role === 'owner' ? 0 : 1));
+
+  let html = '';
+  if (isOwner) {
+    html += '<div class="tm-invite-box">'
+      + '<div class="tm-card-title" style="font-size:14px">メンバーを招待する</div>'
+      + '<div class="tm-note" style="margin:6px 0 0">リンクを送ると、受け取った人はログインするだけで参加できます。'
+      + '有効期間は ' + INVITE_TTL_HOURS + ' 時間です。期限内はリンクを知っている人なら誰でも参加できるので、'
+      + '送る相手にだけ渡してください。</div>';
+    if (lastInviteUrl) {
+      html += '<div class="tm-invite-row">'
+        + '<input id="tm-invite-url" readonly value="' + escAttr(lastInviteUrl) + '">'
+        + '<button class="tm-btn-sm" onclick="copyInviteLink()">コピー</button></div>';
+    }
+    html += '<div style="margin-top:12px"><button class="tm-btn-primary" id="tm-invite-btn" '
+      + 'style="width:auto;padding:10px 18px;margin:0" onclick="createInviteLink()">招待リンクを作る</button></div>'
+      + '</div>';
+  }
+
+  html += members.map(m => {
+    const nm  = m.displayName || (m.email || '').split('@')[0] || 'メンバー';
+    const me  = (m.id === myUid());
+    const tag = m.role === 'owner' ? '<span class="tm-role-tag">代表</span>' : '';
+    const del = (isOwner && !me)
+      ? `<button class="tm-btn-sm" onclick="removeTeamMember('${escAttr(m.id)}','${escAttr(nm)}')">削除</button>` : '';
+    return '<div class="tm-member-row"><div class="tm-member-main">'
+      + '<div class="tm-member-name">' + esc(nm) + (me ? '（あなた）' : '') + '</div>'
+      + '<div class="tm-member-mail">' + esc(m.email || '') + '</div>'
+      + '</div>' + tag + del + '</div>';
+  }).join('');
+
+  body.innerHTML = html;
+}
+
+async function createInviteLink() {
+  if (!currentTeamId) return;
+  const btn = document.getElementById('tm-invite-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '発行中...'; }
+  try {
+    const token = generateInviteToken();
+    const expires = new Date(Date.now() + INVITE_TTL_HOURS * 3600 * 1000);
+    await db.collection('invites').doc(token).set({
+      teamId:    currentTeamId,
+      teamName:  currentTeamName,   // 招待された人がログイン前にチーム名を見るため控える
+      role:      'member',
+      createdBy: myUid(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      expiresAt: firebase.firestore.Timestamp.fromDate(expires)
+    });
+    lastInviteUrl = teamAppUrl({ invite: token });
+    renderMembersTab();
+  } catch (e) {
+    showToast('招待リンクを作れませんでした: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '招待リンクを作る'; }
+  }
+}
+
+function copyInviteLink() {
+  const el = document.getElementById('tm-invite-url');
+  if (!el) return;
+  const done = () => showToast('リンクをコピーしました');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(el.value).then(done).catch(() => { el.select(); showToast('コピーできませんでした。長押しで選択してください'); });
+  } else {
+    // クリップボードAPIが使えない端末向け
+    el.select();
+    try { document.execCommand('copy'); done(); }
+    catch (e) { showToast('コピーできませんでした。長押しで選択してください'); }
+  }
+}
+
+async function removeTeamMember(uid, name) {
+  if (!confirm(name + ' をチームから外しますか？')) return;
+  try {
+    await db.collection('teams').doc(currentTeamId).collection('members').doc(uid).delete();
+    showToast('メンバーを外しました');
+    renderMembersTab();
+  } catch (e) {
+    showToast('削除できませんでした: ' + e.message);
+  }
+}
+
+// -------------------- 選手名簿 --------------------
+// 1人1ドキュメントにすると読み書きが人数ぶん増えるので、名簿は1件にまとめる。
+// 中身の形（num / name）は大会側の parsePlayers と共通
+function teamRosterRef() {
+  return db.collection('teams').doc(currentTeamId).collection('players').doc('roster');
+}
+
+async function renderPlayersTab() {
+  const body = document.getElementById('tm-tab-body');
+  if (!body) return;
+  body.innerHTML = '<div class="tm-empty">読み込み中...</div>';
+  let list = [];
+  try {
+    const doc = await withTimeout(teamRosterRef().get(), 10000);
+    if (doc.exists && Array.isArray(doc.data().list)) list = doc.data().list;
+  } catch (e) {
+    body.innerHTML = '<div class="tm-empty">名簿を読み込めませんでした<br>' + esc(e.message) + '</div>';
+    return;
+  }
+  body.innerHTML = '<div class="tm-note">1行に「背番号 名前」で入力してください（例：<code>4 佐藤 洋輔</code>）。'
+    + 'この名簿はチームの持ち物で、大会側のロスターとは別に管理されます。</div>'
+    + '<div class="tm-card" style="max-width:460px">'
+    + '<label class="tm-field"><span>選手</span><textarea id="tm-roster-text" placeholder="4 佐藤 洋輔&#10;5 田中 太郎"></textarea></label>'
+    + '<button class="tm-btn-primary" id="tm-roster-save" onclick="saveTeamRoster()">名簿を保存</button>'
+    + '</div>';
+  document.getElementById('tm-roster-text').value = playersToText(list);
+}
+
+async function saveTeamRoster() {
+  const text = document.getElementById('tm-roster-text').value || '';
+  const list = parsePlayers(text);
+  const btn  = document.getElementById('tm-roster-save');
+  if (btn) { btn.disabled = true; btn.textContent = '保存中...'; }
+  try {
+    await teamRosterRef().set({
+      list,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedBy: myUid()
+    }, { merge: true });
+    showToast(list.length + '人を保存しました');
+  } catch (e) {
+    showToast('保存できませんでした: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '名簿を保存'; }
+  }
+}
+
 
 // =====================================================
 // 起動
@@ -11476,12 +12226,17 @@ function handlePopState(e) {
 window.addEventListener('popstate', handlePopState);
 
 async function initApp() {
-  const verEl = document.getElementById('app-version');
-  if (verEl) verEl.textContent = 'ver ' + APP_VERSION;
+  // どちらのプロジェクトに繋いでいるかは必ず見えるようにする（本番と実験の取り違え防止）。
+  // チーム向けの画面にもそれぞれヘッダーがあるので、まとめて入れる
+  const verText = 'ver ' + APP_VERSION + (APP_ENV === 'dev' ? '（実験環境）' : '');
+  document.querySelectorAll('.app-version').forEach(el => { el.textContent = verText; });
   // アーカイブ版：埋め込みデータで閲覧ページを表示して終了（認証・Firestoreは使わない）
   if (IS_ARCHIVE) { openViewerArchive(); return; }
   if (!db) return;   // Firebase未読み込み。上で案内を出しているのでここは何もしない
   updateGeminiApiKeyStatus();
+  // molten ScoreLink for Team：大会向けのルーティングは通さない。
+  // 画面は onTeamAuthChanged が決める（initAuth は initTeamApp の中で呼ぶ）
+  if (APP_MODE === 'team') { await initTeamApp(); return; }
   initAuth();  // 認証状態の監視を開始
   const params      = new URLSearchParams(window.location.search);
   const registerTid = params.get('register');

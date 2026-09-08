@@ -2,12 +2,26 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ---- ヘルパー関数 ----
+    // =====================================================
+    // 共通ヘルパー
+    // =====================================================
 
-    // ログインユーザーのメール（小文字）
+    // ログインユーザーのメール（小文字）。
+    // ★ email_verified を必須にしている。メール＋パスワード認証は確認前でもログインでき、
+    //   トークンにそのアドレスが入るため、これが無いと app_config/editors に載っている
+    //   アドレスを騙ってサインアップするだけで編集権限を取れてしまう（2026.09.08）。
+    //   Google ログインは常に email_verified: true なので協会の運用には影響しない。
     function userEmail() {
-      return request.auth != null ? request.auth.token.email.lower() : '';
+      return request.auth != null && request.auth.token.get('email_verified', false) == true
+        ? request.auth.token.email.lower()
+        : '';
     }
+
+    // =====================================================
+    // 大会運営（molten ScoreLink）— 従来どおり
+    // ここから下の tournaments / games / roster_teams / brackets は
+    // チーム向けサービスとは完全に別物。相互に参照しない
+    // =====================================================
 
     // 許可リスト（app_config/editors の emails 配列）に含まれるか
     function isListedEditor() {
@@ -76,6 +90,90 @@ service cloud.firestore {
     match /app_config/{id} {
       allow read: if request.auth != null;
       allow write: if canEdit();
+    }
+
+    // =====================================================
+    // molten ScoreLink for Team — チーム向けサービス
+    // 上の大会運営データとは完全に分離。チームの記録は所属メンバー以外
+    // 誰も読めない（公開ビューの対象外）
+    // =====================================================
+
+    // 自分のメンバードキュメントの場所。所有者がパスに含まれるので、
+    // 判定はこの1本で足りる
+    function memberPath(teamId) {
+      return /databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid);
+    }
+    function isMember(teamId) {
+      return request.auth != null && exists(memberPath(teamId));
+    }
+    function isOwner(teamId) {
+      return isMember(teamId) && get(memberPath(teamId)).data.role == 'owner';
+    }
+
+    // 招待トークンが有効か。トークンはドキュメントIDそのもの（推測困難な乱数）
+    function invitePath(token) {
+      return /databases/$(database)/documents/invites/$(token);
+    }
+    function inviteOk(teamId, token) {
+      return token is string
+        && exists(invitePath(token))
+        && get(invitePath(token)).data.teamId == teamId
+        && get(invitePath(token)).data.expiresAt > request.time;
+    }
+
+    match /teams/{teamId} {
+      // チーム情報はメンバーのみ。招待リンクを開いた人には invites 側の
+      // teamName を見せるので、ここを公開する必要はない
+      allow get: if isMember(teamId);
+      allow list: if false;
+      // 作成時は自分を ownerUid にすることを強制する
+      allow create: if request.auth != null
+        && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if isOwner(teamId)
+        && request.resource.data.ownerUid == resource.data.ownerUid;
+      allow delete: if isOwner(teamId);
+
+      match /members/{uid} {
+        allow read: if isMember(teamId);
+        // 作れるのは「自分自身の1件」だけ。他人を勝手に追加させない
+        allow create: if request.auth != null && request.auth.uid == uid && (
+          // (a) チームを作った本人が、自分を代表として登録する
+          (request.resource.data.role == 'owner'
+            && get(/databases/$(database)/documents/teams/$(teamId)).data.ownerUid == request.auth.uid)
+          // (b) 招待リンクから参加する
+          || (request.resource.data.role == 'member'
+            && inviteOk(teamId, request.resource.data.inviteToken))
+        );
+        // 役割の変更・メンバーの削除は代表のみ。
+        // ただし自分から抜けるのは誰でもできる
+        allow update: if isOwner(teamId);
+        allow delete: if isOwner(teamId) || request.auth.uid == uid;
+      }
+
+      // 選手名簿・チームが記録した試合。メンバーなら読み書きできる
+      match /players/{playerId} {
+        allow read, write: if isMember(teamId);
+      }
+      match /games/{gameId} {
+        allow read, write: if isMember(teamId);
+      }
+    }
+
+    // 所属チームの索引。本人だけが読み書きできる。
+    // ここに何を書き込んでも権限は増えない。チームを開けるかどうかは
+    // teams/{teamId}/members/{uid} の有無で決まり、この索引は「どれを開けばよいか」
+    // を知るためだけの控えだから（偽の teamId を入れても本体で弾かれる）
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // 招待。get だけ許可して list は禁止（トークンの総当たり列挙を防ぐ）
+    match /invites/{token} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if isOwner(request.resource.data.teamId);
+      allow update: if false;
+      allow delete: if isOwner(resource.data.teamId);
     }
 
     // それ以外は全拒否

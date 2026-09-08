@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "molten-scorelink"
+    "default": "molten-scorelink",
+    "prod": "molten-scorelink",
+    "dev": "molten-scorelink-dev"
   }
 }
