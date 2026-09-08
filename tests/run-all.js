@@ -6,6 +6,7 @@ const path = require('path');
 const html = path.resolve(__dirname, '..', 'index.html');
 const files = [
   'debug-check.js',        // 構文・未定義参照などの静的チェック
+  'test-rules.js',         // firestore.rules の不変条件（テナント分離・大会側の据え置き）
   'test-visibility.js',    // 公開範囲（速報URL／詳細URL）
   'test-bracket-count.js', // トーナメント（任意チーム数・配置編集）
   'test-schedule.js',      // 試合予定とLIVE表示
