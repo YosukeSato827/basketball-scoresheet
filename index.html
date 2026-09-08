@@ -4019,6 +4019,7 @@ body.rec-view .net-status { display: none; }
     <div class="section-eyebrow">TEAM</div>
     <div class="tm-home-title" id="tm-home-team-name"></div>
     <div class="tm-tabs">
+      <button class="tm-tab" data-tab="games" onclick="setTeamTab('games')">試合</button>
       <button class="tm-tab" data-tab="players" onclick="setTeamTab('players')">選手</button>
       <button class="tm-tab" data-tab="members" onclick="setTeamTab('members')">メンバー</button>
     </div>
@@ -4031,9 +4032,15 @@ body.rec-view .net-status { display: none; }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.09.08-2';
+const APP_VERSION = '2026.09.08-3';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.09.08-3', notes: [
+    'ScoreLink for Team に「試合」タブを追加しました。チームの試合を記録できます',
+    '相手チーム名と日付を入れるだけで記録を始められます（自チームの選手は名簿から自動で入ります）',
+    '記録画面は大会運営で使っているものと同じです。スコアシートもボックススコアもそのまま使えます',
+    'チームの試合は大会の試合とは別の場所に保存され、混ざることはありません'
+  ] },
   { v: '2026.09.08-2', notes: [
     'molten ScoreLink for Team（チーム向け）の試験版を追加しました',
     'ホーム画面がログイン画面になり、ログイン後にご自分のチームの画面が開きます',
@@ -7516,6 +7523,10 @@ function tapFeedback(type = 'light') {
 // ライブ記録
 // =====================================================
 let recGameId       = null;
+// チームの試合を記録しているときだけチームIDが入る。
+// 大会の試合は games/、チームの試合は teams/{teamId}/games/ に保存する。
+// 両者は別物で、データの行き来はさせない（2026.09.08-3）
+let recTeamId       = null;
 let recGameMode     = 'scoresheet';  // 'scoresheet' or 'stats'
 let recCurrentQ     = 1;
 let recPbpData      = '';
@@ -7614,6 +7625,13 @@ function backFromRecorder() {
   clearInterval(recTimerIv);
   recTimerRunning = false;
   stopTimerSync();
+  // チームの試合は大会側の履歴に乗っていないので、history.back() では戻れない
+  if (recTeamId) {
+    const back = recTeamId;
+    recTeamId = null;
+    openTeamHome(back);
+    return;
+  }
   document.getElementById('pbpInput').value = recPbpData;
   document.getElementById('playersA').value = playersToText(recPlayersA);
   document.getElementById('playersB').value = playersToText(recPlayersB);
@@ -7633,6 +7651,10 @@ function setRecorderQ(q) {
 
 function saveRecSession() {
   if (!recGameId) return;
+  // チームの試合はここに保存しない。大会側の復元処理に拾われてしまうため。
+  // 記録内容は操作のたびに Firestore へ書いているので、再読み込みしても
+  // チームホームから同じ試合を開き直せば続きから記録できる
+  if (recTeamId) return;
   try {
     sessionStorage.setItem('recSession', JSON.stringify({
       gameId: recGameId,
@@ -7840,6 +7862,13 @@ function closePlayerSelect() {
 // - オンライン時：サーバーACKで ''
 // - オフライン時：Firestore が IndexedDB にキュー → 再接続時に自動同期。
 //   ローカルの記録は絶対にロールバックしない（データ消失防止）
+// 記録中の試合ドキュメント。保存先はここだけで判断する
+function recGameRef() {
+  return recTeamId
+    ? db.collection('teams').doc(recTeamId).collection('games').doc(recGameId)
+    : db.collection('games').doc(recGameId);
+}
+
 function savePbpToFirestore(extraFields = {}) {
   if (!recGameId) return;
   const plays  = parsePBP(recPbpData);
@@ -7853,14 +7882,14 @@ function savePbpToFirestore(extraFields = {}) {
   };
   if (!isOnline) {
     // キューされる。ACKは復帰後に来るので待たない
-    db.collection('games').doc(recGameId).update(payload).catch(e => {
+    recGameRef().update(payload).catch(e => {
       console.error('[offline-queue] 同期時エラー:', e);
     });
     setRecStatus('オフライン保存');
     return;
   }
   setRecStatus('保存中...');
-  db.collection('games').doc(recGameId).update(payload)
+  recGameRef().update(payload)
     .then(() => {
       setRecStatus('');
       setTimeout(() => setRecStatus(''), 1200);
@@ -8603,7 +8632,8 @@ function loadRecTimerDevice() {
   recTimerDeviceId = null;
   recTimerScoreFlip = false;
   if (!recGameId) return;
-  db.collection('games').doc(recGameId).get().then(doc => {
+  if (recTeamId) return;   // タイマー連携は大会運営側のしくみ。チームの試合では使わない
+  recGameRef().get().then(doc => {
     if (doc.exists) {
       recTimerDeviceId  = doc.data().timerDeviceId || null;
       recTimerScoreFlip = !!doc.data().timerScoreFlip;
@@ -11675,7 +11705,7 @@ function applyEditorPermissions() {
 let myTeams         = [];        // 所属チーム [{ id, name, role }]
 let currentTeamId   = null;      // 表示中のチーム
 let currentTeamName = '';
-let teamHomeTab     = 'members'; // 実験中は招待から始めることが多いのでメンバーを既定にする
+let teamHomeTab     = 'games';   // ふだん使うのは試合なので既定はここ
 let teamAuthMode    = 'login';   // 'login' | 'signup'
 let pendingInvite   = null;      // ?invite= で開いたときの { token, teamId, teamName }
 let lastInviteUrl   = '';        // 直近に発行した招待URL（画面に出すだけ。保存はしない）
@@ -12004,8 +12034,9 @@ function renderTeamHome() {
   document.querySelectorAll('#view-team-home .tm-tab').forEach(el => {
     el.classList.toggle('active', el.dataset.tab === teamHomeTab);
   });
-  if (teamHomeTab === 'members') renderMembersTab();
-  else renderPlayersTab();
+  if (teamHomeTab === 'members')      renderMembersTab();
+  else if (teamHomeTab === 'players') renderPlayersTab();
+  else                                renderGamesTab();
 }
 
 function setTeamTab(tab) {
@@ -12110,6 +12141,127 @@ async function removeTeamMember(uid, name) {
   }
 }
 
+// -------------------- 試合 --------------------
+// チームの試合は teams/{teamId}/games に入れる。大会側の games とは別物で、
+// 集計・記録のロジックだけを共有する
+function teamGamesCol() {
+  return db.collection('teams').doc(currentTeamId).collection('games');
+}
+
+async function renderGamesTab() {
+  const body = document.getElementById('tm-tab-body');
+  if (!body) return;
+  body.innerHTML = '<div class="tm-empty">読み込み中...</div>';
+  let games = [];
+  try {
+    const snap = await withTimeout(teamGamesCol().orderBy('gameDate', 'desc').get(), 10000);
+    snap.forEach(d => games.push(Object.assign({ id: d.id }, d.data())));
+  } catch (e) {
+    body.innerHTML = '<div class="tm-empty">試合を読み込めませんでした<br>' + esc(e.message) + '</div>';
+    return;
+  }
+  let html = '<div class="tm-invite-box">'
+    + '<div class="tm-card-title" style="font-size:14px">新しい試合を記録する</div>'
+    + '<div class="tm-note" style="margin:6px 0 12px">自チームの選手は名簿から自動で読み込まれます。</div>'
+    + '<label class="tm-field"><span>相手チーム</span><input type="text" id="tm-game-opp" placeholder="例：〇〇高校"></label>'
+    + '<label class="tm-field"><span>日付</span><input type="date" id="tm-game-date"></label>'
+    + '<label class="tm-field"><span>会場（任意）</span><input type="text" id="tm-game-venue" placeholder="例：市民体育館"></label>'
+    + '<button class="tm-btn-primary" id="tm-game-create" style="width:auto;padding:10px 18px;margin:4px 0 0" '
+    + 'onclick="createTeamGameAndRecord()">記録を始める</button></div>';
+
+  html += games.length === 0
+    ? '<div class="tm-empty">まだ試合がありません。<br>上のフォームから記録を始めてください。</div>'
+    : games.map(g => {
+        const a = (g.totalA != null) ? g.totalA : 0;
+        const b = (g.totalB != null) ? g.totalB : 0;
+        const meta = [g.gameDate || '日付なし', g.venue || ''].filter(Boolean).join('　');
+        return '<div class="tm-member-row"><div class="tm-member-main">'
+          + '<div class="tm-member-name">' + esc(g.teamAName || currentTeamName) + ' ' + a + ' - ' + b + ' ' + esc(g.teamBName || '相手') + '</div>'
+          + '<div class="tm-member-mail">' + esc(meta) + '</div></div>'
+          + '<button class="tm-btn-sm" style="border-color:var(--blue);color:var(--blue)" '
+          + 'onclick="openTeamGame(\'' + escAttr(g.id) + '\')">開く</button>'
+          + '<button class="tm-btn-sm" onclick="deleteTeamGame(\'' + escAttr(g.id) + '\')">削除</button>'
+          + '</div>';
+      }).join('');
+  body.innerHTML = html;
+  const dateEl = document.getElementById('tm-game-date');
+  if (dateEl && !dateEl.value) dateEl.value = new Date().toISOString().slice(0, 10);
+}
+
+async function createTeamGameAndRecord() {
+  const opp   = (document.getElementById('tm-game-opp').value   || '').trim();
+  const date  = (document.getElementById('tm-game-date').value  || '').trim();
+  const venue = (document.getElementById('tm-game-venue').value || '').trim();
+  if (!opp) { showToast('相手チーム名を入力してください'); return; }
+  const btn = document.getElementById('tm-game-create');
+  if (btn) { btn.disabled = true; btn.textContent = '作成中...'; }
+  try {
+    // 自チームの選手は名簿から入れる。無ければ空のまま記録画面で足せる
+    let roster = [];
+    try {
+      const r = await withTimeout(teamRosterRef().get(), 8000);
+      if (r.exists && Array.isArray(r.data().list)) roster = r.data().list;
+    } catch (e) { /* 名簿が無くても記録は始められる */ }
+    const data = {
+      teamAName: currentTeamName, teamBName: opp,
+      gameDate: date, venue, gameNo: '',
+      playersA: roster, playersB: [],
+      pbpData: '', totalA: 0, totalB: 0,
+      gameMode: 'scoresheet',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      createdBy: myUid()
+    };
+    const ref = await teamGamesCol().add(data);
+    startTeamGameRecorder(ref.id, data);
+  } catch (e) {
+    showToast('試合を作れませんでした: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '記録を始める'; }
+  }
+}
+
+async function openTeamGame(gameId) {
+  try {
+    const doc = await withTimeout(teamGamesCol().doc(gameId).get(), 10000);
+    if (!doc.exists) { showToast('試合が見つかりません'); return; }
+    startTeamGameRecorder(gameId, doc.data());
+  } catch (e) {
+    showToast('開けませんでした: ' + e.message);
+  }
+}
+
+async function deleteTeamGame(gameId) {
+  if (!confirm('この試合の記録を削除しますか？　元に戻せません。')) return;
+  try {
+    await teamGamesCol().doc(gameId).delete();
+    showToast('試合を削除しました');
+    renderGamesTab();
+  } catch (e) {
+    showToast('削除できませんでした: ' + e.message);
+  }
+}
+
+// 記録画面は大会側とまったく同じものを使う。
+// openRecorder() が編集画面のフォームから値を読む作りなので、
+// そこに流し込んでから呼ぶ（記録・集計のロジックを二重に持たないため）
+function startTeamGameRecorder(gameId, d) {
+  recTeamId         = currentTeamId;
+  currentGameId     = gameId;
+  currentGameStatus = d.status || null;
+  pendingGameMode   = d.gameMode || 'scoresheet';
+  document.getElementById('teamAName').value = d.teamAName || currentTeamName;
+  document.getElementById('teamBName').value = d.teamBName || '';
+  document.getElementById('gameNo').value    = d.gameNo    || '';
+  document.getElementById('gameDate').value  = d.gameDate  || '';
+  document.getElementById('venue').value     = d.venue     || '';
+  document.getElementById('pbpInput').value  = d.pbpData   || '';
+  document.getElementById('playersA').value  = playersToText(d.playersA || []);
+  document.getElementById('playersB').value  = playersToText(d.playersB || []);
+  // 大会側のようなユニフォーム選択は挟まないので、見分けのつく既定色を入れる
+  recUniformsA = [{ bg: '#1565C0', text: '#FFFFFF' }];
+  recUniformsB = [{ bg: '#E53935', text: '#FFFFFF' }];
+  openRecorder();
+}
+
 // -------------------- 選手名簿 --------------------
 // 1人1ドキュメントにすると読み書きが人数ぶん増えるので、名簿は1件にまとめる。
 // 中身の形（num / name）は大会側の parsePlayers と共通
@@ -12174,6 +12326,14 @@ function pushAppState(view, label) {
 }
 
 function handlePopState(e) {
+  // チーム向けでは大会側のビュー名を持っていないので、既定の 'tournaments' に
+  // 落ちると協会の画面が出てしまう。チームホームへ戻す
+  if (APP_MODE === 'team') {
+    if (recTeamId) { const b = recTeamId; recTeamId = null; openTeamHome(b); }
+    else if (currentTeamId) openTeamHome(currentTeamId);
+    else openTeamSelect();
+    return;
+  }
   _isPoppingState = true;
   const state = (e && e.state) || { view: 'tournaments' };
   const target = state.view || 'tournaments';
