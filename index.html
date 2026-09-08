@@ -3756,6 +3756,12 @@ body.rec-view .net-status { display: none; }
   background: #f7fafd; color: var(--text-mid);
 }
 .tm-empty { text-align: center; color: var(--text-light); font-size: 13px; padding: 36px 12px; line-height: 1.9; }
+.tm-verify {
+  background: #FFF8E6; border: 1px solid #F0DCA8; border-radius: var(--radius);
+  padding: 13px 15px; margin-bottom: 18px; font-size: 12.5px; line-height: 1.8;
+}
+.tm-verify-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.tm-verify .tm-btn-sm { background: var(--white); }
 @media (max-width: 520px) {
   .tm-auth-wrap { padding: 26px 14px; }
   .tm-card { padding: 24px 20px; }
@@ -3993,6 +3999,7 @@ body.rec-view .net-status { display: none; }
     </div>
   </div>
   <div class="page-body">
+    <div class="tm-verify" id="tm-verify-select" style="display:none"></div>
     <div class="section-eyebrow">TEAMS</div>
     <div id="tm-team-list"></div>
     <div class="tm-card" style="max-width:420px;margin-top:22px">
@@ -4022,6 +4029,7 @@ body.rec-view .net-status { display: none; }
     </div>
   </div>
   <div class="page-body">
+    <div class="tm-verify" id="tm-verify-home" style="display:none"></div>
     <div class="section-eyebrow">TEAM</div>
     <div class="tm-home-title" id="tm-home-team-name"></div>
     <div class="tm-tabs">
@@ -4038,9 +4046,14 @@ body.rec-view .net-status { display: none; }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.09.08-5';
+const APP_VERSION = '2026.09.08-6';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.09.08-6', notes: [
+    'メールアドレスがまだ確認されていない場合に、画面上でお知らせするようにしました',
+    '確認メールの再送と、確認が済んだあとの反映がその場でできます',
+    '未確認のままでもご利用いただけますが、パスワードの再設定ができないためご注意ください'
+  ] },
   { v: '2026.09.08-5', notes: [
     'ScoreLink for Team で、記録した試合のスコアシートとボックススコアを表示できるようにしました',
     '試合一覧の「スコアシート」から開けます。得点推移グラフもそのまま出ます',
@@ -11866,6 +11879,65 @@ async function teamResetPassword() {
 function updateTeamAuthUI() {
   const label = currentUser ? (currentUser.displayName || currentUser.email || 'ユーザー') : '';
   document.querySelectorAll('.tm-user-name').forEach(el => { el.textContent = label; });
+  renderVerifyBanner();
+}
+
+// メールアドレスが未確認のままだと、パスワードを忘れたときに再設定できない
+// （登録時に打ち間違えていても気づけない）。使えなくはしないが、必ず気づけるようにする。
+// Google ログインは常に確認済みなので出ない
+let verifyBannerHidden = false;
+function renderVerifyBanner() {
+  const show = !!(currentUser && currentUser.email && !currentUser.emailVerified && !verifyBannerHidden);
+  ['tm-verify-select', 'tm-verify-home'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = show ? 'block' : 'none';
+    if (!show) return;
+    el.innerHTML = '<strong>メールアドレスがまだ確認されていません</strong>（' + esc(currentUser.email) + '）<br>'
+      + 'このままでもご利用いただけますが、パスワードを忘れたときの再設定ができません。'
+      + '届いた確認メールのリンクを開いてください。'
+      + '<div class="tm-verify-actions">'
+      + '<button class="tm-btn-sm" onclick="resendVerifyMail(this)">確認メールを再送</button>'
+      + '<button class="tm-btn-sm" onclick="recheckEmailVerified()">確認が済んだ</button>'
+      + '<button class="tm-btn-sm" onclick="hideVerifyBanner()">あとで</button>'
+      + '</div>';
+  });
+}
+
+function hideVerifyBanner() {
+  verifyBannerHidden = true;
+  renderVerifyBanner();
+}
+
+async function resendVerifyMail(btn) {
+  if (!currentUser) return;
+  if (btn) { btn.disabled = true; btn.textContent = '送信中...'; }
+  try {
+    await currentUser.sendEmailVerification();
+    showToast(currentUser.email + ' に確認メールを送りました');
+    // 連打すると Firebase 側で弾かれるので、しばらく押せなくしておく
+    if (btn) { btn.textContent = '送信しました'; setTimeout(() => { btn.disabled = false; btn.textContent = '確認メールを再送'; }, 60000); }
+  } catch (e) {
+    showToast(teamAuthErrorText(e));
+    if (btn) { btn.disabled = false; btn.textContent = '確認メールを再送'; }
+  }
+}
+
+async function recheckEmailVerified() {
+  if (!currentUser) return;
+  try {
+    // 確認状態はトークンに焼かれているので、読み直さないと変わらない
+    await currentUser.reload();
+    currentUser = auth.currentUser;
+    if (currentUser && currentUser.emailVerified) {
+      showToast('確認できました');
+      renderVerifyBanner();
+    } else {
+      showToast('まだ確認されていません。メール内のリンクを開いてからもう一度お試しください', 4000);
+    }
+  } catch (e) {
+    showToast(teamAuthErrorText(e));
+  }
 }
 
 // -------------------- 起動と画面遷移 --------------------
