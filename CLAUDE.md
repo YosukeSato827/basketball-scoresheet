@@ -12,7 +12,29 @@ Copy-Item "index.html" "hosting-public\index.html" -Force; firebase deploy --onl
 
 - 本番URL: https://molten-scorelink.web.app/ （協会への配布はこちら。恒久URL）
 - GitHub Pages: https://yosukesato827.github.io/basketball-scoresheet/
-- `hosting-public/` は配信用の作業フォルダ（.gitignore 済み）。index.html だけをコピーする
+- 実験用: https://molten-scorelink-dev.web.app/ （ScoreLink for Team。`-P dev` で配信）
+- `hosting-public/` は配信用の作業フォルダ（.gitignore 済み）。index.html だけをコピーする。
+  **本番と実験で共用しているので、配信の直前に必ず `Copy-Item` してから `-P` を指定する**
+
+### `firebase` コマンドが通らない（2026-09-08・原因未特定）
+
+このPCでは**どのターミナルからも `firebase` が実行できない**。
+`AppData\Roaming\npm\firebase.cmd` はファイルとして存在し（`Test-Path` = True）、
+同じ機械・同じ Node（v24.15.0）・同じ npm prefix なのに「認識されません」
+「Cannot find module」になる。`$env:Path` への追加も効かない。
+会社端末のセキュリティ製品による実行ブロックが疑わしいが確証なし。
+
+**`node` にフルパスを渡して回避する。** `node` は `C:\Program Files\nodejs\` にあり
+機械全体の PATH に入っているので、どのターミナルでも通る。
+
+```powershell
+node "C:\Users\004273\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js" deploy --only hosting -P dev
+```
+
+- **`--only` は必ず付ける。** 省くと dev では Storage 配信に失敗する（バケットが無い）
+- **`-P` を忘れると本番に飛ぶ。** `.firebaserc` の既定は `molten-scorelink`
+- **本番への `firebase deploy` は Claude 側の権限判定でブロックされる。**
+  本番のルール変更は Firebase コンソールの「ルール」タブに貼り付けて公開する運用
 
 **スマホ／クラウド（claude.ai/code）から作業する場合**：`firebase deploy` は洋輔さんのPCの
 Firebase 認証に依存しているため実行できない。push までで止めて、**GitHub Pages の方で実機確認**する
@@ -36,7 +58,7 @@ Windows のシステム時計を見る PowerShell 側を正とする。疑わし
 
 | 要素 | 内容 |
 |------|------|
-| Firestore | tournaments / games / roster_teams / brackets / timer_sync / app_config |
+| Firestore | 大会運営: tournaments / games / roster_teams / brackets / timer_sync / app_config<br>チーム向け: teams（配下に members / players / games）/ invites / users |
 | 認証 | Google ログイン。編集権限は `app_config/editors` のメール許可リスト |
 | Storage | `score_sheets/{gameId}/` に紙のスコアシート写真（US-EAST1・無料枠） |
 | 分析 | Google アナリティクス（gtag直接。測定ID `G-QB7HSCG2Z5`） |
@@ -221,6 +243,67 @@ iPhone の Chrome でタブ6個の状態で molten-scorelink.web.app（運営ペ
 1. エラー画面の状態表示（5項目）を控える。`直接通信テスト` と `認証の初期化` が要
 2. 応急処置は**ブラウザを完全に終了して開き直す**。タブは減らしておく
 
+## molten ScoreLink for Team（チーム向け・2026-09-08 に着手）
+
+チーム単位でスコアを記録するサービス。**大会運営側とはデータもルールも完全に別**。
+チームで取った記録は、そのチームのメンバーだけが見られる。
+
+### 環境と製品モードは別の軸にしてある
+
+| 変数 | 値 | 決まり方 |
+|------|-----|---------|
+| `APP_ENV` | `prod` / `dev` | ホスト名。`molten-scorelink-dev.*` なら dev |
+| `APP_MODE` | `assoc` / `team` | ホスト名 or `?mode=` or `?invite=` の有無 |
+
+**この2つを混ぜてはいけない。** 「dev だからチーム向け」にすると、チーム向けを本番に
+出すときに作り直しになる。**既定は必ず `prod` と `assoc`**で、dev と team の側を
+ホスト名で名指しする（「実験のつもりで本番を触る」事故のほうが高くつくため）。
+
+`?mode=assoc` を付ければ dev でも従来の大会画面を確認できる。
+GA の測定IDも環境ごとに分けてあるので、実験のアクセスは協会の分析データに混ざらない。
+
+### データの持ち方
+
+```
+teams/{teamId}                    name, ownerUid, createdAt
+teams/{teamId}/members/{uid}      email, displayName, role（owner/member）, joinedAt
+teams/{teamId}/players/roster     list: [{num, name}]   ← 名簿は1ドキュメントにまとめる
+teams/{teamId}/games/{gameId}     大会側の games と同じ形（pbpData ほか）
+invites/{token}                   teamId, teamName, role, createdBy, expiresAt
+users/{uid}                       teams: [{id, name, role}]  ← 所属チームの索引
+```
+
+- **所有者がパスに含まれるので、ルールは `isMember(teamId)` だけで足りる。**
+  公開範囲のフラグも要らない
+- **`users/{uid}` は索引にすぎない。** ここに偽の teamId を書いても権限は増えない
+  （開けるかは `teams/{id}/members/{uid}` の実在で決まる）
+- **招待トークンは `crypto.getRandomValues`（`generateInviteToken`）。**
+  `generateToken()` は `Math.random` なので招待には使わない
+- **`invites` は `get` だけ許可し `list` は禁止。** トークンの総当たり列挙を防ぐ
+
+### 記録・スコアシートは大会側と同じものを使う
+
+計算ロジックを二重に持たないための約束事。
+
+- 保存先だけ `recGameRef()` で切り替える。`recTeamId` が入っていればチーム側、
+  無ければ従来どおり `games/`
+- 記録画面（`openRecorder`）もスコアシート（`generate`）も**編集画面のフォームから
+  値を読む**作りなので、`fillEditorFromTeamGame()` で流し込んでから呼ぶ
+- スコアシート表示は `view-editor` をそのまま使う。**印刷（A4縦）のCSSがこの画面に
+  紐付いている**ので、別の画面を作ると印刷が効かなくなる
+- **`saveGame()` は必ずチーム側に分岐させる。** ここを通すと大会側の `games` に
+  迷子のドキュメントができる
+- `body.not-editor` は大会運営の許可リスト用のしくみ。チームは権限体系が別なので
+  `body.team-mode #view-editor .editor-only` で打ち消している
+
+### チームでは使えないもの（意図的）
+
+- **タイマー連携（TimerLink）** — 大会運営側のしくみ。Lambda も本番プロジェクトを向いている
+- **紙のスコアシート写真** — dev に Storage が無い（Spark／新規プロジェクトは Blaze 必須）
+- **記録中の再読み込みからの復帰** — `recSession` に保存しない（大会側の復元処理に
+  拾われるため）。記録は操作のたびに Firestore に書いているので、チームホームから
+  同じ試合を開き直せば続きから記録できる
+
 ## テスト
 
 `tests/` に jsdom ベースの検証スクリプト。**index.html から関数を抽出して実行**する方式なので、
@@ -232,12 +315,36 @@ node test-visibility.js "..\index.html"    # 個別実行
 node run-all.js                            # まとめて実行
 ```
 
-内容：公開範囲・トーナメント/リーグ・試合予定とLIVE表示・閲覧ページ描画。約160項目。
+内容：公開範囲・トーナメント/リーグ・試合予定とLIVE表示・閲覧ページ描画。約340項目。
+
+**`test-rules.js` だけは index.html ではなく `firestore.rules` を見る**（38項目）。
+本番のルールはコンソールへの貼り付け運用なので、手で書き換えたときに緩めてしまった
+ことを検出するのが目的。大会運営側が据え置きであること・チーム側が `isMember` 以外で
+読めないこと・`invites` が列挙できないこと・`email_verified` が必須であることを見る。
+
+**これは「Firestore が実際にそう振る舞うか」は確かめていない。**
+それには `@firebase/rules-unit-testing` と Firestore エミュレータが要り、
+エミュレータには **Java** が必要。この端末に Java が入っていないため未導入。
+Java を入れられる環境ができたら、この静的検査は残したうえで実挙動テストを足すこと。
 
 ## セキュリティルール
 
 `firestore.rules` / `storage.rules` を firebase.json に紐付け済み。デプロイは
 `firebase deploy --only firestore,storage`（`--dry-run` を付けると構文チェックだけ）。
+**本番への配信は Claude 側の権限で止められる**ので、コンソールの「ルール」タブに
+`firestore.rules` の中身を貼り付けて公開する。戻すときは `git show HEAD~1:firestore.rules`。
+
+**API キーにリファラ制限をかけてある（2026-09-08）。** 本番・dev とも
+Browser key の「アプリケーションの制限」を「ウェブサイト」にしてある。
+本番の許可ドメインは web.app / firebaseapp.com / **yosukesato827.github.io**（GitHub Pages。
+消すとそちらが止まる）。Firebase のウェブ用キーは公開前提の識別子なので**無効化してはいけない**が、
+無制限だと公開キーで Gemini などを叩かれるため制限は必要。
+
+**副作用として OCR（写真からのロスター読み込み）が止まっている。**
+原因は未確定で、リファラ制限か前払いクレジットの残高切れのどちらか。
+**エラー文の全文で切り分けること**（残高切れなら `Your prepayment credits are depleted`）。
+本筋の直し方はサーバー経由にすること。ブラウザから直接 Gemini を呼ぶ設計自体が
+キーを晒すので、リファラ制限は速度制限程度の効果しかない。
 
 コンソールを開かずに現行ルールを確認する方法（2026-08-16 に実施）：
 未ログインの curl でレスポンスコードを見る。**403＝ルールが拒否／404＝ルールは許可（対象が無いだけ）**。
@@ -266,6 +373,24 @@ curl -s -X DELETE "$B/score_sheets%2Fxxx%2Fy.jpg"  # 403 なら匿名の書き�
   写真URLを置かない設計に変える必要があり、アプリの改修を伴う
 
 ## 進行中のこと
+
+### チーム向けサービスの実験（2026-09-08〜）
+
+dev（`molten-scorelink-dev`）で ログイン → チーム作成 → 招待 → 試合記録 →
+スコアシート表示 まで通っている。本番の Hosting にはまだ出していない
+（変更履歴で協会の利用者に存在が見えるため。出すタイミングは事業判断）。
+
+残っている作業：
+
+- チームの試合の写真アップロード（`openSheetPhotoModal` ほかが `games` 直参照。
+  `recGameRef()` と同じ切り替えが要る）
+- 招待リンクの使い切り化（いまは期限内なら何人でも使える。Cloud Functions が要る）
+- メール確認の扱い（未確認でもチーム機能は使える。締めるかどうか未決）
+- 本番URL の決定（独立プロジェクトにするか、既存プロジェクトの2つ目のサイトにするか。
+  Hosting のマルチサイトは Blaze が要る）
+- 実験の運用（対象チーム、期間、見る指標）
+
+### 大会運営（済み）
 
 - **第61回全国高等専門学校体育大会（2026-08-29〜30）で実運用予定**。参加21チーム登録済み
   （男子12＝4ブロック×3、女子9。大会ID `oYw9D12X88cReAISgOiR`）
