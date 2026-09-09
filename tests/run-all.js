@@ -16,6 +16,7 @@ const files = [
   'test-league.js',        // 予選リーグの順位計算
   'test-league-editor.js', // リーグのブロック編集
   'test-photo-upload.js',  // スコアシート写真のアップロード（複数枚・進捗・継続）
+  'test-team-stats.js',    // ScoreLink for Team の成績集計と選手名簿
 ];
 
 let ng = 0;

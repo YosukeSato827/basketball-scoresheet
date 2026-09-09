@@ -3762,9 +3762,59 @@ body.rec-view .net-status { display: none; }
 }
 .tm-verify-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 .tm-verify .tm-btn-sm { background: var(--white); }
+
+/* 成績タブ。表はダッシュボードの .dash-table を借りるが、
+   .dash-table-wrap は overflow:hidden なので横に長い表は .tm-scroll-x に入れる */
+.tm-sec { margin-bottom: 26px; }
+.tm-sec-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.tm-sec-title {
+  font-size: 11px; font-weight: 600; color: var(--text-light);
+  letter-spacing: .1em; padding-left: 10px; border-left: 3px solid var(--blue);
+}
+.tm-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: 10px; margin-bottom: 24px; }
+.tm-kpi {
+  background: var(--white); border: 1px solid var(--border); border-top: 3px solid var(--blue);
+  border-radius: var(--radius); padding: 15px 8px; text-align: center;
+}
+.tm-kpi-val { font-size: 25px; font-weight: 600; color: var(--blue); line-height: 1.15; font-variant-numeric: tabular-nums; }
+.tm-kpi-label { font-size: 10.5px; color: var(--text-light); margin-top: 5px; letter-spacing: .04em; }
+.tm-scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow-sm); }
+.tm-scroll-x .dash-table { min-width: 520px; }
+.tm-res-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%; font-size: 12px; font-weight: 700;
+}
+.tm-res-win  { background: #E3F3E8; color: #1B7F3A; }
+.tm-res-lose { background: #FDECEA; color: #C62828; }
+.tm-res-draw { background: var(--border); color: var(--text-mid); }
+.tm-res-none { background: var(--border); color: var(--text-light); font-size: 10px; font-weight: 500; }
+.tm-clickable { cursor: pointer; }
+
+/* 選手名簿の行編集 */
+.tm-roster-rows { max-width: 460px; }
+.tm-roster-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.tm-roster-row input {
+  padding: 9px 10px; font-size: 13px; font-family: inherit; min-width: 0;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--white); color: var(--text);
+}
+.tm-roster-row input:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0,91,172,.10); }
+.tm-roster-row .tm-r-num  { width: 64px; flex: none; text-align: center; font-weight: 600; }
+.tm-roster-row .tm-r-name { flex: 1; }
+.tm-roster-row input.dup { border-color: #E0A0A0; background: #FDF3F2; }
+.tm-r-del {
+  flex: none; width: 30px; height: 30px; padding: 0; line-height: 1;
+  border: 1px solid var(--border); border-radius: 4px; background: none;
+  color: var(--text-light); cursor: pointer; font-size: 15px; font-family: inherit;
+}
+.tm-r-del:hover { border-color: #c9271f; color: #c9271f; }
+.tm-roster-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 12px 0 6px; max-width: 460px; }
+.tm-roster-count { font-size: 12px; color: var(--text-light); margin-left: auto; }
+.tm-roster-save { width: auto; padding: 11px 22px; margin-top: 14px; }
 @media (max-width: 520px) {
   .tm-auth-wrap { padding: 26px 14px; }
   .tm-card { padding: 24px 20px; }
+  .tm-kpi-val { font-size: 21px; }
 }
 </style>
 
@@ -4034,6 +4084,7 @@ body.rec-view .net-status { display: none; }
     <div class="tm-home-title" id="tm-home-team-name"></div>
     <div class="tm-tabs">
       <button class="tm-tab" data-tab="games" onclick="setTeamTab('games')">試合</button>
+      <button class="tm-tab" data-tab="stats" onclick="setTeamTab('stats')">成績</button>
       <button class="tm-tab" data-tab="players" onclick="setTeamTab('players')">選手</button>
       <button class="tm-tab" data-tab="members" onclick="setTeamTab('members')">メンバー</button>
     </div>
@@ -4046,9 +4097,18 @@ body.rec-view .net-status { display: none; }
 // =====================================================
 // アプリバージョン（プッシュのたびに更新）
 // =====================================================
-const APP_VERSION = '2026.09.08-6';
+const APP_VERSION = '2026.09.09-1';
 // バージョン履歴（新しいものを上に追加）
 const APP_CHANGELOG = [
+  { v: '2026.09.09-1', notes: [
+    'ScoreLink for Team に「成績」タブを追加しました',
+    'チームの通算成績（試合数・勝敗・勝率・平均得点／失点・得失点差）が一目で分かります',
+    '選手別の成績（出場試合数・総得点・平均得点・2P／3P／FT・ファウル）を総得点順／平均得点順で並べ替えられます',
+    'スタッツモードで記録した試合があれば、成功率やリバウンド・アシストなども出ます',
+    '試合結果の一覧から、そのままスコアシートを開けます',
+    '選手名簿を1人ずつの行で編集できるようにしました（追加・削除・背番号順の並べ替え）',
+    '背番号が重なっている行をその場で赤く示します。まとめて貼り付ける入力も残してあります'
+  ] },
   { v: '2026.09.08-6', notes: [
     'メールアドレスがまだ確認されていない場合に、画面上でお知らせするようにしました',
     '確認メールの再送と、確認が済んだあとの反映がその場でできます',
@@ -12116,6 +12176,9 @@ function openTeamHome(teamId) {
   currentTeamId   = teamId;
   currentTeamName = t.name;
   lastInviteUrl   = '';
+  // チームをまたぐ持ち越しを断つ。記録から戻ったときも読み直させる
+  teamStatsGames    = null;
+  teamRosterLoadedFor = null;
   showView('team-home');
   renderTeamHome();
 }
@@ -12131,10 +12194,13 @@ function renderTeamHome() {
   });
   if (teamHomeTab === 'members')      renderMembersTab();
   else if (teamHomeTab === 'players') renderPlayersTab();
+  else if (teamHomeTab === 'stats')   renderStatsTab();
   else                                renderGamesTab();
 }
 
 function setTeamTab(tab) {
+  // 名簿は入力途中でタブを移っても消えないように、画面の値を控えてから離れる
+  if (teamHomeTab === 'players' && tab !== 'players') syncRosterFromDOM();
   teamHomeTab = tab;
   renderTeamHome();
 }
@@ -12304,6 +12370,7 @@ async function createTeamGameAndRecord() {
       playersA: roster, playersB: [],
       pbpData: '', totalA: 0, totalB: 0,
       gameMode: 'scoresheet',
+      ourSide: 'A',   // 成績集計でどちらが自チームかを迷わないように明示しておく
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       createdBy: myUid()
     };
@@ -12416,6 +12483,238 @@ async function saveTeamGameFromEditor() {
   }
 }
 
+// -------------------- 成績 --------------------
+// チームの通算成績と選手別スタッツ。集計は大会側の関数をそのまま借りる
+// （parsePBP / buildState / computeGameFullStats）。数え方を二重に持たないため
+let teamStatsGames  = null;    // 成績タブで読み込んだ試合。並べ替えのたびには読み直さない
+let teamStatsMetric = 'pts';   // 'pts' | 'avg'
+
+// 自チームがどちら側か。試合は必ず A＝自チームで作るが、記録画面で
+// チーム名を入れ替えることもできるので、名前でも見て決める
+function teamGameSide(g, teamName) {
+  if (g && (g.ourSide === 'A' || g.ourSide === 'B')) return g.ourSide;
+  const nm = (teamName || '').trim();
+  if (nm && g) {
+    const a = (g.teamAName || '').trim();
+    const b = (g.teamBName || '').trim();
+    if (b === nm && a !== nm) return 'B';
+  }
+  return 'A';
+}
+
+// 通算成績を数え直す。保存済みの totalA/totalB ではなく pbpData を正とする
+// （スコアは常にクライアント側で再計算する、という全体の約束に合わせる）。
+// 記録が1件も無い試合は成績に入れない — 作っただけの試合が0-0の引き分けになるため
+function computeTeamSeasonStats(games, teamName) {
+  const summary = { games: 0, wins: 0, losses: 0, draws: 0, pf: 0, pa: 0 };
+  const players = {};
+  const results = [];
+  let hasShotDetail = false;   // 失敗の記録がある＝スタッツモードで取った試合がある
+  let hasTeamPlay   = false;   // REB / AST / STL / BLK / TO の記録がある
+  const SUM_KEYS = ['fgm2','fga2','fgm3','fga3','ftm','fta','oreb','dreb','ast','stl','blk','tov','fouls'];
+
+  for (const g of (games || [])) {
+    const side  = teamGameSide(g, teamName);
+    const opp   = ((side === 'A' ? g.teamBName : g.teamAName) || '').trim() || '相手';
+    const plays = parsePBP(g.pbpData || '');
+    let pf = null, pa = null;
+    if (plays.length) {
+      const st = buildState(plays);
+      const a  = st.qScore.A.reduce((x, y) => x + y, 0);
+      const b  = st.qScore.B.reduce((x, y) => x + y, 0);
+      pf = side === 'A' ? a : b;
+      pa = side === 'A' ? b : a;
+    } else if (g.totalA != null && g.totalB != null && (g.totalA || g.totalB)) {
+      // 記録画面を通さずに合計だけ入っている試合も勝敗には入れる
+      pf = side === 'A' ? g.totalA : g.totalB;
+      pa = side === 'A' ? g.totalB : g.totalA;
+    }
+
+    const rec = { id: g.id, date: g.gameDate || '', venue: g.venue || '', opp, pf, pa, result: null };
+    results.push(rec);
+    if (pf == null) continue;   // 記録なし。一覧には出すが成績には数えない
+
+    rec.result = pf > pa ? 'win' : pf < pa ? 'lose' : 'draw';
+    summary.games++;
+    summary.pf += pf;
+    summary.pa += pa;
+    if (rec.result === 'win')       summary.wins++;
+    else if (rec.result === 'lose') summary.losses++;
+    else                            summary.draws++;
+
+    if (!plays.length) continue;  // 個人成績は PBP のある試合だけ
+    for (const p of computeGameFullStats(plays, g.playersA, g.playersB)[side]) {
+      const key = String(p.num);
+      if (!players[key]) {
+        players[key] = { num: p.num, name: p.name || '', games: 0, pts: 0 };
+        SUM_KEYS.forEach(k => { players[key][k] = 0; });
+      }
+      const t = players[key];
+      if (p.name && !t.name) t.name = p.name;
+      // 名簿に載っているだけで出ていない選手は「出場」に数えない。
+      // 試合ごとに名簿がまるごと入るので、数えると全員が全試合出場になる
+      const played = p.pts > 0 || p.fga > 0 || p.fta > 0 || p.fouls > 0
+                  || p.reb > 0 || p.ast > 0 || p.stl > 0 || p.blk > 0 || p.tov > 0;
+      if (!played) continue;
+      t.games++;
+      t.pts += p.pts;
+      SUM_KEYS.forEach(k => { t[k] += p[k]; });
+      if (p.fga2 > p.fgm2 || p.fga3 > p.fgm3 || p.fta > p.ftm) hasShotDetail = true;
+      if (p.oreb || p.dreb || p.ast || p.stl || p.blk || p.tov) hasTeamPlay = true;
+    }
+  }
+  return { summary, players: Object.values(players), results, hasShotDetail, hasTeamPlay };
+}
+
+function renderTeamStatsHTML(data, teamName) {
+  const { summary: s, players, results, hasShotDetail, hasTeamPlay } = data;
+  const shortDate = (d) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || '');
+    return m ? `${+m[2]}/${+m[3]}` : (d || '—');
+  };
+  const pct  = (m, a) => a > 0 ? Math.round(m / a * 100) + '%' : '—';
+  const shot = (m, a) => hasShotDetail ? `${m}/${a}<span style="color:var(--text-light);font-size:11px"> ${pct(m, a)}</span>` : String(m);
+
+  // 試合結果は成績が無くても出す（作っただけの試合もここで見える）
+  const resultRows = results.map(r => {
+    const badge = r.result === 'win'  ? '<span class="tm-res-badge tm-res-win">○</span>'
+                : r.result === 'lose' ? '<span class="tm-res-badge tm-res-lose">●</span>'
+                : r.result === 'draw' ? '<span class="tm-res-badge tm-res-draw">△</span>'
+                : '<span class="tm-res-badge tm-res-none">—</span>';
+    const score = r.pf == null ? '<span style="color:var(--text-light)">記録なし</span>'
+      : `<strong${r.result === 'win' ? ' style="color:#1B7F3A"' : ''}>${r.pf}</strong> - ${r.pa}`;
+    return `<tr class="tm-clickable" onclick="openTeamGameSheet('${escAttr(r.id)}')">
+      <td class="num" style="white-space:nowrap">${esc(shortDate(r.date))}</td>
+      <td>${esc(r.opp)}</td>
+      <td class="num" style="white-space:nowrap">${score}</td>
+      <td class="num">${badge}</td>
+    </tr>`;
+  }).join('');
+  const resultSection = `
+    <div class="tm-sec">
+      <div class="tm-sec-head"><span class="tm-sec-title">試合結果</span>
+        <span class="tm-roster-count">行を押すとスコアシートが開きます</span></div>
+      <div class="tm-scroll-x"><table class="dash-table" style="min-width:320px"><thead><tr>
+        <th class="num" style="width:64px">日付</th><th>対戦相手</th>
+        <th class="num" style="width:90px">スコア</th><th class="num" style="width:52px">結果</th>
+      </tr></thead><tbody>${resultRows}</tbody></table></div>
+    </div>`;
+
+  if (s.games === 0) {
+    return '<div class="tm-empty">まだ記録のある試合がありません。<br>「試合」タブから記録を始めると、ここに成績が出ます。</div>'
+      + (results.length ? resultSection : '');
+  }
+
+  const avgF  = (s.pf / s.games).toFixed(1);
+  const avgA  = (s.pa / s.games).toFixed(1);
+  const diff  = s.pf - s.pa;
+  const rate  = Math.round(s.wins / s.games * 100);
+  const wl    = s.draws > 0 ? `${s.wins}-${s.losses}-${s.draws}` : `${s.wins}-${s.losses}`;
+  const kpis = [
+    [s.games, '試合'],
+    [wl, s.draws > 0 ? '勝-負-分' : '勝-負'],
+    [rate + '%', '勝率'],
+    [avgF, '平均得点'],
+    [avgA, '平均失点'],
+    [(diff >= 0 ? '+' : '') + diff, '得失点差']
+  ].map(([v, l]) => `<div class="tm-kpi"><div class="tm-kpi-val">${esc(String(v))}</div><div class="tm-kpi-label">${l}</div></div>`).join('');
+
+  const getVal = p => teamStatsMetric === 'avg' ? (p.games > 0 ? p.pts / p.games : 0) : p.pts;
+  const rows = players.slice().sort((a, b) =>
+    getVal(b) - getVal(a) || (parseInt(a.num, 10) || 0) - (parseInt(b.num, 10) || 0));
+  const playSum = k => rows.reduce((x, p) => x + p[k], 0);
+
+  const extraHead = hasTeamPlay
+    ? '<th class="num">REB</th><th class="num">AST</th><th class="num">STL</th><th class="num">BLK</th><th class="num">TO</th>' : '';
+  const extraCells = p => hasTeamPlay
+    ? `<td class="num">${p.oreb + p.dreb}</td><td class="num">${p.ast}</td><td class="num">${p.stl}</td><td class="num">${p.blk}</td><td class="num">${p.tov}</td>` : '';
+
+  const playerRows = rows.map(p => {
+    const avg = p.games > 0 ? (p.pts / p.games).toFixed(1) : '—';
+    const off = p.games === 0 ? ' style="color:var(--text-light)"' : '';
+    return `<tr${off}>
+      <td><strong>${esc(p.num)}</strong></td>
+      <td>${esc(p.name) || '—'}</td>
+      <td class="num">${p.games}</td>
+      <td class="num"${teamStatsMetric === 'pts' ? ' style="font-weight:700;color:var(--blue)"' : ''}>${p.pts}</td>
+      <td class="num"${teamStatsMetric === 'avg' ? ' style="font-weight:700;color:var(--blue)"' : ''}>${avg}</td>
+      <td class="num">${shot(p.fgm2, p.fga2)}</td>
+      <td class="num">${shot(p.fgm3, p.fga3)}</td>
+      <td class="num">${shot(p.ftm, p.fta)}</td>
+      ${extraCells(p)}
+      <td class="num">${p.fouls}</td>
+    </tr>`;
+  }).join('');
+
+  return `
+    <div class="tm-kpis">${kpis}</div>
+
+    <div class="tm-sec">
+      <div class="tm-sec-head">
+        <span class="tm-sec-title">選手別成績（${teamStatsMetric === 'avg' ? '平均得点' : '総得点'}順）</span>
+        <div class="rank-switch">
+          <button class="rank-switch-btn ${teamStatsMetric === 'pts' ? 'active' : ''}" onclick="setTeamStatsMetric('pts')">総得点</button>
+          <button class="rank-switch-btn ${teamStatsMetric === 'avg' ? 'active' : ''}" onclick="setTeamStatsMetric('avg')">平均得点</button>
+        </div>
+      </div>
+      ${rows.length === 0 ? '<div class="tm-empty">選手別の記録がありません</div>' : `
+      <div class="tm-scroll-x"><table class="dash-table"><thead><tr>
+        <th style="width:40px">#</th><th>選手</th>
+        <th class="num" style="width:46px">試合</th>
+        <th class="num" style="width:52px">得点</th>
+        <th class="num" style="width:52px">平均</th>
+        <th class="num">2P</th><th class="num">3P</th><th class="num">FT</th>
+        ${extraHead}
+        <th class="num" style="width:44px">PF</th>
+      </tr></thead>
+      <tbody>${playerRows}</tbody>
+      <tfoot><tr>
+        <td colspan="2">合計</td>
+        <td class="num">${s.games}</td>
+        <td class="num"><strong>${s.pf}</strong></td>
+        <td class="num">${(s.pf / s.games).toFixed(1)}</td>
+        <td class="num">${shot(playSum('fgm2'), playSum('fga2'))}</td>
+        <td class="num">${shot(playSum('fgm3'), playSum('fga3'))}</td>
+        <td class="num">${shot(playSum('ftm'), playSum('fta'))}</td>
+        ${hasTeamPlay ? `<td class="num">${playSum('oreb') + playSum('dreb')}</td><td class="num">${playSum('ast')}</td><td class="num">${playSum('stl')}</td><td class="num">${playSum('blk')}</td><td class="num">${playSum('tov')}</td>` : ''}
+        <td class="num">${playSum('fouls')}</td>
+      </tr></tfoot></table></div>`}
+      <div class="tm-note" style="margin:10px 0 0">
+        ${hasShotDetail
+          ? '2P・3P・FT は「成功数／試投数 成功率」です。'
+          : '2P・3P・FT は成功数です。シュートの試投まで記録した試合があると、成功率も出ます。'}
+        「試合」の数は、その選手の記録が1つでもある試合の数です。
+      </div>
+    </div>
+
+    ${resultSection}`;
+}
+
+async function renderStatsTab() {
+  const body = document.getElementById('tm-tab-body');
+  if (!body) return;
+  if (!teamStatsGames) {
+    body.innerHTML = '<div class="tm-empty">読み込み中...</div>';
+    const games = [];
+    try {
+      const snap = await withTimeout(teamGamesCol().orderBy('gameDate', 'desc').get(), 10000);
+      snap.forEach(d => games.push(Object.assign({ id: d.id }, d.data())));
+    } catch (e) {
+      body.innerHTML = '<div class="tm-empty">成績を読み込めませんでした<br>' + esc(e.message) + '</div>';
+      return;
+    }
+    teamStatsGames = games;
+    if (teamHomeTab !== 'stats') return;   // 読んでいる間にタブを移られた
+  }
+  body.innerHTML = renderTeamStatsHTML(computeTeamSeasonStats(teamStatsGames, currentTeamName), currentTeamName);
+}
+
+// 並べ替えの切り替えは読み込み済みの試合から描き直す（Firestore は読まない）
+function setTeamStatsMetric(metric) {
+  teamStatsMetric = metric;
+  if (teamHomeTab === 'stats') renderStatsTab();
+}
+
 // -------------------- 選手名簿 --------------------
 // 1人1ドキュメントにすると読み書きが人数ぶん増えるので、名簿は1件にまとめる。
 // 中身の形（num / name）は大会側の parsePlayers と共通
@@ -12423,31 +12722,167 @@ function teamRosterRef() {
   return db.collection('teams').doc(currentTeamId).collection('players').doc('roster');
 }
 
+let teamRosterList     = [];     // 編集中の名簿 [{num,name}]
+let teamRosterLoadedFor = null;  // 読み込み済みのチームID。タブを往復しても読み直さない
+let teamRosterMode     = 'rows'; // 'rows'（1人1行）| 'text'（まとめて貼り付け）
+
+// 保存前の整え方をここに閉じる。背番号がスコアシートの鍵なので、
+// 番号のない行は保存しない。重複は先に書いたほうを残す
+function normalizeRoster(list) {
+  const kept = [], dup = [], seen = new Set();
+  let noNum = 0;
+  for (const p of (list || [])) {
+    const num  = String(p && p.num  != null ? p.num  : '').trim();
+    const name = String(p && p.name != null ? p.name : '').trim();
+    if (!num && !name) continue;          // 空行は黙って捨てる
+    if (!num) { noNum++; continue; }
+    if (seen.has(num)) { dup.push(num); continue; }
+    seen.add(num);
+    kept.push({ num, name });
+  }
+  return { list: kept, dup: Array.from(new Set(dup)), noNum };
+}
+
+// 背番号の重複を画面で示すための一覧（保存しなくても分かるように）
+function rosterDupNums(list) {
+  const seen = new Set(), dup = new Set();
+  for (const p of (list || [])) {
+    const num = String(p && p.num != null ? p.num : '').trim();
+    if (!num) continue;
+    if (seen.has(num)) dup.add(num); else seen.add(num);
+  }
+  return dup;
+}
+
 async function renderPlayersTab() {
   const body = document.getElementById('tm-tab-body');
   if (!body) return;
-  body.innerHTML = '<div class="tm-empty">読み込み中...</div>';
-  let list = [];
-  try {
-    const doc = await withTimeout(teamRosterRef().get(), 10000);
-    if (doc.exists && Array.isArray(doc.data().list)) list = doc.data().list;
-  } catch (e) {
-    body.innerHTML = '<div class="tm-empty">名簿を読み込めませんでした<br>' + esc(e.message) + '</div>';
+  if (teamRosterLoadedFor !== currentTeamId) {
+    body.innerHTML = '<div class="tm-empty">読み込み中...</div>';
+    try {
+      const doc = await withTimeout(teamRosterRef().get(), 10000);
+      teamRosterList = (doc.exists && Array.isArray(doc.data().list)) ? doc.data().list.slice() : [];
+    } catch (e) {
+      body.innerHTML = '<div class="tm-empty">名簿を読み込めませんでした<br>' + esc(e.message) + '</div>';
+      return;
+    }
+    teamRosterLoadedFor = currentTeamId;
+    if (teamHomeTab !== 'players') return;   // 読んでいる間にタブを移られた
+  }
+  renderRosterEditor();
+}
+
+function renderRosterEditor() {
+  const body = document.getElementById('tm-tab-body');
+  if (!body) return;
+  const note = '<div class="tm-note">背番号と名前を入れてください。この名簿は試合を作るときに'
+    + '自チームの選手として自動で入ります（大会側のロスターとは別の持ち物です）。</div>';
+
+  if (teamRosterMode === 'text') {
+    body.innerHTML = note
+      + '<div class="tm-card" style="max-width:460px">'
+      + '<label class="tm-field"><span>1行に「背番号 名前」（例：4 佐藤 洋輔）</span>'
+      + '<textarea id="tm-roster-text" placeholder="4 佐藤 洋輔&#10;5 田中 太郎"></textarea></label>'
+      + '<div class="tm-roster-actions" style="margin:0">'
+      + '<button class="tm-btn-sm tm-btn-go" onclick="setRosterMode(\'rows\')">1人ずつ編集に戻す</button></div>'
+      + '<button class="tm-btn-primary tm-roster-save" id="tm-roster-save" onclick="saveTeamRoster()">名簿を保存</button>'
+      + '</div>';
+    document.getElementById('tm-roster-text').value = playersToText(teamRosterList);
     return;
   }
-  body.innerHTML = '<div class="tm-note">1行に「背番号 名前」で入力してください（例：<code>4 佐藤 洋輔</code>）。'
-    + 'この名簿はチームの持ち物で、大会側のロスターとは別に管理されます。</div>'
-    + '<div class="tm-card" style="max-width:460px">'
-    + '<label class="tm-field"><span>選手</span><textarea id="tm-roster-text" placeholder="4 佐藤 洋輔&#10;5 田中 太郎"></textarea></label>'
-    + '<button class="tm-btn-primary" id="tm-roster-save" onclick="saveTeamRoster()">名簿を保存</button>'
-    + '</div>';
-  document.getElementById('tm-roster-text').value = playersToText(list);
+
+  const dup = rosterDupNums(teamRosterList);
+  const rows = teamRosterList.map((p, i) => {
+    const num = String(p && p.num != null ? p.num : '');
+    const bad = num.trim() && dup.has(num.trim()) ? ' dup' : '';
+    return '<div class="tm-roster-row">'
+      + '<input class="tm-r-num' + bad + '" type="text" inputmode="numeric" maxlength="3" aria-label="背番号" '
+      +   'value="' + escAttr(num) + '" placeholder="#" onchange="onRosterInput()">'
+      + '<input class="tm-r-name" type="text" aria-label="名前" '
+      +   'value="' + escAttr(String(p && p.name != null ? p.name : '')) + '" placeholder="名前" onchange="onRosterInput()">'
+      + '<button class="tm-r-del" title="この行を削除" onclick="removeRosterRow(' + i + ')">×</button>'
+      + '</div>';
+  }).join('');
+
+  body.innerHTML = note
+    + '<div class="tm-roster-rows">'
+    + (rows || '<div class="tm-empty" style="padding:18px 12px">まだ選手がいません。「行を追加」から入れてください。</div>')
+    + '</div>'
+    + '<div class="tm-roster-actions">'
+    + '<button class="tm-btn-sm tm-btn-go" onclick="addRosterRow()">行を追加</button>'
+    + '<button class="tm-btn-sm tm-btn-go" onclick="sortRosterByNum()">背番号順に並べる</button>'
+    + '<button class="tm-btn-sm tm-btn-go" onclick="setRosterMode(\'text\')">まとめて貼り付け</button>'
+    + '<span class="tm-roster-count" id="tm-roster-count">' + teamRosterList.length + '人'
+    + (dup.size ? '　<span style="color:#C62828">背番号の重複あり</span>' : '') + '</span>'
+    + '</div>'
+    + '<button class="tm-btn-primary tm-roster-save" id="tm-roster-save" onclick="saveTeamRoster()">名簿を保存</button>';
+}
+
+// 画面の入力値を teamRosterList に写す。行の追加・削除・並べ替え・タブ移動の前に必ず通す
+function syncRosterFromDOM() {
+  if (teamRosterMode === 'text') {
+    const ta = document.getElementById('tm-roster-text');
+    if (ta) teamRosterList = parsePlayers(ta.value);
+    return;
+  }
+  const rows = document.querySelectorAll('#tm-tab-body .tm-roster-row');
+  if (!rows.length) return;   // まだ描かれていない（読み込み中など）ときは触らない
+  const list = [];
+  rows.forEach(r => {
+    const n = r.querySelector('.tm-r-num'), nm = r.querySelector('.tm-r-name');
+    list.push({ num: (n ? n.value : '').trim(), name: (nm ? nm.value : '').trim() });
+  });
+  teamRosterList = list;
+}
+
+// 入力のたびに行を作り直してはいけない。背番号から名前へ移るだけで onchange が
+// 走るので、描き直すとその場でフォーカスが飛ぶ。色と人数だけ塗り替える
+function onRosterInput() {
+  syncRosterFromDOM();
+  updateRosterHints();
+}
+
+function updateRosterHints() {
+  const dup = rosterDupNums(teamRosterList);
+  document.querySelectorAll('#tm-tab-body .tm-roster-row .tm-r-num').forEach(el => {
+    const v = (el.value || '').trim();
+    el.classList.toggle('dup', !!v && dup.has(v));
+  });
+  const c = document.getElementById('tm-roster-count');
+  if (c) c.innerHTML = teamRosterList.length + '人'
+    + (dup.size ? '　<span style="color:#C62828">背番号の重複あり</span>' : '');
+}
+
+function addRosterRow() {
+  syncRosterFromDOM();
+  teamRosterList.push({ num: '', name: '' });
+  renderRosterEditor();
+  const nums = document.querySelectorAll('#tm-tab-body .tm-r-num');
+  if (nums.length) nums[nums.length - 1].focus();
+}
+
+function removeRosterRow(i) {
+  syncRosterFromDOM();
+  teamRosterList.splice(i, 1);
+  renderRosterEditor();
+}
+
+function sortRosterByNum() {
+  syncRosterFromDOM();
+  teamRosterList.sort((a, b) => (parseInt(a.num, 10) || 999) - (parseInt(b.num, 10) || 999));
+  renderRosterEditor();
+}
+
+function setRosterMode(mode) {
+  syncRosterFromDOM();
+  teamRosterMode = mode;
+  renderRosterEditor();
 }
 
 async function saveTeamRoster() {
-  const text = document.getElementById('tm-roster-text').value || '';
-  const list = parsePlayers(text);
-  const btn  = document.getElementById('tm-roster-save');
+  syncRosterFromDOM();
+  const { list, dup, noNum } = normalizeRoster(teamRosterList);
+  const btn = document.getElementById('tm-roster-save');
   if (btn) { btn.disabled = true; btn.textContent = '保存中...'; }
   try {
     await teamRosterRef().set({
@@ -12455,7 +12890,14 @@ async function saveTeamRoster() {
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       updatedBy: myUid()
     }, { merge: true });
-    showToast(list.length + '人を保存しました');
+    teamRosterList = list;
+    // 捨てた行は黙って消さずに知らせる
+    const warn = [];
+    if (dup.length) warn.push('背番号が重なった ' + dup.join('・') + ' は1人だけ残しました');
+    if (noNum)      warn.push('背番号のない ' + noNum + '行は保存していません');
+    showToast(list.length + '人を保存しました' + (warn.length ? '（' + warn.join('、') + '）' : ''),
+              warn.length ? 5000 : 2500);
+    renderRosterEditor();
   } catch (e) {
     showToast('保存できませんでした: ' + e.message);
   } finally {
